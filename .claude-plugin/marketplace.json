@@ -12,7 +12,8 @@
       "source": "./",
       "skills": [
         "./skills/iterative-code-review",
-        "./skills/iterative-security-audit"
+        "./skills/iterative-security-audit",
+        "./skills/agent-context-loader"
       ]
     }
   ]
