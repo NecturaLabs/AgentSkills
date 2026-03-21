@@ -15,20 +15,20 @@ A curated collection of AI agent skills for Claude Code. Layers on top of [super
 
 ### Install Skills
 ```
-/plugin install necturalabs@necturalabs
+/plugin install necturalabs@necturalabs-skills
 ```
 
 After installation, skills are available as `necturalabs:<skill-name>`.
 
 ## Available Skills
 
-| Skill | Description | Auto-triggers |
-|-------|-------------|---------------|
-| `necturalabs:using-necturalabs` | Initializes all NecturaLabs skills, verifies dependencies, registers auto-triggers | Conversation start, agent changes |
-| `necturalabs:iterative-code-review` | Industry-standard code review (Google, Clean Code, SOLID, Fowler) — iterates until clean pass | After any agent changes |
-| `necturalabs:iterative-security-audit` | Security audit (OWASP, CWE, NIST, CERT) — iterates until clean pass, then triggers code review | When changes are security-related |
-| `necturalabs:agent-context-loader` | Loads global CLAUDE.md and project AGENTS.md into full context | Conversation start, agent changes |
-| `necturalabs:agents-md-manager` | Auto-creates or updates project AGENTS.md from codebase analysis | Conversation start, when project changes |
+| Skill | Auto-triggers |
+|-------|---------------|
+| **`using-necturalabs`** — Initializes all skills, verifies dependencies, registers auto-triggers | Conversation start, agent changes |
+| **`iterative-code-review`** — Code review (Google, Clean Code, SOLID, Fowler) until clean pass | After any agent changes |
+| **`iterative-security-audit`** — Security audit (OWASP, CWE, NIST, CERT) until clean, then code review | Security-related changes |
+| **`agent-context-loader`** — Loads global CLAUDE.md and project AGENTS.md into context | Conversation start, agent changes |
+| **`agents-md-manager`** — Auto-creates or updates project AGENTS.md from codebase analysis | Conversation start, project changes |
 
 ## How It Works
 
@@ -64,17 +64,15 @@ export ENABLE_LSP_TOOL=1
 
 ### 2. Install Language Server Binaries
 
-Install the language servers you need:
-
-| Language | Install Command |
-|----------|----------------|
-| TypeScript/JS | `npm i -g typescript-language-server typescript` |
-| Python | `npm i -g pyright` or `pip install pyright` |
-| Go | `go install golang.org/x/tools/gopls@latest` |
-| Rust | `rustup component add rust-analyzer` |
-| C# | `dotnet tool install -g csharp-ls` |
-| C/C++ | Install `clangd` via LLVM (`brew install llvm` / `choco install llvm` / `apt install clangd`) |
-| Lua | Install `lua-language-server` (`brew install lua-language-server` / download from GitHub releases) |
+| Language | Install |
+|----------|---------|
+| **TypeScript/JS** | `npm i -g typescript-language-server typescript` |
+| **Python** | `npm i -g pyright` or `pip install pyright` |
+| **Go** | `go install golang.org/x/tools/gopls@latest` |
+| **Rust** | `rustup component add rust-analyzer` |
+| **C#** | `dotnet tool install -g csharp-ls` |
+| **C/C++** | Install `clangd` via LLVM (`brew install llvm` / `choco install llvm` / `apt install clangd`) |
+| **Lua** | `brew install lua-language-server` or download from GitHub releases |
 
 ### 3. Install and Enable Plugins
 
@@ -103,10 +101,10 @@ Restart for changes to take effect. Verify in debug logs at `~/.claude/debug/lat
 
 | Problem | Fix |
 |---------|-----|
-| LSP tool not available | Ensure `ENABLE_LSP_TOOL=1` in settings.json, restart |
-| Plugin not found | Run `claude plugin marketplace update claude-plugins-official` |
-| Plugin disabled after install | Run `claude plugin enable <name>`, restart |
-| Binary not found | Verify with `which <binary>` (e.g. `which pyright-langserver`), ensure it's in PATH |
+| **LSP tool not available** | Ensure `ENABLE_LSP_TOOL=1` in settings.json, restart |
+| **Plugin not found** | Run `claude plugin marketplace update claude-plugins-official` |
+| **Plugin disabled** | Run `claude plugin enable <name>`, restart |
+| **Binary not found** | Verify with `which <binary>`, ensure it's in PATH |
 
 ### LSP Capabilities
 
