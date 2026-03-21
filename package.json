@@ -1,0 +1,29 @@
+{
+  "name": "necturalabs-agent-skills",
+  "version": "1.0.0",
+  "description": "Industry-standard code review, security auditing, and project management skills for AI coding agents",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NecturaLabs/AgentSkills.git"
+  },
+  "homepage": "https://github.com/NecturaLabs/AgentSkills",
+  "keywords": [
+    "claude-code",
+    "agent-skills",
+    "code-review",
+    "security-audit",
+    "owasp",
+    "clean-code"
+  ],
+  "scripts": {
+    "test": "bash tests/run-all.sh",
+    "test:skill-triggering": "bash tests/skill-triggering/run-all.sh",
+    "test:verbose": "bash tests/run-all.sh --verbose"
+  }
+}

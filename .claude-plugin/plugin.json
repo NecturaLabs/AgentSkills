@@ -1,0 +1,21 @@
+{
+  "name": "necturalabs",
+  "description": "Industry-standard code review, security auditing, and project management skills for AI coding agents. Complementary to superpowers.",
+  "version": "1.0.0",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "homepage": "https://github.com/NecturaLabs/AgentSkills",
+  "repository": "https://github.com/NecturaLabs/AgentSkills",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "code-review",
+    "security-audit",
+    "owasp",
+    "clean-code",
+    "best-practices",
+    "agent-skills"
+  ]
+}

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Session start hook -- injects using-necturalabs skill into agent context
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SKILL_FILE="$PLUGIN_ROOT/skills/using-necturalabs/SKILL.md"
+
+if [ ! -f "$SKILL_FILE" ]; then
+    exit 0
+fi
+
+SKILL_CONTENT=$(cat "$SKILL_FILE")
+
+# JSON-escape the content
+SKILL_CONTENT="${SKILL_CONTENT//\\/\\\\}"
+SKILL_CONTENT="${SKILL_CONTENT//\"/\\\"}"
+SKILL_CONTENT="${SKILL_CONTENT//$'\n'/\\n}"
+SKILL_CONTENT="${SKILL_CONTENT//$'\r'/}"
+SKILL_CONTENT="${SKILL_CONTENT//$'\t'/\\t}"
+
+# Detect platform and output appropriate format
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    # Cursor format
+    echo "{\"additional_context\": \"$SKILL_CONTENT\"}"
+else
+    # Claude Code format
+    echo "{\"hookSpecificOutput\": {\"additionalContext\": \"$SKILL_CONTENT\"}}"
+fi
