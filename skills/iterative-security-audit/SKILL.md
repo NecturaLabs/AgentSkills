@@ -1,13 +1,19 @@
 ---
 name: iterative-security-audit
-description: Use when code needs security review, before deployment, when auditing for vulnerabilities, checking for OWASP top 10 issues, reviewing authentication or authorization code, or validating input handling and data protection. Iterates until a clean pass with zero security findings.
+description: Use when code needs security review, before deployment, when auditing for vulnerabilities, or when changes touch authentication, authorization, cryptography, input validation, or data handling. Auto-triggers for security-related changes. Requires superpowers plugin. Iterates until clean, then triggers code review.
 ---
 
 # Iterative Security Audit
 
 ## Overview
 
-Perform thorough, iterative security audits that continue until all vulnerabilities are resolved and a clean pass is achieved. Automatically infers audit scope from context.
+Security audit against OWASP Top 10, CWE/SANS Top 25, NIST SSDF, and CERT Secure Coding Standards. All findings must be verified against online references and codebase context. After the audit loop completes, a full code review loop runs on all changes. Only after BOTH loops are clean does the user get a summary.
+
+<HARD-GATE>
+This skill REQUIRES `superpowers` to be installed. If not available, tell the user:
+"Install superpowers first: `/plugin marketplace add obra/superpowers` then `/plugin install superpowers@superpowers-dev`"
+Do NOT proceed without it.
+</HARD-GATE>
 
 ## Scope Detection
 
@@ -17,107 +23,172 @@ digraph scope {
     "Uncommitted changes?" [shape=diamond];
     "Audit diff" [shape=box];
     "Recent branch commits?" [shape=diamond];
-    "Audit branch commits" [shape=box];
-    "User specified scope?" [shape=diamond];
-    "Audit specified scope" [shape=box];
+    "Audit branch" [shape=box];
+    "User specified?" [shape=diamond];
+    "Audit specified" [shape=box];
     "Ask user" [shape=box];
 
     "Start" -> "Uncommitted changes?";
     "Uncommitted changes?" -> "Audit diff" [label="yes"];
     "Uncommitted changes?" -> "Recent branch commits?" [label="no"];
-    "Recent branch commits?" -> "Audit branch commits" [label="yes"];
-    "Recent branch commits?" -> "User specified scope?" [label="no"];
-    "User specified scope?" -> "Audit specified scope" [label="yes"];
-    "User specified scope?" -> "Ask user" [label="no"];
+    "Recent branch commits?" -> "Audit branch" [label="yes"];
+    "Recent branch commits?" -> "User specified?" [label="no"];
+    "User specified?" -> "Audit specified" [label="yes"];
+    "User specified?" -> "Ask user" [label="no"];
 }
 ```
 
-1. Check `git diff` and `git diff --staged` for uncommitted changes
-2. If none, check `git log` for recent commits on current branch vs base branch
-3. If user specified files or directories, use that scope
-4. If ambiguous, ask: "Should I audit recent changes or the full codebase?"
+1. `git diff` + `git diff --staged` for uncommitted changes
+2. `git log` for branch commits vs base
+3. User-specified scope
+4. If ambiguous: **ask the user** — never guess
 
-## Audit Process
+## Full Process
 
 ```dot
 digraph audit {
     "Determine scope" [shape=box];
-    "Read code in scope" [shape=box];
-    "Analyze against security checklist" [shape=box];
-    "Vulnerabilities found?" [shape=diamond];
-    "Report findings" [shape=box];
-    "Wait for remediation" [shape=box];
-    "Re-audit changes only" [shape=box];
-    "Clean pass" [shape=doublecircle];
+    "Run security audit loop" [shape=box];
+    "Audit clean?" [shape=diamond];
+    "Report + fix" [shape=box];
+    "Re-audit changes" [shape=box];
+    "Run code review loop" [shape=box];
+    "Review clean?" [shape=diamond];
+    "Report + fix" [shape=box, label="Report + fix (review)"];
+    "Re-review changes" [shape=box];
+    "Combined summary" [shape=doublecircle];
 
-    "Determine scope" -> "Read code in scope";
-    "Read code in scope" -> "Analyze against security checklist";
-    "Analyze against security checklist" -> "Vulnerabilities found?";
-    "Vulnerabilities found?" -> "Report findings" [label="yes"];
-    "Vulnerabilities found?" -> "Clean pass" [label="no"];
-    "Report findings" -> "Wait for remediation";
-    "Wait for remediation" -> "Re-audit changes only";
-    "Re-audit changes only" -> "Vulnerabilities found?";
+    "Determine scope" -> "Run security audit loop";
+    "Run security audit loop" -> "Audit clean?";
+    "Audit clean?" -> "Report + fix" [label="no"];
+    "Report + fix" -> "Re-audit changes";
+    "Re-audit changes" -> "Audit clean?";
+    "Audit clean?" -> "Run code review loop" [label="yes"];
+    "Run code review loop" -> "Review clean?";
+    "Review clean?" -> "Report + fix (review)" [label="no"];
+    "Report + fix (review)" -> "Re-review changes";
+    "Re-review changes" -> "Review clean?";
+    "Review clean?" -> "Combined summary" [label="yes"];
 }
 ```
 
-## Security Checklist
+**After security audit loop completes → invoke `necturalabs:iterative-code-review` on ALL changes (including audit remediations) with full context.**
 
-| Category | What to Check |
-|----------|---------------|
-| **Injection** | SQL injection, command injection, LDAP injection, template injection, header injection |
-| **XSS** | Reflected, stored, and DOM-based XSS; unsanitized output; missing encoding |
-| **Authentication** | Weak password handling, missing MFA, insecure session management, credential storage |
-| **Authorization** | Missing access controls, IDOR, privilege escalation, BOLA, broken function-level access |
-| **Data Exposure** | Secrets in code/config, verbose error messages, sensitive data in logs, PII leaks |
-| **Cryptography** | Weak algorithms (MD5/SHA1 for security), hardcoded keys, missing encryption at rest/in transit |
-| **Input Validation** | Missing validation, insufficient sanitization, type coercion abuse, path traversal |
-| **Deserialization** | Unsafe deserialization, prototype pollution, arbitrary object instantiation |
-| **Dependencies** | Known CVEs, outdated packages, unnecessary dependencies, typosquatting risk |
-| **Configuration** | Debug mode in production, permissive CORS, missing security headers, default credentials |
-| **Rate Limiting** | Missing rate limits on auth endpoints, brute-force vectors, API abuse surfaces |
-| **File Handling** | Unrestricted upload types/sizes, path traversal in file ops, insecure temp files |
+## Security Checklist (Summary)
 
-## Reporting Format
+Full detailed checklist: `references/security-checklist.md`
 
-For each finding:
+### OWASP Top 10 (2021)
 
+| Category | Severity | Key CWEs |
+|----------|----------|----------|
+| A01: Broken Access Control | Critical | CWE-200, 352, 862, 863, 639, 22 |
+| A02: Cryptographic Failures | Critical | CWE-259, 327, 328, 330, 916 |
+| A03: Injection | Critical | CWE-79, 89, 78, 94 |
+| A04: Insecure Design | High | CWE-209, 522, 434 |
+| A05: Security Misconfiguration | High | CWE-16, 611, 942 |
+| A06: Vulnerable Components | High | CWE-1104 |
+| A07: Auth Failures | High | CWE-287, 384, 307, 798 |
+| A08: Integrity Failures | High | CWE-502, 829, 915 |
+| A09: Logging Failures | Medium | CWE-778, 532 |
+| A10: SSRF | High | CWE-918 |
+
+### CWE/SANS Top 25 (2025) — Top 10
+
+| Rank | CWE | Weakness | KEV CVEs |
+|------|-----|----------|----------|
+| 1 | CWE-79 | Cross-site Scripting | 7 |
+| 2 | CWE-89 | SQL Injection | 4 |
+| 3 | CWE-352 | CSRF | 0 |
+| 4 | CWE-862 | Missing Authorization | 0 |
+| 5 | CWE-787 | Out-of-bounds Write | 12 |
+| 6 | CWE-22 | Path Traversal | 10 |
+| 7 | CWE-416 | Use After Free | 14 |
+| 8 | CWE-125 | Out-of-bounds Read | 3 |
+| 9 | CWE-78 | OS Command Injection | 20 |
+| 10 | CWE-94 | Code Injection | 7 |
+
+## How to Audit
+
+For each file in scope:
+1. Read the code
+2. Check against EVERY category in `references/security-checklist.md`
+3. For each potential finding, **verify it's real** — check codebase context, look for existing mitigations
+4. If unsure whether something is a vulnerability: **ASK the user** — never skip
+5. Cross-reference CWE IDs for accurate classification
+6. Check online for latest guidance if the pattern is ambiguous
+
+## After Audit Loop → Code Review Loop
+
+When the audit loop is clean, dispatch `necturalabs:iterative-code-review` with:
+- Scope = ALL changes made during the security audit (remediations)
+- Full context loaded (re-read changed files)
+- The code review runs its own iterative loop until clean
+
+Only after BOTH loops complete, present the combined summary.
+
+## Reporting
+
+Keep ALL output short and concise.
+
+### Per-Finding Format
 ```
-**[SEVERITY] OWASP Category: Brief description**
-File: path/to/file.ext:line
-Vulnerability: What's wrong and how it can be exploited
-Remediation: How to fix (with code example when helpful)
-CWE: CWE-XXX (if applicable)
+[SEVERITY] CWE-XXX Category: description — file:line
+  Remediation: [one-line fix guidance]
 ```
 
-Severities:
-- **CRITICAL** — Actively exploitable, immediate risk (RCE, SQLi, auth bypass)
-- **HIGH** — Exploitable with moderate effort (XSS, IDOR, data exposure)
-- **MEDIUM** — Defense-in-depth gap (missing headers, weak crypto, verbose errors)
-- **LOW** — Hardening opportunity (missing rate limits, informational leaks)
-
-## Clean Pass Criteria
-
-A clean pass requires:
-- Zero CRITICAL or HIGH findings
-- All MEDIUM findings acknowledged or remediated
-- LOW findings documented for future hardening
-
-Report: **"Security audit clean — no vulnerabilities found"** when complete.
+### Severities
+- **CRITICAL** — Actively exploitable (RCE, SQLi, auth bypass). Immediate fix.
+- **HIGH** — Exploitable with effort (XSS, IDOR, data exposure). Must fix.
+- **MEDIUM** — Defense-in-depth gap (missing headers, weak crypto). Should fix.
+- **LOW** — Hardening opportunity (verbose errors, rate limits). Document.
+- **INFO** — Educational note, no action needed.
 
 ## Iteration Rules
 
-- Each iteration audits ONLY the remediation changes, not the full scope again
-- New vulnerabilities introduced by fixes count as new findings
-- Maximum 5 iterations — if not clean by then, summarize remaining issues and stop
-- Track iteration count: "Security audit iteration 2/5"
-- If a fix introduces a NEW critical vulnerability, flag it immediately — do not wait for next iteration
-- If the same vulnerability reappears after remediation, escalate its severity one level
+- Each iteration audits ONLY remediation changes
+- New vulnerabilities from fixes = new findings
+- Recurring vulnerability after fix = escalate severity
+- **Max 5 iterations per loop** (audit and review each)
+- Track: "Security audit iteration 2/5"
+- If a fix introduces a NEW critical vulnerability: **flag immediately**
+- **Never skip, delay, or postpone ANY finding** no matter how small
+- **Double-check every finding** against codebase and online references
+
+## Combined Summary (after BOTH loops clean)
+
+```
+## Security Audit: Score X/100
+## Code Review: Score Y/100
+
+**Positives**
+- [concise bullet]
+
+**Negatives**
+- [concise bullet]
+
+**Informational**
+- [optional notes]
+
+**Changes Made**
+- [what was fixed, one line each]
+```
+
+Security score: 90-100 hardened, 70-89 solid, 50-69 gaps exist, <50 significant risk.
 
 ## Key Principles
 
-- **Assume hostile input** — All external data is untrusted until validated
-- **Defense in depth** — Multiple layers of protection, never a single point of failure
-- **Least privilege** — Grant minimum permissions necessary
-- **Fail secure** — Errors deny access by default, never grant it
-- **No security by obscurity** — Security must not depend on hidden implementation details
+- **Assume hostile input** — all external data untrusted
+- **Defense in depth** — multiple layers, no single point of failure
+- **Least privilege** — minimum permissions needed
+- **Fail secure** — errors deny access, never grant
+- **No security by obscurity**
+
+## Anti-Laziness Rules
+
+- **Check EVERY OWASP category** — don't stop at the first finding
+- **Verify every finding is real** — no phantom issues
+- **If unsure, ASK the user** — never skip or guess
+- **Cross-reference CWE IDs** for accurate classification
+- **Check online for latest vulnerability patterns** when ambiguous
+- **Never mark a finding as LOW to avoid work** — severity = actual risk

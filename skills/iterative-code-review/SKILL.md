@@ -1,13 +1,19 @@
 ---
 name: iterative-code-review
-description: Use when code changes need quality review, after implementing features, before committing or merging, or when validating code quality across the codebase. Iterates until a clean pass with zero findings.
+description: Use when code changes need quality review, after implementing features, before committing or merging, or when validating code quality. Auto-triggers after any agent changes. Requires superpowers plugin. Iterates until a clean pass with zero findings.
 ---
 
 # Iterative Code Review
 
 ## Overview
 
-Perform thorough, iterative code reviews that continue until all issues are resolved and a clean pass is achieved. Automatically infers review scope from context.
+Industry-standard code review powered by `superpowers:code-reviewer`. Reviews against Google Engineering Practices, Clean Code (Robert C. Martin), SOLID principles, Martin Fowler's code smells, and testing standards from Google SWE Book, Kent Beck, and Microsoft. Iterates until clean.
+
+<HARD-GATE>
+This skill REQUIRES `superpowers` to be installed. If not available, tell the user:
+"Install superpowers first: `/plugin marketplace add obra/superpowers` then `/plugin install superpowers@superpowers-dev`"
+Do NOT proceed without it.
+</HARD-GATE>
 
 ## Scope Detection
 
@@ -17,95 +23,144 @@ digraph scope {
     "Uncommitted changes?" [shape=diamond];
     "Review diff" [shape=box];
     "Recent branch commits?" [shape=diamond];
-    "Review branch commits" [shape=box];
-    "User specified scope?" [shape=diamond];
-    "Review specified scope" [shape=box];
+    "Review branch" [shape=box];
+    "User specified?" [shape=diamond];
+    "Review specified" [shape=box];
     "Ask user" [shape=box];
 
     "Start" -> "Uncommitted changes?";
     "Uncommitted changes?" -> "Review diff" [label="yes"];
     "Uncommitted changes?" -> "Recent branch commits?" [label="no"];
-    "Recent branch commits?" -> "Review branch commits" [label="yes"];
-    "Recent branch commits?" -> "User specified scope?" [label="no"];
-    "User specified scope?" -> "Review specified scope" [label="yes"];
-    "User specified scope?" -> "Ask user" [label="no"];
+    "Recent branch commits?" -> "Review branch" [label="yes"];
+    "Recent branch commits?" -> "User specified?" [label="no"];
+    "User specified?" -> "Review specified" [label="yes"];
+    "User specified?" -> "Ask user" [label="no"];
 }
 ```
 
-1. Check `git diff` and `git diff --staged` for uncommitted changes
-2. If none, check `git log` for recent commits on current branch vs base branch
-3. If user specified files or directories, use that scope
-4. If ambiguous, ask: "Should I review recent changes or the full codebase?"
+1. `git diff` + `git diff --staged` for uncommitted changes
+2. `git log` for branch commits vs base
+3. User-specified scope
+4. If ambiguous: **ask the user** — never guess
 
 ## Review Process
 
 ```dot
 digraph review {
     "Determine scope" [shape=box];
-    "Read code in scope" [shape=box];
-    "Analyze against checklist" [shape=box];
+    "Dispatch code-reviewer" [shape=box];
     "Issues found?" [shape=diamond];
-    "Report findings" [shape=box];
-    "Wait for fixes" [shape=box];
-    "Re-review changes only" [shape=box];
-    "Clean pass" [shape=doublecircle];
+    "Fix all findings" [shape=box];
+    "Re-dispatch on changes only" [shape=box];
+    "Clean pass - score" [shape=doublecircle];
 
-    "Determine scope" -> "Read code in scope";
-    "Read code in scope" -> "Analyze against checklist";
-    "Analyze against checklist" -> "Issues found?";
-    "Issues found?" -> "Report findings" [label="yes"];
-    "Issues found?" -> "Clean pass" [label="no"];
-    "Report findings" -> "Wait for fixes";
-    "Wait for fixes" -> "Re-review changes only";
-    "Re-review changes only" -> "Issues found?";
+    "Determine scope" -> "Dispatch code-reviewer";
+    "Dispatch code-reviewer" -> "Issues found?";
+    "Issues found?" -> "Fix all findings" [label="yes"];
+    "Issues found?" -> "Clean pass - score" [label="no"];
+    "Fix all findings" -> "Re-dispatch on changes only";
+    "Re-dispatch on changes only" -> "Issues found?";
 }
 ```
 
-## Review Checklist
+### How to Dispatch
 
-| Category | What to Check |
-|----------|---------------|
-| **Correctness** | Logic errors, off-by-one, null/undefined handling, edge cases, race conditions |
-| **Error Handling** | Missing try/catch, unhandled rejections, silent failures, swallowed errors |
-| **Naming** | Unclear names, misleading names, inconsistent conventions |
-| **Complexity** | Functions doing too much, deep nesting, unnecessary abstractions, god objects |
-| **Duplication** | Copy-paste code, patterns that should be shared |
-| **Performance** | N+1 queries, unnecessary re-renders, missing indexes, algorithmic inefficiency |
-| **Types** | Missing types, overly broad types (`any`), incorrect assertions |
-| **API Design** | Inconsistent interfaces, breaking changes, missing validation at boundaries |
-| **Testing** | Missing tests for new logic, untested edge cases, brittle test setup |
-| **Dead Code** | Unused imports, unreachable branches, commented-out code |
-
-## Reporting Format
-
-For each finding:
+Use the `superpowers:code-reviewer` agent with these placeholders filled:
 
 ```
-**[SEVERITY] Category: Brief description**
-File: path/to/file.ext:line
-Issue: What's wrong
-Suggestion: How to fix
+WHAT_WAS_IMPLEMENTED: [describe changes]
+PLAN_OR_REQUIREMENTS: Review against the checklist in references/review-checklist.md and references/testing-rules.md
+BASE_SHA: [git rev-parse for scope start]
+HEAD_SHA: [git rev-parse HEAD]
+DESCRIPTION: [brief summary]
 ```
 
-Severities:
-- **CRITICAL** — Will cause bugs, data loss, or crashes
-- **HIGH** — Significant quality issue that should be fixed
-- **MEDIUM** — Should be fixed but not blocking
-- **LOW** — Style or preference, optional
+**Inject our review checklist** into the plan/requirements field so the code-reviewer agent reviews against OUR standards, not just its defaults.
 
-## Clean Pass Criteria
+## Review Checklist (Summary)
 
-A clean pass requires:
-- Zero CRITICAL or HIGH findings
-- All MEDIUM findings acknowledged or fixed
-- LOW findings noted but not blocking
+Full detailed checklist: `references/review-checklist.md`
 
-Report: **"Clean pass — no issues found"** when complete.
+| Category | Source | Key Checks |
+|----------|--------|------------|
+| Design & Architecture | Google, SOLID | SRP, OCP, LSP, ISP, DIP, Law of Demeter |
+| Complexity | McCabe, SonarQube | Cyclomatic <10, Cognitive <15, Nesting <3, Params <4 |
+| Code Smells | Fowler, Refactoring.Guru | Bloaters, OO abusers, change preventers, dispensables, couplers |
+| Naming | Clean Code, Google | Descriptive, unambiguous, consistent vocabulary |
+| Functions | Clean Code | Small, one thing, no side effects, no flag args |
+| Error Handling | Clean Code, OWASP | No swallowed exceptions, specific catches, proper cleanup |
+| Testing | Google SWE, Kent Beck, Microsoft | See `references/testing-rules.md` |
+| Performance | Google, SonarQube | Resource cleanup, N+1, proper data structures |
+| Concurrency | Java Concurrency Checklist | Protected shared state, no deadlocks, proper sync |
+| DRY/KISS/YAGNI | Industry Standard | No duplication, no over-engineering, no speculation |
+| Style | Google/Airbnb Guides | Follow project conventions, no mixed style+logic PRs |
+| API Design | Google API Guide | Backward compat, proper HTTP, consistent errors |
+
+## Testing Rules (Summary)
+
+Full detailed rules: `references/testing-rules.md`
+
+**Critical rules the agent MUST follow when writing or reviewing tests:**
+
+1. **Test YOUR code's logic, not external libraries/services** — mock externals at boundaries
+2. **Reuse existing codebase helpers** — never fabricate parallel implementations
+3. **Every test must be able to fail** — no tautological assertions
+4. **No logic in tests** — use literal expected values, no loops/conditionals
+5. **Test behavior through public APIs** — never break encapsulation
+6. **One behavior per test** — if name has "and", split it
+7. **Arrange-Act-Assert** — clear separation, one Act per test
+8. **Don't mock what you don't own** — wrap externals, mock the wrapper
+9. **Don't over-mock** — if more mocks than test logic, refactor production code
+10. **Every production bug gets a regression test**
+
+## Reporting
+
+Keep ALL output short and concise. Never overwhelm the user.
+
+### Per-Finding Format (one line each)
+```
+[SEVERITY] Category: description — file:line
+```
+
+### Severities
+- **CRITICAL** — Bugs, data loss, crashes. Must fix.
+- **HIGH** — Design flaws, missing tests. Should fix.
+- **MEDIUM** — Quality issues. Fix preferred.
+- **LOW** — Style, optional improvements.
+- **INFO** — Educational notes, no action needed.
 
 ## Iteration Rules
 
-- Each iteration reviews ONLY changes made since last review, not the full scope again
-- New issues introduced by fixes count as new findings
-- Maximum 5 iterations — if not clean by then, summarize remaining issues and stop
-- Track iteration count: "Review iteration 2/5"
-- If the same finding reappears after being "fixed", escalate its severity one level
+- Each iteration reviews ONLY changes since last review
+- New issues from fixes = new findings
+- Recurring finding after fix = escalate severity one level
+- **Max 5 iterations** — summarize remaining if not clean
+- Track: "Review iteration 2/5"
+- **Never skip, delay, or postpone ANY finding** no matter how small
+- **Double-check every finding** against codebase context and online references
+
+## Final Summary (after clean pass)
+
+```
+## Code Review: Score X/100
+
+**Positives**
+- [concise bullet]
+- [concise bullet]
+
+**Negatives**
+- [concise bullet]
+
+**Informational**
+- [optional notes]
+```
+
+Score guide: 90-100 excellent, 70-89 good, 50-69 needs work, <50 significant issues.
+
+## Anti-Laziness Rules
+
+- **Never say "looks good" without checking every file**
+- **Never skip a category** from the checklist
+- **Never mark a finding as LOW to avoid fixing it** — severity must reflect actual impact
+- **If unsure about a finding, ASK the user** — don't guess or skip
+- **Verify findings in the actual code** — don't report phantom issues
