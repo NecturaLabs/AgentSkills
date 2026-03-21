@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Session start hook -- injects using-necturalabs skill into agent context
+# Session start hook -- injects using-necturalabs skill + checks for updates
 
 set -euo pipefail
 
@@ -11,6 +11,16 @@ if [ ! -f "$SKILL_FILE" ]; then
     exit 0
 fi
 
+# Check for updates (non-blocking, silent on failure)
+UPDATE_MSG=""
+if command -v git &>/dev/null && [ -d "$PLUGIN_ROOT/.git" ]; then
+    LOCAL_SHA=$(git -C "$PLUGIN_ROOT" rev-parse HEAD 2>/dev/null || echo "")
+    REMOTE_SHA=$(git -C "$PLUGIN_ROOT" ls-remote origin HEAD 2>/dev/null | cut -f1 || echo "")
+    if [ -n "$LOCAL_SHA" ] && [ -n "$REMOTE_SHA" ] && [ "$LOCAL_SHA" != "$REMOTE_SHA" ]; then
+        UPDATE_MSG="\\n\\n[NecturaLabs] Update available! Run: /plugin marketplace update necturalabs"
+    fi
+fi
+
 SKILL_CONTENT=$(cat "$SKILL_FILE")
 
 # JSON-escape the content
@@ -20,11 +30,11 @@ SKILL_CONTENT="${SKILL_CONTENT//$'\n'/\\n}"
 SKILL_CONTENT="${SKILL_CONTENT//$'\r'/}"
 SKILL_CONTENT="${SKILL_CONTENT//$'\t'/\\t}"
 
+SKILL_CONTENT="${SKILL_CONTENT}${UPDATE_MSG}"
+
 # Detect platform and output appropriate format
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-    # Cursor format
     echo "{\"additional_context\": \"$SKILL_CONTENT\"}"
 else
-    # Claude Code format
     echo "{\"hookSpecificOutput\": {\"additionalContext\": \"$SKILL_CONTENT\"}}"
 fi
