@@ -93,6 +93,17 @@ Full detailed checklist: `references/security-checklist.md`
 | A09: Logging Failures | Medium | CWE-778, 532 |
 | A10: SSRF | High | CWE-918 |
 
+### Additional Categories (ASVS, NIST, CERT, Microsoft SDL)
+
+| Category | Source | Key Checks |
+|----------|--------|------------|
+| Session Management | ASVS V7, OWASP SCP | Entropy, timeout, fixation, CSRF tokens |
+| API Security | ASVS V4 | Auth, rate limiting, JWT, GraphQL depth |
+| Secure Communication | ASVS V12 | TLS 1.2+, HSTS, cipher suites |
+| Configuration & Secrets | ASVS V13 | Secret managers, no debug in prod |
+| Supply Chain | NIST SSDF, Microsoft SDL | SBOM, dependency scanning, code signing |
+| Memory Safety | CERT, CWE | Overflow, use-after-free, format strings |
+
 ### CWE/SANS Top 25 (2025) — Top 10
 
 | Rank | CWE | Weakness | KEV CVEs |

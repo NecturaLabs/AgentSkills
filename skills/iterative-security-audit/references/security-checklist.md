@@ -126,6 +126,63 @@
 - [ ] PII handled per data protection regulations
 - [ ] Secure defaults for all configurations
 
+## Session Management (ASVS V7 + OWASP SCP)
+
+- [ ] Session IDs generated server-side with sufficient entropy
+- [ ] Session timeout configured (idle + absolute)
+- [ ] New session ID generated on authentication
+- [ ] Session fixation prevented
+- [ ] Session IDs not in URLs, error messages, or logs
+- [ ] Cookies: Secure, HttpOnly, SameSite attributes set
+- [ ] Concurrent session controls enforced
+- [ ] Per-session CSRF tokens for sensitive operations
+
+## API & Web Service Security (ASVS V4)
+
+- [ ] API endpoints enforce authentication and authorization
+- [ ] HTTP methods restricted to those required
+- [ ] GraphQL query depth and complexity limited
+- [ ] WebSocket connections authenticated
+- [ ] API rate limiting enforced
+- [ ] JWT signatures verified (no "none" algorithm)
+- [ ] Token expiration enforced
+- [ ] PKCE enforced for OAuth public clients
+- [ ] Redirect URIs strictly validated
+
+## Secure Communication (ASVS V12)
+
+- [ ] TLS 1.2+ enforced (1.3 preferred)
+- [ ] Strong cipher suites only
+- [ ] Certificate validation enabled (no self-signed in prod)
+- [ ] HSTS with adequate max-age
+- [ ] Internal service-to-service encrypted
+
+## Configuration & Secrets (ASVS V13)
+
+- [ ] Secrets not in code, config files, or env vars — use secret manager
+- [ ] Error messages hide system internals
+- [ ] Debug mode disabled in production
+- [ ] Default configurations hardened
+- [ ] Test code and credentials removed before deployment
+
+## Supply Chain (NIST SSDF + Microsoft SDL)
+
+- [ ] SBOM generated for releases
+- [ ] Dependencies scanned before integration
+- [ ] Build pipeline integrity protected
+- [ ] Third-party code reviewed and approved
+- [ ] Code signing for release artifacts
+- [ ] Source repo access restricted and audited
+
+## Memory Safety (CERT + CWE)
+
+- [ ] Integer operations checked for overflow (CWE-190)
+- [ ] Buffer sizes validated before access (CWE-120/121/122)
+- [ ] No use-after-free (CWE-416)
+- [ ] Format strings never from user input (CWE-134)
+- [ ] Pointers nullified after free
+- [ ] Memory-safe languages preferred for new code
+
 ## CWE/SANS Top 25 Quick Reference
 
 | CWE | Name | Check |
