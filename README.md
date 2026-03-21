@@ -38,6 +38,10 @@ After installation, skills are available as `necturalabs:<skill-name>`.
 4. When both apply: **security audit first → code review second → combined summary**
 5. Both produce a **score (1-100)** with positives, negatives, and informational findings
 
+## New to AI Agent Tooling?
+
+See **[CONCEPTS.md](CONCEPTS.md)** for a guide on Skills, MCP, LSP, and RAG — what they are, when to use each, and how they work together.
+
 ## Recommended: LSP Setup
 
 LSP gives Claude Code IDE-level code intelligence — semantic navigation instead of text-based grep. Highly recommended for code review and security audit accuracy.
