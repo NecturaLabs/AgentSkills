@@ -1,5 +1,5 @@
 {
-  "name": "necturalabs-skills",
+  "name": "necturalabs",
   "description": "NecturaLabs AI agent skills marketplace",
   "owner": {
     "name": "NecturaLabs",
@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "necturalabs",
+      "name": "agent-skills",
       "description": "Collection of AI agent skills for code review, security auditing, and development workflows",
       "source": "./",
       "skills": [

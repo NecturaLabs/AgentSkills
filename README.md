@@ -15,7 +15,7 @@ A curated collection of AI agent skills for Claude Code. Layers on top of [super
 
 ### Install Skills
 ```
-/plugin install necturalabs@necturalabs-skills
+/plugin install agent-skills@necturalabs
 ```
 
 After installation, skills are available as `necturalabs:<skill-name>`.
