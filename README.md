@@ -2,13 +2,26 @@
 
 A curated collection of AI agent skills for Claude Code and other AI assistants.
 
-## Overview
+## Installation
 
-This repository contains reusable skills that extend the capabilities of AI coding agents. Each skill provides structured guidance, workflows, and domain expertise that agents can invoke to handle specialized tasks.
+### Add Marketplace
+```
+/plugin marketplace add NecturaLabs/AgentSkills
+```
 
-## Usage
+### Install Skills
+```
+/plugin install necturalabs@necturalabs
+```
 
-Skills can be installed and used with Claude Code or other compatible AI assistant platforms.
+After installation, skills are available as `necturalabs:<skill-name>`.
+
+## Available Skills
+
+| Skill | Description |
+|-------|-------------|
+| `necturalabs:iterative-code-review` | Iterative code review that runs until a clean pass — reviews changes, branch commits, or full codebase |
+| `necturalabs:iterative-security-audit` | Iterative security audit (OWASP top 10) that runs until a clean pass — audits changes, branch commits, or full codebase |
 
 ## License
 

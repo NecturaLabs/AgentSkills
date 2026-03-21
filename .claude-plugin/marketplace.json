@@ -1,0 +1,19 @@
+{
+  "name": "necturalabs",
+  "description": "NecturaLabs AI agent skills marketplace",
+  "owner": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "plugins": [
+    {
+      "name": "necturalabs",
+      "description": "Collection of AI agent skills for code review, security auditing, and development workflows",
+      "source": "./",
+      "skills": [
+        "./skills/iterative-code-review",
+        "./skills/iterative-security-audit"
+      ]
+    }
+  ]
+}
