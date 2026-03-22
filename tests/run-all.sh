@@ -35,7 +35,7 @@ run_test_suite() {
 
     # Extract individual test count from suite output (matches "X passed" pattern)
     local suite_tests
-    suite_tests=$(echo "$output" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+    suite_tests=$(echo "$output" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' || echo "0")
     TOTAL_TESTS=$((TOTAL_TESTS + suite_tests))
     echo ""
 }
