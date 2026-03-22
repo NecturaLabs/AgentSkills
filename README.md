@@ -48,6 +48,7 @@ After installation, skills are available as `necturalabs:<skill-name>`. Slash co
 | **`agent-context-loader`** — Loads global CLAUDE.md and project AGENTS.md into context | On init, after context switches |
 | **`agents-md-manager`** — Creates or updates project AGENTS.md from codebase analysis | Manual (`/agents-md-manager`) or after plan execution |
 | **`git-workflow`** — Conventional Commits format and git worktree isolation | When committing or starting multi-commit work |
+| **`update-plugins`** — Concurrently updates plugin marketplaces and installed plugins | Manual (`/update-plugins`) or when user asks to update |
 
 ## How It Works
 
