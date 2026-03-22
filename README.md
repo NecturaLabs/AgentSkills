@@ -20,6 +20,24 @@ A curated collection of AI agent skills for Claude Code. Layers on top of [super
 
 After installation, skills are available as `necturalabs:<skill-name>`.
 
+## Update
+
+```
+/plugin marketplace update necturalabs
+```
+
+## Uninstall
+
+### Remove the Plugin
+```
+/plugin uninstall agent-skills@necturalabs
+```
+
+### Remove the Marketplace (optional)
+```
+/plugin marketplace remove necturalabs
+```
+
 ## Available Skills
 
 | Skill | When to invoke |
