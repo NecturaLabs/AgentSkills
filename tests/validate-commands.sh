@@ -52,7 +52,7 @@ for cmd_file in "$COMMANDS_DIR"/*.md; do
     fi
 
     # Extract the skill name referenced in the command body
-    skill_ref=$(grep -oE "necturalabs:[a-z-]+" "$cmd_file" | head -1 | sed 's/necturalabs://')
+    skill_ref=$(grep -oE "necturalabs:[a-z0-9-]+" "$cmd_file" | head -1 | sed 's/necturalabs://')
 
     # Referenced skill must exist
     if [ ! -d "$SKILLS_DIR/$skill_ref" ]; then
