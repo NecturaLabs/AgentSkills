@@ -49,6 +49,7 @@ After installation, skills are available as `necturalabs:<skill-name>`. Slash co
 | **`agents-md-manager`** — Creates or updates project AGENTS.md from codebase analysis | Manual (`/agents-md-manager`) or after plan execution |
 | **`git-workflow`** — Conventional Commits format and git worktree isolation | When committing or starting multi-commit work |
 | **`update-plugins`** — Concurrently updates plugin marketplaces and installed plugins | Manual (`/update-plugins`) or when user asks to update |
+| **`docs-manager`** — Creates and maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
 
 ## How It Works
 

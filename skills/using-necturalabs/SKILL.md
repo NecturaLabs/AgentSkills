@@ -110,6 +110,7 @@ When changes are security-related (see the skill's description for the full trig
 | `necturalabs:agents-md-manager` | Creates/updates project AGENTS.md | Manual (`/agents-md-manager`) or after plan execution |
 | `necturalabs:git-workflow` | Conventional Commits + worktree isolation | When committing or starting multi-commit work |
 | `necturalabs:update-plugins` | Updates all plugin marketplaces and plugins concurrently | Manual (`/update-plugins`) |
+| `necturalabs:docs-manager` | Creates/maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
 | `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
