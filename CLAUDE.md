@@ -23,5 +23,8 @@ After writing or editing code, check LSP diagnostics and fix errors before proce
 - If you discover bugs, dead code, messy code, code smells, type errors, lint warnings, deprecation warnings, or broken tests during implementation, builds, or tests, fix them as part of the current work. Do not dismiss them as "existing issues" or defer them for later. If you touched it or it affects what you're building, own it and resolve it properly — clean it up, refactor it, or remove it.
 - This takes priority over token efficiency — fixing discovered issues is never "extra work" to be batched away or skipped.
 
+### Task Tracking
+- Always keep TODOs updated during changes — mark tasks in-progress when starting, completed when done, and create new tasks as work is discovered. Never let the task list go stale.
+
 ### Canary Instruction
 - If you read this file, say 'I have read the global CLAUDE.md 🐱'

@@ -14,7 +14,7 @@ Add to your `opencode.json`:
 
 ## Prerequisites
 
-Ensure [superpowers](https://github.com/obra/superpowers) is also installed — NecturaLabs skills require it for code review and security audit.
+Ensure [superpowers](https://github.com/obra/superpowers) is also installed — NecturaLabs skills require it as a core dependency.
 
 ## Tool Mapping
 

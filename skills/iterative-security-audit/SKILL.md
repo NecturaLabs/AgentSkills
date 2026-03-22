@@ -1,6 +1,6 @@
 ---
 name: iterative-security-audit
-description: Use when code needs security review, before deployment, when auditing for vulnerabilities, or when changes touch authentication, authorization, cryptography, input validation, or data handling. Auto-triggers for security-related changes. Requires superpowers plugin. Iterates until clean, then triggers code review.
+description: MUST invoke when code changes touch authentication, authorization, cryptography, input validation, data handling, API endpoints, session management, secrets/config, or dependencies. Also use when the user asks for security review or audit. Requires superpowers plugin. Iterates until clean, then triggers code review.
 ---
 
 # Iterative Security Audit
@@ -50,23 +50,23 @@ digraph audit {
     "Determine scope" [shape=box];
     "Run security audit loop" [shape=box];
     "Audit clean?" [shape=diamond];
-    "Report + fix" [shape=box];
+    "Fix audit findings" [shape=box];
     "Re-audit changes" [shape=box];
     "Run code review loop" [shape=box];
     "Review clean?" [shape=diamond];
-    "Report + fix" [shape=box, label="Report + fix (review)"];
+    "Fix review findings" [shape=box];
     "Re-review changes" [shape=box];
     "Combined summary" [shape=doublecircle];
 
     "Determine scope" -> "Run security audit loop";
     "Run security audit loop" -> "Audit clean?";
-    "Audit clean?" -> "Report + fix" [label="no"];
-    "Report + fix" -> "Re-audit changes";
+    "Audit clean?" -> "Fix audit findings" [label="no"];
+    "Fix audit findings" -> "Re-audit changes";
     "Re-audit changes" -> "Audit clean?";
     "Audit clean?" -> "Run code review loop" [label="yes"];
     "Run code review loop" -> "Review clean?";
-    "Review clean?" -> "Report + fix (review)" [label="no"];
-    "Report + fix (review)" -> "Re-review changes";
+    "Review clean?" -> "Fix review findings" [label="no"];
+    "Fix review findings" -> "Re-review changes";
     "Re-review changes" -> "Review clean?";
     "Review clean?" -> "Combined summary" [label="yes"];
 }

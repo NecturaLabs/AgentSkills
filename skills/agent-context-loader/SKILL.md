@@ -15,15 +15,15 @@ Ensures the agent always operates with full awareness of user-level and project-
 digraph loader {
     "Conversation starts" [shape=doublecircle];
     "Agent handoff / context switch" [shape=doublecircle];
-    "Load global CLAUDE.md" [shape=box];
+    "Verify global CLAUDE.md" [shape=box];
     "Load project AGENTS.md" [shape=box];
     "Verify both loaded" [shape=diamond];
     "Proceed with task" [shape=box];
     "Reload missing file(s)" [shape=box];
 
-    "Conversation starts" -> "Load global CLAUDE.md";
-    "Agent handoff / context switch" -> "Load global CLAUDE.md";
-    "Load global CLAUDE.md" -> "Load project AGENTS.md";
+    "Conversation starts" -> "Verify global CLAUDE.md";
+    "Agent handoff / context switch" -> "Verify global CLAUDE.md";
+    "Verify global CLAUDE.md" -> "Load project AGENTS.md";
     "Load project AGENTS.md" -> "Verify both loaded";
     "Verify both loaded" -> "Proceed with task" [label="yes"];
     "Verify both loaded" -> "Reload missing file(s)" [label="no"];
@@ -33,12 +33,11 @@ digraph loader {
 
 ## Loading Procedure
 
-### Step 1: Load Global CLAUDE.md
+### Step 1: Verify Global CLAUDE.md
 
-Read the user's global `CLAUDE.md` in full:
-- **Location:** `~/.claude/CLAUDE.md`
-- **Required:** Yes — if missing, warn the user: "No global CLAUDE.md found at ~/.claude/CLAUDE.md. Create one to set persistent agent instructions."
-- **Must be loaded in full** — never summarize or truncate
+Global `CLAUDE.md` (`~/.claude/CLAUDE.md`) is auto-loaded by Claude Code into system context. Verify it's present — if the canary instruction response is missing, warn the user: "Global CLAUDE.md not detected in context."
+
+Do NOT re-read this file if it's already in context — that wastes tokens.
 
 ### Step 2: Load Project AGENTS.md
 
@@ -49,8 +48,8 @@ Read the project's `AGENTS.md` in full:
 
 ### Step 3: Verify
 
-After loading, confirm both files are in context:
-- Global CLAUDE.md content is present and complete
+After loading, confirm both are in context:
+- Global CLAUDE.md is present (check for canary response)
 - Project AGENTS.md content is present and complete (or confirmed absent)
 
 ## Verification Triggers

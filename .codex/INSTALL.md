@@ -13,7 +13,7 @@
    ln -s ~/.codex/necturalabs/skills ~/.agents/skills/necturalabs
    ```
 
-3. Ensure [superpowers](https://github.com/obra/superpowers) is also installed — NecturaLabs skills require it for code review and security audit.
+3. Ensure [superpowers](https://github.com/obra/superpowers) is also installed — NecturaLabs skills require it as a core dependency.
 
 ## Tool Mapping
 

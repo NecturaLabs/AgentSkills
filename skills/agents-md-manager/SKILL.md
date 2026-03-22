@@ -1,34 +1,40 @@
 ---
 name: agents-md-manager
-description: Use automatically at the start of every conversation to create or update the project's AGENTS.md file. Triggers without user prompting whenever the agent opens a project that lacks an AGENTS.md or when project conventions have changed.
+description: Create or update the project's AGENTS.md file based on codebase analysis. Invoke manually via /agents-md-manager, or triggered automatically as the final step of superpowers plan execution.
 ---
 
 # AGENTS.md Manager
 
 ## Overview
 
-Automatically creates or updates the project's `AGENTS.md` file based on codebase analysis. Runs without user prompting — if the file is missing or stale, act.
+Creates or updates the project's `AGENTS.md` file based on codebase analysis.
 
 ## When This Runs
 
+- **Manually:** User invokes `/agents-md-manager`
+- **Automatically:** As the final step after completing a superpowers plan execution (via `superpowers:executing-plans`)
+
+This skill does NOT run automatically at conversation start.
+
 ```dot
 digraph manager {
-    "Conversation starts" [shape=doublecircle];
+    "User invokes or plan completes" [shape=doublecircle];
     "AGENTS.md exists?" [shape=diamond];
-    "Analyze codebase" [shape=box];
+    "Analyze codebase (new)" [shape=box];
     "Create AGENTS.md" [shape=box];
     "Check if stale" [shape=diamond];
+    "Analyze codebase (update)" [shape=box];
     "Update AGENTS.md" [shape=box];
     "Done" [shape=doublecircle];
 
-    "Conversation starts" -> "AGENTS.md exists?";
-    "AGENTS.md exists?" -> "Analyze codebase" [label="no"];
+    "User invokes or plan completes" -> "AGENTS.md exists?";
+    "AGENTS.md exists?" -> "Analyze codebase (new)" [label="no"];
     "AGENTS.md exists?" -> "Check if stale" [label="yes"];
-    "Analyze codebase" -> "Create AGENTS.md";
+    "Analyze codebase (new)" -> "Create AGENTS.md";
     "Create AGENTS.md" -> "Done";
     "Check if stale" -> "Done" [label="current"];
-    "Check if stale" -> "Analyze codebase" [label="stale"];
-    "Analyze codebase" -> "Update AGENTS.md";
+    "Check if stale" -> "Analyze codebase (update)" [label="stale"];
+    "Analyze codebase (update)" -> "Update AGENTS.md";
     "Update AGENTS.md" -> "Done";
 }
 ```
@@ -141,7 +147,11 @@ Framework, naming, where tests live.
 
 Generate `AGENTS.md` at project root — it's the universal format supported by 20+ tools (Claude Code, Cursor, Codex, Copilot, Windsurf, Kilo, etc.).
 
-If the project already has a `CLAUDE.md` at the project root, do NOT create a separate `AGENTS.md` — update `CLAUDE.md` instead. Never create competing instruction files.
+`CLAUDE.md` and `AGENTS.md` serve different purposes:
+- **`CLAUDE.md`** — User-authored preferences and instructions (do not modify unless asked)
+- **`AGENTS.md`** — Auto-detected project context (commands, structure, conventions)
+
+Do NOT merge auto-detected content into `CLAUDE.md`. Always write to `AGENTS.md`. Never duplicate content that already exists in `CLAUDE.md`.
 
 ## User Notification
 

@@ -1,6 +1,6 @@
 ---
 name: iterative-code-review
-description: Use when code changes need quality review, after implementing features, before committing or merging, or when validating code quality. Auto-triggers after any agent changes. Requires superpowers plugin. Iterates until a clean pass with zero findings.
+description: MUST invoke after implementing features, fixing bugs, refactoring, or making any code changes — before committing, merging, or claiming work is done. Also use when the user asks for code review. Requires superpowers plugin. Iterates until a clean pass with zero findings.
 ---
 
 # Iterative Code Review

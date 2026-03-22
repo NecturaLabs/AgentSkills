@@ -4,7 +4,7 @@ A curated collection of AI agent skills for Claude Code. Layers on top of [super
 
 ## Prerequisites
 
-- [superpowers](https://github.com/obra/superpowers) plugin installed (required for code review and security audit skills)
+- [superpowers](https://github.com/obra/superpowers) plugin installed (core dependency — all NecturaLabs skills require it)
 
 ## Installation
 
@@ -22,19 +22,19 @@ After installation, skills are available as `necturalabs:<skill-name>`.
 
 ## Available Skills
 
-| Skill | Auto-triggers |
-|-------|---------------|
-| **`using-necturalabs`** — Initializes all skills, verifies dependencies, registers auto-triggers | Conversation start, agent changes |
-| **`iterative-code-review`** — Code review (Google, Clean Code, SOLID, Fowler) until clean pass | After any agent changes |
-| **`iterative-security-audit`** — Security audit (OWASP, CWE, NIST, CERT) until clean, then code review | Security-related changes |
-| **`agent-context-loader`** — Loads global CLAUDE.md and project AGENTS.md into context | Conversation start, agent changes |
-| **`agents-md-manager`** — Auto-creates or updates project AGENTS.md from codebase analysis | Conversation start, project changes |
+| Skill | When to invoke |
+|-------|----------------|
+| **`using-necturalabs`** — Initializes all skills, verifies dependencies, sets up review triggers | Conversation start, agent handoffs |
+| **`iterative-code-review`** — Code review (Google, Clean Code, SOLID, Fowler) until clean pass | After any code changes, before commit/merge |
+| **`iterative-security-audit`** — Security audit (OWASP, CWE, NIST, CERT) until clean, then code review | When changes touch security-sensitive code |
+| **`agent-context-loader`** — Loads global CLAUDE.md and project AGENTS.md into context | On init, after context switches |
+| **`agents-md-manager`** — Creates or updates project AGENTS.md from codebase analysis | Manual (`/agents-md-manager`) or after plan execution |
 
 ## How It Works
 
-1. **`using-necturalabs`** runs at conversation start — checks superpowers dependency, loads context, manages AGENTS.md
-2. **Code review** runs automatically after every change the agent makes
-3. **Security audit** runs automatically when changes touch security-related code (auth, crypto, input validation, etc.)
+1. **`using-necturalabs`** runs at conversation start — checks superpowers dependency, loads context, sets up mandatory review triggers
+2. **Code review** must run after every code change, before committing or claiming work is done
+3. **Security audit** must run when changes touch security-related code (auth, crypto, input validation, etc.)
 4. When both apply: **security audit first → code review second → combined summary**
 5. Both produce a **score (1-100)** with positives, negatives, and informational findings
 

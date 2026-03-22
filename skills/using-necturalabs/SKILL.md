@@ -1,6 +1,6 @@
 ---
 name: using-necturalabs
-description: Use at the start of every conversation and after every agent handoff. Initializes NecturaLabs skills, verifies superpowers dependency, and sets up automatic triggers for code review and security audit.
+description: Use at the start of every conversation and after every agent handoff. Initializes NecturaLabs skills, verifies superpowers dependency, and sets up mandatory review requirements for code review and security audit.
 ---
 
 # Using NecturaLabs Skills
@@ -19,32 +19,37 @@ Do NOT proceed with any work until this initialization is complete. If superpowe
 digraph init {
     "Conversation starts / agent changes" [shape=doublecircle];
     "Already initialized?" [shape=diamond];
+    "Superpowers loaded?" [shape=diamond];
+    "Load superpowers:using-superpowers" [shape=box];
     "Check superpowers installed" [shape=box];
     "Superpowers installed?" [shape=diamond];
     "Prompt user to install" [shape=box];
     "User installs?" [shape=diamond];
     "Block NecturaLabs skills" [shape=box];
-    "Register auto-triggers" [shape=box];
     "Load agent-context-loader" [shape=box];
-    "Run agents-md-manager" [shape=box];
-    "Ready" [shape=doublecircle];
+    "Ready (reviews active for session)" [shape=doublecircle];
 
     "Conversation starts / agent changes" -> "Already initialized?";
-    "Already initialized?" -> "Ready" [label="yes, fully aware"];
-    "Already initialized?" -> "Check superpowers installed" [label="no"];
+    "Already initialized?" -> "Ready (reviews active for session)" [label="yes, fully aware"];
+    "Already initialized?" -> "Superpowers loaded?" [label="no"];
+    "Superpowers loaded?" -> "Check superpowers installed" [label="yes"];
+    "Superpowers loaded?" -> "Load superpowers:using-superpowers" [label="no"];
+    "Load superpowers:using-superpowers" -> "Check superpowers installed";
     "Check superpowers installed" -> "Superpowers installed?";
-    "Superpowers installed?" -> "Register auto-triggers" [label="yes"];
+    "Superpowers installed?" -> "Load agent-context-loader" [label="yes"];
     "Superpowers installed?" -> "Prompt user to install" [label="no"];
     "Prompt user to install" -> "User installs?";
-    "User installs?" -> "Register auto-triggers" [label="yes"];
+    "User installs?" -> "Load agent-context-loader" [label="yes"];
     "User installs?" -> "Block NecturaLabs skills" [label="no"];
-    "Register auto-triggers" -> "Load agent-context-loader";
-    "Load agent-context-loader" -> "Run agents-md-manager";
-    "Run agents-md-manager" -> "Ready";
+    "Load agent-context-loader" -> "Ready (reviews active for session)";
 }
 ```
 
-## Step 1: Verify Superpowers Dependency
+## Step 1: Ensure Superpowers Is Loaded
+
+If `superpowers:using-superpowers` has not been invoked yet in this session, invoke it first. NecturaLabs skills build on top of superpowers and require its session initialization to be complete before proceeding.
+
+## Step 2: Verify Superpowers Dependency
 
 NecturaLabs skills require `superpowers` to be installed. Check if the `superpowers:code-reviewer` agent is available.
 
@@ -55,36 +60,45 @@ NecturaLabs skills require the superpowers plugin. Install it with:
   /plugin install superpowers@superpowers-dev
 ```
 
-**Do not allow** `necturalabs:iterative-code-review` or `necturalabs:iterative-security-audit` to run without superpowers installed. Other NecturaLabs skills may run independently.
+**Do not allow** any NecturaLabs skill to run without superpowers installed.
 
-## Step 2: Register Auto-Triggers
+## Step 3: Load Context
 
-After initialization, these triggers are active for the entire session:
+Invoke `necturalabs:agent-context-loader` to load global CLAUDE.md and project AGENTS.md.
 
-### Code Review — After ANY Changes
+## Ongoing: Mandatory Post-Change Reviews
+
+<EXTREMELY-IMPORTANT>
+These reviews are NOT optional. The agent MUST invoke the appropriate skill after making code changes — before committing, merging, or claiming work is done. Skipping these is never acceptable. This applies for the ENTIRE session, not just during initialization.
+</EXTREMELY-IMPORTANT>
+
+### Decision Flow — After ANY Code Changes
+
 ```dot
 digraph review_trigger {
-    "Agent makes code changes" [shape=doublecircle];
+    "Agent finishes code changes" [shape=doublecircle];
     "Changes security-related?" [shape=diamond];
-    "Run security audit first" [shape=box];
-    "Run code review" [shape=box];
+    "Invoke necturalabs:iterative-security-audit" [shape=box];
+    "Invoke necturalabs:iterative-code-review" [shape=box];
     "Both loops complete" [shape=box];
     "Show summary" [shape=doublecircle];
 
-    "Agent makes code changes" -> "Changes security-related?";
-    "Changes security-related?" -> "Run security audit first" [label="yes"];
-    "Changes security-related?" -> "Run code review" [label="no"];
-    "Run security audit first" -> "Run code review";
-    "Run code review" -> "Both loops complete";
+    "Agent finishes code changes" -> "Changes security-related?";
+    "Changes security-related?" -> "Invoke necturalabs:iterative-security-audit" [label="yes"];
+    "Changes security-related?" -> "Invoke necturalabs:iterative-code-review" [label="no"];
+    "Invoke necturalabs:iterative-security-audit" -> "Invoke necturalabs:iterative-code-review" [label="audit chains into review"];
+    "Invoke necturalabs:iterative-code-review" -> "Both loops complete";
     "Both loops complete" -> "Show summary";
 }
 ```
 
-**Code review runs automatically after every change the agent makes.** This is not optional. The agent must not skip this.
+### When to invoke `necturalabs:iterative-code-review`
 
-### Security Audit — When Changes Are Security-Related
+**After ANY code changes** — feature implementation, bug fixes, refactoring, test additions, config changes. No exceptions.
 
-Security audit auto-triggers when changes touch ANY of:
+### When to invoke `necturalabs:iterative-security-audit` (BEFORE code review)
+
+When changes touch ANY of:
 - Authentication / authorization code
 - Cryptography / hashing / token generation
 - Input validation / sanitization
@@ -96,25 +110,17 @@ Security audit auto-triggers when changes touch ANY of:
 - CORS / CSP / security headers
 - Dependency additions or upgrades
 
-**Security audit takes priority over code review.** When both apply: security audit loop runs first, then code review loop runs on all changes (including audit remediations), then combined summary.
-
-## Step 3: Load Context
-
-Invoke `necturalabs:agent-context-loader` to load global CLAUDE.md and project AGENTS.md.
-
-## Step 4: Run AGENTS.md Manager
-
-Invoke `necturalabs:agents-md-manager` to create or update the project's AGENTS.md if needed.
+**Security audit takes priority.** When it applies: security audit runs first (it chains into code review automatically), then combined summary.
 
 ## Available Skills
 
-| Skill | Purpose | Auto-triggers |
-|-------|---------|---------------|
-| `necturalabs:iterative-code-review` | Industry-standard code review loop | After any agent changes |
-| `necturalabs:iterative-security-audit` | OWASP/CWE security audit loop | When changes are security-related |
-| `necturalabs:agent-context-loader` | Loads CLAUDE.md + AGENTS.md into context | On init and agent changes |
-| `necturalabs:agents-md-manager` | Creates/updates project AGENTS.md | On init, when project changes |
-| `necturalabs:using-necturalabs` | This skill — initializes everything | On init and agent changes |
+| Skill | Purpose | When to invoke |
+|-------|---------|----------------|
+| `necturalabs:iterative-code-review` | Industry-standard code review loop | After any code changes, before commit/merge |
+| `necturalabs:iterative-security-audit` | OWASP/CWE security audit loop | When changes touch security-sensitive code |
+| `necturalabs:agent-context-loader` | Loads CLAUDE.md + AGENTS.md into context | On init and after context switches |
+| `necturalabs:agents-md-manager` | Creates/updates project AGENTS.md | Manual (`/agents-md-manager`) or after plan execution |
+| `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
 
@@ -128,4 +134,4 @@ Re-run this initialization when:
 - The main agent context is switched or compressed
 - The user explicitly asks to reload skills
 
-Skip re-initialization ONLY if the current agent is already fully aware of all NecturaLabs skills and their auto-triggers are active.
+Skip re-initialization ONLY if the current agent is already fully aware of all NecturaLabs skills and their mandatory review requirements are understood.
