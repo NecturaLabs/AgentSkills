@@ -132,6 +132,7 @@ For each file in scope:
 ## After Audit Loop → Code Review Loop
 
 When the audit loop is clean, dispatch `necturalabs:iterative-code-review` with:
+- Include `AUDIT_COMPLETE` in the invocation context so the code-review security gate does not loop back
 - Scope = ALL changes made during the security audit (remediations)
 - Full context loaded (re-read changed files)
 - The code review runs its own iterative loop until clean

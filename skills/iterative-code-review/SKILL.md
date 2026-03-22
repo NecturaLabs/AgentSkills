@@ -15,6 +15,14 @@ This skill REQUIRES `superpowers` to be installed. If not available, tell the us
 Do NOT proceed without it.
 </HARD-GATE>
 
+## Security Audit Gate
+
+<HARD-GATE>
+**BEFORE reviewing, check if changes are security-related** (auth, crypto, input validation, API endpoints, sessions, secrets, dependencies — see `iterative-security-audit` for the full list). If yes AND the security audit has not already run in this invocation chain, **STOP** — invoke the security audit first. It chains into code review with `AUDIT_COMPLETE` in context.
+
+If the security audit already ran (look for `AUDIT_COMPLETE` in the invocation context), proceed normally.
+</HARD-GATE>
+
 ## Scope Detection
 
 ```dot
@@ -159,6 +167,7 @@ Score guide: 90-100 excellent, 70-89 good, 50-69 needs work, <50 significant iss
 
 ## Anti-Laziness Rules
 
+- **Never substitute a manual scan for this skill** — reading the diff yourself and saying "looks clean" is not a code review. Invoke this skill.
 - **Never say "looks good" without checking every file**
 - **Never skip a category** from the checklist
 - **Never mark a finding as LOW to avoid fixing it** — severity must reflect actual impact

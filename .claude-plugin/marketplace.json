@@ -15,7 +15,8 @@
         "./skills/iterative-code-review",
         "./skills/iterative-security-audit",
         "./skills/agent-context-loader",
-        "./skills/agents-md-manager"
+        "./skills/agents-md-manager",
+        "./skills/git-workflow"
       ]
     }
   ]

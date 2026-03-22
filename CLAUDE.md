@@ -1,5 +1,6 @@
 ### Basic Information
 - We are on Windows, not Linux, use the correct OS terminal commands
+- Online research must be extensive and thorough — use only top reputable sources (official docs, authoritative blogs, established standards bodies), never shallow summaries or low-quality aggregators
 
 ### Code Intelligence
 Prefer LSP over Grep/Read for code navigation — it's faster, precise, and avoids reading entire files:
@@ -25,6 +26,25 @@ After writing or editing code, check LSP diagnostics and fix errors before proce
 
 ### Task Tracking
 - Always keep TODOs updated during changes — mark tasks in-progress when starting, completed when done, and create new tasks as work is discovered. Never let the task list go stale.
+
+### Code Review
+- After ANY code changes, invoke `necturalabs:iterative-code-review` before committing, merging, or claiming done — no exceptions
+- If changes are security-related, invoke `necturalabs:iterative-security-audit` first (it chains into code review)
+- An informal "looks good" or manual scan is NOT a substitute for the formal review skill
+
+<!-- Intentional duplication: git rules here are always in context; the git-workflow skill has the full spec but may not be loaded. -->
+### Git Commit Messages
+Use Conventional Commits: `<type>(<scope>): <imperative description>`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+- Subject: imperative mood, 50 char target / 72 hard limit, no period, lowercase after prefix
+- Body (non-trivial changes): blank line after subject, wrap at 72 chars, explain what/why not how
+- Breaking changes: `feat!:` or `BREAKING CHANGE:` footer
+
+### Git Worktrees & Branching
+- Always use worktrees for changes requiring >1 commit — never multi-commit work directly on main
+- Branch naming: `feature/` | `bugfix/` | `hotfix/` | `refactor/` | `docs/` | `test/` | `chore/` + `<description>` (e.g., `feature/user-auth`)
+- Clean up after merge: `git worktree remove` then `git branch -d` — never `rm -rf`
+- Single-commit changes (typos, small fixes) can go directly on main
 
 ### Canary Instruction
 - If you read this file, say 'I have read the global CLAUDE.md 🐱'

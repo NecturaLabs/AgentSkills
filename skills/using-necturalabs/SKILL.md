@@ -60,7 +60,7 @@ NecturaLabs skills require the superpowers plugin. Install it with:
   /plugin install superpowers@superpowers-dev
 ```
 
-**Do not allow** any NecturaLabs skill to run without superpowers installed.
+**Do not allow** `necturalabs:iterative-code-review` or `necturalabs:iterative-security-audit` to run without superpowers installed. Other NecturaLabs skills may run independently.
 
 ## Step 3: Load Context
 
@@ -68,9 +68,9 @@ Invoke `necturalabs:agent-context-loader` to load global CLAUDE.md and project A
 
 ## Ongoing: Mandatory Post-Change Reviews
 
-<EXTREMELY-IMPORTANT>
+<HARD-GATE>
 These reviews are NOT optional. The agent MUST invoke the appropriate skill after making code changes — before committing, merging, or claiming work is done. Skipping these is never acceptable. This applies for the ENTIRE session, not just during initialization.
-</EXTREMELY-IMPORTANT>
+</HARD-GATE>
 
 ### Decision Flow — After ANY Code Changes
 
@@ -98,19 +98,7 @@ digraph review_trigger {
 
 ### When to invoke `necturalabs:iterative-security-audit` (BEFORE code review)
 
-When changes touch ANY of:
-- Authentication / authorization code
-- Cryptography / hashing / token generation
-- Input validation / sanitization
-- Database queries / ORM usage
-- API endpoints / route handlers
-- Session management / cookies
-- File upload / download handling
-- Environment variables / secrets / config
-- CORS / CSP / security headers
-- Dependency additions or upgrades
-
-**Security audit takes priority.** When it applies: security audit runs first (it chains into code review automatically), then combined summary.
+When changes are security-related (see the skill's description for the full trigger list). **Security audit takes priority** — it runs first and chains into code review automatically.
 
 ## Available Skills
 
@@ -120,6 +108,7 @@ When changes touch ANY of:
 | `necturalabs:iterative-security-audit` | OWASP/CWE security audit loop | When changes touch security-sensitive code |
 | `necturalabs:agent-context-loader` | Loads CLAUDE.md + AGENTS.md into context | On init and after context switches |
 | `necturalabs:agents-md-manager` | Creates/updates project AGENTS.md | Manual (`/agents-md-manager`) or after plan execution |
+| `necturalabs:git-workflow` | Conventional Commits + worktree isolation | When committing or starting multi-commit work |
 | `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
