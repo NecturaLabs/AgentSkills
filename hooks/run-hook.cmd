@@ -30,7 +30,8 @@ if %ERRORLEVEL% equ 0 (
     exit /b %ERRORLEVEL%
 )
 
-REM No bash found - exit silently
+REM No bash found - emit warning to stderr
+echo run-hook.cmd: bash not found, hooks disabled >&2
 exit /b 0
 CMDBLOCK
 

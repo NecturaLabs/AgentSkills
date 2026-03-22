@@ -49,10 +49,10 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
         continue
     fi
 
-    # Description must start with "Use when" or "Use at" or "Use automatically"
+    # Description must start with an actionable verb phrase
     description=$(grep "^description:" "$skill_file" | sed 's/^description: *//')
-    if ! echo "$description" | grep -qi "^Use "; then
-        echo -e "${YELLOW}WARN${NC}: $skill_name -- description should start with 'Use when...'"
+    if ! echo "$description" | grep -qiE "^(Use |MUST |Create |Update )"; then
+        echo -e "${YELLOW}WARN${NC}: $skill_name -- description should start with an actionable verb (Use/MUST/Create/Update)"
     fi
 
     # Frontmatter must be under 1024 chars total
