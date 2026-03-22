@@ -50,6 +50,11 @@ if [ -f "$TESTS_DIR/validate-skills.sh" ]; then
     run_test_suite "Skill Validation" "$TESTS_DIR/validate-skills.sh"
 fi
 
+# Command structure validation
+if [ -f "$TESTS_DIR/validate-commands.sh" ]; then
+    run_test_suite "Command Validation" "$TESTS_DIR/validate-commands.sh"
+fi
+
 echo "==================================="
 echo "Total: $TOTAL_SUITES_PASS suites passed, $TOTAL_SUITES_FAIL suites failed ($TOTAL_TESTS individual tests)"
 echo "==================================="

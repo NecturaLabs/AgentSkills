@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate skills and commands
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate skill structure
+        run: bash tests/validate-skills.sh
+
+      - name: Validate command structure
+        run: bash tests/validate-commands.sh
+
+      - name: Check version consistency
+        run: |
+          VERSIONS=$(grep -hoE '"version": "[^"]+"' \
+            package.json \
+            .claude-plugin/plugin.json \
+            .cursor-plugin/plugin.json \
+            gemini-extension.json \
+            | sort -u)
+          if [ -z "$VERSIONS" ]; then
+            echo "ERROR: No version strings found in config files"
+            exit 1
+          fi
+          COUNT=$(echo "$VERSIONS" | wc -l)
+          if [ "$COUNT" -ne 1 ]; then
+            echo "ERROR: Version mismatch across config files:"
+            echo "$VERSIONS"
+            exit 1
+          fi
+          echo "All config files at $(echo "$VERSIONS" | head -1)"
