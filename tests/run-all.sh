@@ -11,8 +11,9 @@ echo "NecturaLabs Agent Skills Test Suite"
 echo "==================================="
 echo ""
 
-TOTAL_PASS=0
-TOTAL_FAIL=0
+TOTAL_SUITES_PASS=0
+TOTAL_SUITES_FAIL=0
+TOTAL_TESTS=0
 
 run_test_suite() {
     local suite_name="$1"
@@ -24,11 +25,18 @@ run_test_suite() {
     fi
 
     echo "--- $suite_name ---"
-    if bash "$suite_script" $VERBOSE; then
-        ((TOTAL_PASS++))
+    local output
+    if output=$(bash "$suite_script" $VERBOSE 2>&1); then
+        ((TOTAL_SUITES_PASS++))
     else
-        ((TOTAL_FAIL++))
+        ((TOTAL_SUITES_FAIL++))
     fi
+    echo "$output"
+
+    # Extract individual test count from suite output (matches "X passed" pattern)
+    local suite_tests
+    suite_tests=$(echo "$output" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+    TOTAL_TESTS=$((TOTAL_TESTS + suite_tests))
     echo ""
 }
 
@@ -43,7 +51,14 @@ if [ -f "$TESTS_DIR/validate-skills.sh" ]; then
 fi
 
 echo "==================================="
-echo "Total: $TOTAL_PASS suites passed, $TOTAL_FAIL suites failed"
+echo "Total: $TOTAL_SUITES_PASS suites passed, $TOTAL_SUITES_FAIL suites failed ($TOTAL_TESTS individual tests)"
 echo "==================================="
 
-[ "$TOTAL_FAIL" -eq 0 ]
+if [ "$TOTAL_SUITES_FAIL" -gt 0 ]; then
+    exit 1
+fi
+
+if [ "$TOTAL_TESTS" -eq 0 ]; then
+    echo "ERROR: Zero tests ran across all suites"
+    exit 1
+fi
