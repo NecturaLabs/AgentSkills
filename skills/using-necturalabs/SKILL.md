@@ -109,6 +109,7 @@ When changes are security-related (see the skill's description for the full trig
 | `necturalabs:agent-context-loader` | Loads CLAUDE.md + AGENTS.md into context | On init and after context switches |
 | `necturalabs:agents-md-manager` | Creates/updates project AGENTS.md | Manual (`/agents-md-manager`) or after plan execution |
 | `necturalabs:git-workflow` | Conventional Commits + worktree isolation | When committing or starting multi-commit work |
+| `necturalabs:update-plugins` | Updates all plugin marketplaces and plugins concurrently | Manual (`/update-plugins`) |
 | `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
