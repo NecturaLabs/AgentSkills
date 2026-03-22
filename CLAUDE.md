@@ -20,7 +20,8 @@ After writing or editing code, check LSP diagnostics and fix errors before proce
 - Do not summarize what you just did unless the result is ambiguous or you need additional input.
 
 ### Issue Handling
-- If you discover bugs, code smells, or issues during implementation, builds, or tests, fix them as part of the current work. Do not dismiss them as "existing issues" or defer them for later. If you touched it or it affects what you're building, own it and resolve it properly.
+- If you discover bugs, dead code, messy code, code smells, type errors, lint warnings, deprecation warnings, or broken tests during implementation, builds, or tests, fix them as part of the current work. Do not dismiss them as "existing issues" or defer them for later. If you touched it or it affects what you're building, own it and resolve it properly — clean it up, refactor it, or remove it.
+- This takes priority over token efficiency — fixing discovered issues is never "extra work" to be batched away or skipped.
 
 ### Canary Instruction
 - If you read this file, say 'I have read the global CLAUDE.md 🐱'
