@@ -3,8 +3,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SKILL_FILE="$PLUGIN_ROOT/skills/using-necturalabs/SKILL.md"
 
 if [ ! -f "$SKILL_FILE" ]; then
@@ -21,20 +21,32 @@ if command -v git &>/dev/null && [ -d "$PLUGIN_ROOT/.git" ]; then
     fi
 fi
 
-SKILL_CONTENT=$(cat "$SKILL_FILE")
+SKILL_CONTENT=$(cat "$SKILL_FILE" 2>&1 || echo "Error reading using-necturalabs skill")
 
-# JSON-escape the content
-SKILL_CONTENT="${SKILL_CONTENT//\\/\\\\}"
-SKILL_CONTENT="${SKILL_CONTENT//\"/\\\"}"
-SKILL_CONTENT="${SKILL_CONTENT//$'\n'/\\n}"
-SKILL_CONTENT="${SKILL_CONTENT//$'\r'/}"
-SKILL_CONTENT="${SKILL_CONTENT//$'\t'/\\t}"
+# JSON-escape the content using bash parameter substitution
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
 
-SKILL_CONTENT="${SKILL_CONTENT}${UPDATE_MSG}"
+ESCAPED=$(escape_for_json "$SKILL_CONTENT")
+UPDATE_ESCAPED=$(escape_for_json "$UPDATE_MSG")
+SESSION_CONTEXT="${ESCAPED}${UPDATE_ESCAPED}"
 
-# Detect platform and output appropriate format
+# Output context injection as JSON
+# Cursor expects additional_context; Claude Code expects hookSpecificOutput.additionalContext
+# Only emit the field for the current platform to avoid double injection
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-    echo "{\"additional_context\": \"$SKILL_CONTENT\"}"
+    printf '{\n  "additional_context": "%s"\n}\n' "$SESSION_CONTEXT"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$SESSION_CONTEXT"
 else
-    echo "{\"hookSpecificOutput\": {\"additionalContext\": \"$SKILL_CONTENT\"}}"
+    printf '{\n  "additional_context": "%s"\n}\n' "$SESSION_CONTEXT"
 fi
+
+exit 0
