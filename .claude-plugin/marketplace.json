@@ -9,15 +9,7 @@
     {
       "name": "agent-skills",
       "description": "Collection of AI agent skills for code review, security auditing, and development workflows",
-      "source": "./",
-      "skills": [
-        "./skills/using-necturalabs",
-        "./skills/iterative-code-review",
-        "./skills/iterative-security-audit",
-        "./skills/agent-context-loader",
-        "./skills/agents-md-manager",
-        "./skills/git-workflow"
-      ]
+      "source": "./"
     }
   ]
 }

@@ -23,15 +23,15 @@ claude plugin marketplace update <marketplace-name>
 
 All agents run in parallel. Collect results from each.
 
-### Step 3: Reinstall Updated Plugins
+### Step 3: Update Installed Plugins
 
-After marketplace updates complete, run `claude plugin list` to see installed plugins. For each installed plugin, reinstall it to pick up any new version:
+After marketplace updates complete, run `claude plugin list` to see installed plugins. For each installed plugin, update it:
 
 ```
-claude plugin install <plugin-name>@<marketplace-name>
+claude plugin update <plugin-name>@<marketplace-name>
 ```
 
-Run these concurrently as well.
+Run these concurrently as well. This uses version comparison — plugins already at the latest version are skipped.
 
 ### Step 4: Report Results
 
@@ -41,9 +41,9 @@ Present a summary table:
 |-------------|--------|
 | name | Updated / Already up to date / Failed: reason |
 
-| Plugin | Status |
-|--------|--------|
-| name@marketplace | Updated to vX.Y.Z / Already current / Failed: reason |
+| Plugin | Version | Status |
+|--------|---------|--------|
+| name@marketplace | vX.Y.Z | Updated / Already current / Failed: reason |
 
 ## Error Handling
 
