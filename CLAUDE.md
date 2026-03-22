@@ -40,6 +40,12 @@ Use Conventional Commits: `<type>(<scope>): <imperative description>`
 - Body (non-trivial changes): blank line after subject, wrap at 72 chars, explain what/why not how
 - Breaking changes: `feat!:` or `BREAKING CHANGE:` footer
 
+### Atomic Commits
+- One logical/contextual unit per commit — never mix unrelated changes (e.g., bug fix + feature, refactor + behavior change)
+- Each commit must leave the repo in a valid, buildable state
+- Group by concern, not by file — a feature touching 5 files is one commit; a typo fix during feature work is a separate commit
+- Refactoring, config/dependency changes, and formatting go in their own commits
+
 ### Git Worktrees & Branching
 - Always use worktrees for changes requiring >1 commit — never multi-commit work directly on main
 - Branch naming: `feature/` | `bugfix/` | `hotfix/` | `refactor/` | `docs/` | `test/` | `chore/` + `<description>` (e.g., `feature/user-auth`)

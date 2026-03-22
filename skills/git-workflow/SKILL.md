@@ -1,13 +1,13 @@
 ---
 name: git-workflow
-description: Use when making git commits, creating branches, or starting any implementation work that will require more than one commit. Ensures Conventional Commits format for commit messages and git worktree isolation for multi-commit work.
+description: Use when making git commits, creating branches, or starting any implementation work that will require more than one commit. Ensures Conventional Commits format, atomic commits (one logical unit per commit), and git worktree isolation for multi-commit work.
 ---
 
 # Git Workflow
 
 ## Overview
 
-Enforces two practices: **Conventional Commits** for every commit message, and **git worktree isolation** for any work requiring more than one commit.
+Enforces three practices: **Conventional Commits** for every commit message, **atomic commits** that separate changes into logical/contextual units, and **git worktree isolation** for any work requiring more than one commit.
 
 ## When to Use
 
@@ -24,6 +24,44 @@ Enforces two practices: **Conventional Commits** for every commit message, and *
 
 Do NOT commit without a completed review. No exceptions — not for "small changes", not for "just docs", not for "I already looked at it manually."
 </HARD-GATE>
+
+## Atomic Commits
+
+Every commit should be a **single logical unit of change**. Separate unrelated changes into distinct commits, even within the same work session.
+
+### Rules
+
+1. **One concern per commit** — a bug fix, a feature addition, a refactor, a test, or a docs update. Never mix these in a single commit.
+2. **Each commit should compile and pass tests** — the repo must be in a valid state at every commit. Never commit a half-finished feature that breaks the build.
+3. **Group by context, not by file** — if a feature requires changes across 5 files, that is one commit. If you fix a typo in the README while implementing a feature, that is two commits.
+4. **Refactoring goes in its own commit** — separate "move/rename/restructure" from "add/change behavior." This makes each commit reviewable in isolation.
+5. **Config and dependency changes go in their own commit** — version bumps, new dependencies, and config changes should not be mixed with feature code.
+
+### Decision Guide
+
+```
+Is this change related to the same logical concern?
+  YES → Same commit
+  NO  → Separate commit
+
+Does this commit do exactly ONE thing?
+  YES → Good
+  NO  → Split it
+
+Could someone revert this commit without losing unrelated work?
+  YES → Good
+  NO  → Split it
+```
+
+### Anti-Patterns
+
+| Bad Practice | Why | Fix |
+|-------------|-----|-----|
+| "Fix bug and add feature" | Two concerns in one commit | Two separate commits |
+| "Update 12 files" | No indication of what changed or why | Split by logical concern |
+| "WIP" or "checkpoint" | Incomplete work pollutes history | Finish the unit, then commit |
+| Mixing formatting with logic | Impossible to review logic changes | Formatting commit first, then logic |
+| Committing generated + source together | Generated files obscure real changes | Source commit, then regenerate |
 
 ## Commit Message Format
 
