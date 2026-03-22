@@ -15,10 +15,10 @@ A curated collection of AI agent skills for Claude Code. Layers on top of [super
 
 ### Install Skills
 ```
-/plugin install agent-skills@necturalabs
+/plugin install necturalabs@necturalabs
 ```
 
-After installation, skills are available as `necturalabs:<skill-name>`.
+After installation, skills are available as `necturalabs:<skill-name>`. Slash commands (e.g., `/necturalabs:code-review`) appear in auto-complete.
 
 ## Update
 
@@ -30,7 +30,7 @@ After installation, skills are available as `necturalabs:<skill-name>`.
 
 ### Remove the Plugin
 ```
-/plugin uninstall agent-skills@necturalabs
+/plugin uninstall necturalabs@necturalabs
 ```
 
 ### Remove the Marketplace (optional)

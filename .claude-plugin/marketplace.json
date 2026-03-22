@@ -7,8 +7,8 @@
   },
   "plugins": [
     {
-      "name": "agent-skills",
-      "description": "Collection of AI agent skills for code review, security auditing, and development workflows",
+      "name": "necturalabs",
+      "description": "Industry-standard code review, security auditing, and project management skills for AI coding agents. Complementary to superpowers.",
       "source": "./"
     }
   ]
