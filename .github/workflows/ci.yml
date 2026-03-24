@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Validate skills and commands
+    name: Validate skills
     runs-on: ubuntu-latest
 
     steps:
@@ -16,9 +16,6 @@ jobs:
 
       - name: Validate skill structure
         run: bash tests/validate-skills.sh
-
-      - name: Validate command structure
-        run: bash tests/validate-commands.sh
 
       - name: Check version consistency
         run: |
