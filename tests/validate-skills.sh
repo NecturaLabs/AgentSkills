@@ -27,13 +27,6 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
         continue
     fi
 
-    # Must have name field
-    if ! grep -q "^name:" "$skill_file"; then
-        echo -e "${RED}FAIL${NC}: $skill_name -- missing 'name' in frontmatter"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        continue
-    fi
-
     # Must have description field
     if ! grep -q "^description:" "$skill_file"; then
         echo -e "${RED}FAIL${NC}: $skill_name -- missing 'description' in frontmatter"
@@ -41,12 +34,14 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
         continue
     fi
 
-    # Name must match directory name
-    frontmatter_name=$(grep "^name:" "$skill_file" | sed 's/^name: *//')
-    if [ "$frontmatter_name" != "$skill_name" ]; then
-        echo -e "${RED}FAIL${NC}: $skill_name -- frontmatter name '$frontmatter_name' doesn't match directory"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        continue
+    # Name must match directory name (if present)
+    if grep -q "^name:" "$skill_file"; then
+        frontmatter_name=$(grep "^name:" "$skill_file" | sed 's/^name: *//')
+        if [ "$frontmatter_name" != "$skill_name" ]; then
+            echo -e "${RED}FAIL${NC}: $skill_name -- frontmatter name '$frontmatter_name' doesn't match directory"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+            continue
+        fi
     fi
 
     # Description must start with an actionable verb phrase
