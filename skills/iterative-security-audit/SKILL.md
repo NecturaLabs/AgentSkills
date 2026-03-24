@@ -1,5 +1,4 @@
 ---
-name: iterative-security-audit
 description: MUST invoke when code changes touch authentication, authorization, cryptography, input validation, data handling, API endpoints, session management, secrets/config, or dependencies. Also use when the user asks for security review or audit. Requires superpowers plugin. Iterates until clean, then triggers code review.
 ---
 

@@ -1,5 +1,4 @@
 ---
-name: git-workflow
 description: Use when making git commits, creating branches, or starting any implementation work that will require more than one commit. Ensures Conventional Commits format, atomic commits (one logical unit per commit), and git worktree isolation for multi-commit work.
 ---
 

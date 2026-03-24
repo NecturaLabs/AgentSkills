@@ -1,5 +1,4 @@
 ---
-name: agent-context-loader
 description: Use at the start of every conversation and after every agent handoff or context switch. Ensures global CLAUDE.md and project AGENTS.md are fully loaded and retained in context at all times.
 ---
 

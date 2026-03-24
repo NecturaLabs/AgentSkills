@@ -1,5 +1,4 @@
 ---
-name: agents-md-manager
 description: Create or update the project's AGENTS.md file based on codebase analysis. Invoke manually via /agents-md-manager, or triggered automatically as the final step of superpowers plan execution.
 ---
 

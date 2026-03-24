@@ -1,5 +1,4 @@
 ---
-name: docs-manager
 description: Create or maintain a project's docs/ folder with ADRs, design documents, guides, and reference material. Use to set up documentation, write an ADR or design doc, or audit documentation freshness.
 ---
 

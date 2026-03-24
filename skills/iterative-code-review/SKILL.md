@@ -1,5 +1,4 @@
 ---
-name: iterative-code-review
 description: MUST invoke after implementing features, fixing bugs, refactoring, or making any code changes — before committing, merging, or claiming work is done. Also use when the user asks for code review. Requires superpowers plugin. Iterates until a clean pass with zero findings.
 ---
 

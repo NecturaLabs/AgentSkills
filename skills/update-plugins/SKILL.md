@@ -1,5 +1,4 @@
 ---
-name: update-plugins
 description: Update all installed plugin marketplaces and their plugins concurrently. Use when the user asks to update plugins, check for updates, or refresh their plugin installations.
 ---
 
