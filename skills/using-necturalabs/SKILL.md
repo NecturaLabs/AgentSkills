@@ -1,4 +1,5 @@
 ---
+name: using-necturalabs
 description: Use at the start of every conversation and after every agent handoff. Initializes NecturaLabs skills, verifies superpowers dependency, and sets up mandatory review requirements for code review and security audit.
 ---
 
