@@ -237,3 +237,13 @@ git worktree prune
 | Remove worktree | `git worktree remove <path>` |
 | Clean stale data | `git worktree prune` |
 | Delete branch | `git branch -d <branch>` |
+
+### Post-Push: CI Monitoring
+
+After every `git push`, if `gh` CLI is available:
+
+1. Run `gh run list --limit 1` to check if the push triggered a CI run
+2. If a run was triggered, `gh run watch <run-id>` to monitor it to completion
+3. If no run was triggered (branch doesn't match workflow triggers), skip
+
+Never push and walk away without confirming CI status.

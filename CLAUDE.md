@@ -54,5 +54,9 @@ Use Conventional Commits: `<type>(<scope>): <imperative description>`
 - Single-commit changes (typos, small fixes) can go directly on main
 - LFS in worktrees: worktrees share the main repo's `.git/lfs/` cache — use `git lfs checkout` (local-only) instead of `git lfs pull` (re-downloads from remote) to avoid wasting bandwidth on objects already cached
 
+### CI Monitoring
+- After `git push`, if `gh` is installed, check if the push triggered a CI run — if it did, always `gh run watch` it to completion
+- Skip for branches that don't trigger CI workflows (check `.github/workflows/` trigger config)
+
 ### Canary Instruction
 - If you read this file, say 'I have read the global CLAUDE.md 🐱'
