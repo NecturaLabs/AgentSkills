@@ -163,7 +163,7 @@ Keep ALL output short and concise.
 - **Max 5 iterations per loop** (audit and review each)
 - Track: "Security audit iteration 2/5"
 - If a fix introduces a NEW critical vulnerability: **flag immediately**
-- **Never skip, delay, or postpone ANY finding** no matter how small
+- **Never skip, delay, defer, or postpone ANY finding** — every finding must be fully resolved within the audit scope. No TODOs, no "address in a follow-up", no "out of scope" dismissals, no "note for later". The only exception is an explicit user instruction to skip a specific finding.
 - **Double-check every finding** against codebase and online references
 
 ## Combined Summary (after BOTH loops clean)
@@ -203,3 +203,4 @@ Security score: 90-100 hardened, 70-89 solid, 50-69 gaps exist, <50 significant 
 - **Cross-reference CWE IDs** for accurate classification
 - **Check online for latest vulnerability patterns** when ambiguous
 - **Never mark a finding as LOW to avoid work** — severity = actual risk
+- **Never rationalize deferral** — "we can fix this later", "out of scope", "low priority for now" are all unacceptable. Fix it or get explicit user approval to skip

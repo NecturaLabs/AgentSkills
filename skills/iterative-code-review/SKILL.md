@@ -143,7 +143,7 @@ Keep ALL output short and concise. Never overwhelm the user.
 - Recurring finding after fix = escalate severity one level
 - **Max 5 iterations** — summarize remaining if not clean
 - Track: "Review iteration 2/5"
-- **Never skip, delay, or postpone ANY finding** no matter how small
+- **Never skip, delay, defer, or postpone ANY finding** — every finding must be fully resolved within the review scope. No TODOs, no "address in a follow-up", no "out of scope" dismissals, no "note for later". The only exception is an explicit user instruction to skip a specific finding.
 - **Double-check every finding** against codebase context and online references
 
 ## Final Summary (after clean pass)
@@ -172,3 +172,4 @@ Score guide: 90-100 excellent, 70-89 good, 50-69 needs work, <50 significant iss
 - **Never mark a finding as LOW to avoid fixing it** — severity must reflect actual impact
 - **If unsure about a finding, ASK the user** — don't guess or skip
 - **Verify findings in the actual code** — don't report phantom issues
+- **Never rationalize deferral** — "we can fix this later", "out of scope", "low priority for now" are all unacceptable. Fix it or get explicit user approval to skip

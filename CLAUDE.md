@@ -31,6 +31,7 @@ After writing or editing code, check LSP diagnostics and fix errors before proce
 - After ANY code changes, invoke `necturalabs:iterative-code-review` before committing, merging, or claiming done — no exceptions
 - If changes are security-related, invoke `necturalabs:iterative-security-audit` first (it chains into code review)
 - An informal "looks good" or manual scan is NOT a substitute for the formal review skill
+- Never defer, postpone, or dismiss findings during reviews — every issue must be fully resolved within the review scope unless the user explicitly says to skip it
 
 <!-- Intentional duplication: git rules here are always in context; the git-workflow skill has the full spec but may not be loaded. -->
 ### Git Commit Messages
@@ -51,6 +52,7 @@ Use Conventional Commits: `<type>(<scope>): <imperative description>`
 - Branch naming: `feature/` | `bugfix/` | `hotfix/` | `refactor/` | `docs/` | `test/` | `chore/` + `<description>` (e.g., `feature/user-auth`)
 - Clean up after merge: `git worktree remove` then `git branch -d` — never `rm -rf`
 - Single-commit changes (typos, small fixes) can go directly on main
+- LFS in worktrees: worktrees share the main repo's `.git/lfs/` cache — use `git lfs checkout` (local-only) instead of `git lfs pull` (re-downloads from remote) to avoid wasting bandwidth on objects already cached
 
 ### Canary Instruction
 - If you read this file, say 'I have read the global CLAUDE.md 🐱'

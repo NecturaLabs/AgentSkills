@@ -181,6 +181,22 @@ git worktree add ../myapp-user-auth -b feature/user-authentication
 git worktree add ../myapp-fix-cart -b bugfix/cart-total-rounding
 ```
 
+### LFS in Worktrees
+
+Git worktrees share the main repo's `.git` directory (the worktree has a `.git` file pointing back, not its own `.git` folder). This means the LFS object cache at `.git/lfs/objects/` is already shared — objects downloaded in the main repo are available to every worktree.
+
+```bash
+# In the worktree, populate LFS files from the shared local cache:
+cd <worktree> && git lfs checkout
+
+# Do NOT use `git lfs pull` — it contacts the remote and re-downloads
+# objects that are already in the shared cache.
+```
+
+- **Use `git lfs checkout`** (local-only) — reads from the shared `.git/lfs/objects/` cache
+- **Never use `git lfs pull`** in a worktree when the main repo already has the objects — it wastes bandwidth re-fetching what's already cached locally
+- Only fall back to `git lfs pull` if objects are genuinely missing from the local cache
+
 ### Branch Naming
 
 Format: `<type>/<lowercase-hyphenated-description>`
