@@ -95,11 +95,12 @@ assert_skill_invoked() {
     fi
 }
 
-# Assert skill was invoked BEFORE any other tool
-assert_skill_invoked_first() {
+# Assert some skill was invoked BEFORE any other tool.
+# Deliberately name-agnostic -- the first tool call is all this can see. Pair it
+# with assert_skill_invoked to check WHICH skill ran.
+assert_skill_ran_before_other_tools() {
     local output="$1"
-    local skill_name="$2"
-    local test_name="${3:-skill priority}"
+    local test_name="${2:-skill priority}"
 
     local first_tool
     first_tool=$(echo "$output" | grep -o '"name":"[^"]*"' | head -1)
