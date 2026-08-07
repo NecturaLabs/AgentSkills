@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# The job only reads the checkout and runs bash -- it never uses the token after
+# actions/checkout, so the default write scopes are unnecessary.
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate skills
