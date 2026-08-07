@@ -29,7 +29,8 @@ assert_contains() {
     local expected="$2"
     local test_name="${3:-assertion}"
 
-    if echo "$output" | grep -q "$expected"; then
+    # -F: callers pass literal expected text, not patterns
+    if echo "$output" | grep -qF -- "$expected"; then
         echo -e "${GREEN}PASS${NC}: $test_name"
         PASS_COUNT=$((PASS_COUNT + 1))
         return 0
@@ -46,7 +47,8 @@ assert_not_contains() {
     local unexpected="$2"
     local test_name="${3:-assertion}"
 
-    if echo "$output" | grep -q "$unexpected"; then
+    # -F: callers pass literal unexpected text, not patterns
+    if echo "$output" | grep -qF -- "$unexpected"; then
         echo -e "${RED}FAIL${NC}: $test_name -- should not contain: $unexpected"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         return 1
@@ -57,13 +59,32 @@ assert_not_contains() {
     fi
 }
 
+# Assert a command exited with an expected status
+assert_exit_status() {
+    local actual="$1"
+    local expected="$2"
+    local test_name="${3:-exit status}"
+
+    if [ "$actual" -eq "$expected" ]; then
+        echo -e "${GREEN}PASS${NC}: $test_name"
+        PASS_COUNT=$((PASS_COUNT + 1))
+        return 0
+    else
+        echo -e "${RED}FAIL${NC}: $test_name -- expected exit $expected, got $actual"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+        return 1
+    fi
+}
+
 # Assert a skill was invoked
 assert_skill_invoked() {
     local output="$1"
     local skill_name="$2"
     local test_name="${3:-skill invocation}"
 
-    if echo "$output" | grep -q "\"name\":\"Skill\"" && echo "$output" | grep -q "$skill_name"; then
+    # -F: skill names are literal text. Without it a name containing '.' would match
+    # too loosely and yield a false PASS -- the worst direction for an assertion.
+    if echo "$output" | grep -qF -- "\"name\":\"Skill\"" && echo "$output" | grep -qF -- "$skill_name"; then
         echo -e "${GREEN}PASS${NC}: $test_name -- skill '$skill_name' was invoked"
         PASS_COUNT=$((PASS_COUNT + 1))
         return 0

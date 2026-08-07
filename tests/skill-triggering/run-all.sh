@@ -8,6 +8,19 @@ source "$TESTS_DIR/../test-helpers.sh"
 
 echo "Testing skill triggering..."
 
+# These tests shell out to a live `claude -p` session, so they need the CLI, network,
+# and credentials. Set SKIP_LIVE_TESTS=1 to skip them (CI does this) while still
+# exercising the aggregator in tests/run-all.sh.
+if [ "${SKIP_LIVE_TESTS:-0}" != "0" ]; then
+    for prompt_file in "$TESTS_DIR"/prompts/*.txt; do
+        [ -f "$prompt_file" ] || continue
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+    done
+    echo -e "  ${YELLOW}SKIP${NC}: SKIP_LIVE_TESTS set -- requires a live 'claude' CLI"
+    print_summary
+    exit 0
+fi
+
 for prompt_file in "$TESTS_DIR"/prompts/*.txt; do
     [ -f "$prompt_file" ] || continue
 

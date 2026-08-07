@@ -17,6 +17,14 @@ jobs:
       - name: Validate skill structure
         run: bash tests/validate-skills.sh
 
+      # Regression guard for the aggregator itself: a `set -e`-unsafe construct in
+      # run-all.sh aborts the run before it prints "Total:", failing this step.
+      # The live-LLM suite is skipped -- it needs the claude CLI and credentials.
+      - name: Run aggregated test suite
+        env:
+          SKIP_LIVE_TESTS: "1"
+        run: bash tests/run-all.sh
+
       - name: Check version consistency
         run: |
           VERSIONS=$(grep -hoE '"version": "[^"]+"' \

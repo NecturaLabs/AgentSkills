@@ -27,15 +27,19 @@ run_test_suite() {
     echo "--- $suite_name ---"
     local output
     if output=$(bash "$suite_script" $VERBOSE 2>&1); then
-        ((TOTAL_SUITES_PASS++))
+        # $(( )) assignment, never (( x++ )) -- post-increment from 0 evaluates to 0,
+        # which is a non-zero exit status and aborts the script under `set -e`.
+        TOTAL_SUITES_PASS=$((TOTAL_SUITES_PASS + 1))
     else
-        ((TOTAL_SUITES_FAIL++))
+        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
     fi
     echo "$output"
 
-    # Extract individual test count from suite output (matches "X passed" pattern)
+    # Extract individual test count from suite output (matches "X passed" pattern).
+    # tail -1 keeps this a single integer -- a multi-line value would make the
+    # $(( )) below a bash syntax error and abort the run under `set -e`.
     local suite_tests
-    suite_tests=$(echo "$output" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' || echo "0")
+    suite_tests=$(echo "$output" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
     TOTAL_TESTS=$((TOTAL_TESTS + suite_tests))
     echo ""
 }
@@ -53,6 +57,11 @@ fi
 # Command structure validation
 if [ -f "$TESTS_DIR/validate-commands.sh" ]; then
     run_test_suite "Command Validation" "$TESTS_DIR/validate-commands.sh"
+fi
+
+# Aggregation self-check (runs this script against stub suites -- see runner-guard.sh)
+if [ -f "$TESTS_DIR/runner-guard.sh" ]; then
+    run_test_suite "Runner Guard" "$TESTS_DIR/runner-guard.sh"
 fi
 
 echo "==================================="
