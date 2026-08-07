@@ -51,7 +51,7 @@ If `superpowers:using-superpowers` has not been invoked yet in this session, inv
 
 ## Step 2: Verify Superpowers Dependency
 
-NecturaLabs skills require `superpowers` to be installed. Check if the `superpowers:code-reviewer` agent is available.
+NecturaLabs skills require `superpowers` to be installed. Check that the `superpowers:requesting-code-review` skill is available (the old `superpowers:code-reviewer` agent no longer exists — do not probe for it).
 
 If NOT installed, tell the user:
 ```

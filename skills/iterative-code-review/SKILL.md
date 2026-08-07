@@ -6,7 +6,7 @@ description: MUST invoke after implementing features, fixing bugs, refactoring, 
 
 ## Overview
 
-Industry-standard code review powered by `superpowers:code-reviewer`. Reviews against Google Engineering Practices, Clean Code (Robert C. Martin), SOLID principles, Martin Fowler's code smells, and testing standards from Google SWE Book, Kent Beck, and Microsoft. Iterates until clean.
+Industry-standard code review powered by a reviewer subagent dispatched from the `superpowers:requesting-code-review` prompt template. Reviews against Google Engineering Practices, Clean Code (Robert C. Martin), SOLID principles, Martin Fowler's code smells, and testing standards from Google SWE Book, Kent Beck, and Microsoft. Iterates until clean.
 
 <HARD-GATE>
 This skill REQUIRES `superpowers` to be installed. If not available, tell the user:
@@ -55,14 +55,14 @@ digraph scope {
 ```dot
 digraph review {
     "Determine scope" [shape=box];
-    "Dispatch code-reviewer" [shape=box];
+    "Dispatch reviewer subagent" [shape=box];
     "Issues found?" [shape=diamond];
     "Fix all findings" [shape=box];
     "Re-dispatch on changes only" [shape=box];
     "Clean pass - score" [shape=doublecircle];
 
-    "Determine scope" -> "Dispatch code-reviewer";
-    "Dispatch code-reviewer" -> "Issues found?";
+    "Determine scope" -> "Dispatch reviewer subagent";
+    "Dispatch reviewer subagent" -> "Issues found?";
     "Issues found?" -> "Fix all findings" [label="yes"];
     "Issues found?" -> "Clean pass - score" [label="no"];
     "Fix all findings" -> "Re-dispatch on changes only";
@@ -72,17 +72,60 @@ digraph review {
 
 ### How to Dispatch
 
-Use the `superpowers:code-reviewer` agent with these placeholders filled:
+Superpowers has no named reviewer agent — `superpowers:code-reviewer` was removed in
+superpowers v5.1.0 and replaced by a prompt template. Dispatching it fails with an
+unknown agent type.
 
-```
-WHAT_WAS_IMPLEMENTED: [describe changes]
-PLAN_OR_REQUIREMENTS: Review against the checklist in references/review-checklist.md and references/testing-rules.md
-BASE_SHA: [git rev-parse for scope start]
-HEAD_SHA: [git rev-parse HEAD]
-DESCRIPTION: [brief summary]
-```
+**1. Load the template.** Invoke `superpowers:requesting-code-review`, then **Read**
+`<that skill's announced base directory>/code-reviewer.md`. Invoking the skill does not
+load the template — its `SKILL.md` only links to it. Skipping the Read leaves you
+improvising a reviewer prompt from memory.
 
-**Inject our review checklist** into the plan/requirements field so the code-reviewer agent reviews against OUR standards, not just its defaults.
+Ignore that skill's "Note Minor issues for later" guidance — the no-deferral rule in
+Iteration Rules below overrides it.
+
+**2. Resolve the checklist paths to literal absolute strings**, against the base directory
+announced when **this** skill (`necturalabs:iterative-code-review`) loaded — NOT the
+superpowers skill's, which was announced more recently and does not contain them:
+
+- `<necturalabs:iterative-code-review base>/references/review-checklist.md`
+- `<necturalabs:iterative-code-review base>/references/testing-rules.md`
+
+A subagent receives literal text. It cannot resolve a placeholder, and it cannot resolve a
+path relative to a skill it never loaded.
+
+**3. Dispatch a `general-purpose` subagent** with the template placeholders filled. Every
+row below goes into the prompt as literal text — the subagent resolves nothing:
+
+| Template placeholder | Fill with |
+|---|---|
+| `[DESCRIPTION]` | What was implemented |
+| `[PLAN_OR_REQUIREMENTS]` | What it should do, **plus** "review against the checklists at" the two absolute paths from step 2 — this is what makes the reviewer apply OUR standards instead of the template's defaults — **plus** the verification demand below |
+| `[BASE_SHA]` | Scope start commit, per Scope Detection above |
+| `[HEAD_SHA]` | `git rev-parse HEAD` |
+
+**Committed scope** fills all four rows and leaves the template's git-range block intact.
+
+**Uncommitted scope** does not. The template renders `git diff [BASE_SHA]..[HEAD_SHA]`
+unconditionally, and for uncommitted work both SHAs are `HEAD` — the reviewer diffs
+`HEAD..HEAD`, sees nothing, and returns a clean pass. **Replace that git-range block
+outright**: state that the changes are uncommitted, and give the reviewer bare `git diff`
+and `git diff --staged`. Do not fill the SHA rows and then tell the reviewer to ignore
+them — that leaves two contradicting instructions in one prompt.
+
+**Verification demand — append to `[PLAN_OR_REQUIREMENTS]`.** Every failure mode here is
+silent: an empty diff, an unread template, or a dead checklist path each yield a confident,
+clean, well-formatted review. So require the reviewer to report, in its output, the diff
+stat it actually saw and confirmation that it read both checklist files. It cannot go in
+the template's Output Format section, which is fixed.
+
+**A clean pass over an empty diff is a failed dispatch, not a clean review.** Do not accept
+it and do not re-send the same prompt — an identically-derived prompt reproduces the
+identical empty diff forever. Re-derive the scope per Scope Detection above, fix what was
+wrong (usually an uncommitted scope filled as a SHA range), and dispatch the corrected
+prompt. That retry does not consume an iteration, but only a *corrected* prompt may be
+retried, and only once: if the diff is still empty, stop and tell the user there is nothing
+to review.
 
 ## Review Checklist (Summary)
 
