@@ -48,7 +48,7 @@ After writing or editing code, check diagnostics and fix errors before proceedin
 - Tasks in scope get finished in the current work. Where a discovered issue lands — fix now, separate commit, or report — is governed by Issue Handling.
 
 ### Code Review
-- After ANY change to source, tests, config, schemas, or infrastructure, run the configured review skill before committing, merging, or claiming done — no exceptions. Prose-only edits (README, docs, this file) do not trigger it.
+- After ANY change to source, tests, config, schemas, or infrastructure, run the configured review skill before committing, merging, or claiming done — no exceptions. Prose-only edits (README, docs, this file) do not trigger it — but the markdown under `skills/` is this repo's product, not prose, and always triggers it.
 - Here that skill is `necturalabs:iterative-code-review`. Where it isn't installed, fall back to `/code-review` or dispatch a reviewer in a fresh context — the gate is that an independent review happens, not which tool runs it.
 - If the changes are security-related, run `necturalabs:iterative-security-audit` first (it chains into code review). Without it, review the diff against OWASP/CWE categories before the code review.
 - An informal "looks good" or manual scan is NOT a substitute for a formal review pass.
