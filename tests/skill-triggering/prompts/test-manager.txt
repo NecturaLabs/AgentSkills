@@ -1,0 +1,2 @@
+# necturalabs:test-manager
+Our test suite is a mess — some tests are flaky, some are skipped, and I have no idea what's actually covered. Go through it and sort it out

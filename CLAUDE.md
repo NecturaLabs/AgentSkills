@@ -47,6 +47,11 @@ After writing or editing code, check diagnostics and fix errors before proceedin
 - Update it during the work, not in a batch at the end — the list is how progress stays visible mid-task.
 - Tasks in scope get finished in the current work. Where a discovered issue lands — fix now, separate commit, or report — is governed by Issue Handling.
 
+### Testing
+- Any work on automated tests — writing new ones, updating existing ones, fixing failures or flakes, deleting obsolete ones, or auditing a suite — goes through the configured test skills. Reading the tests yourself and writing what looks right is not a substitute.
+- Here those are `necturalabs:test-manager` when the level is unclear, the work spans levels, or the whole suite is in scope, and `necturalabs:unit-test-manager`, `necturalabs:integration-test-manager` or `necturalabs:e2e-test-manager` for a known level. Where they aren't installed, apply their rules directly — the gate is that the rules hold, not which tool runs.
+- Never assert on human-readable copy, and never test a library or framework — only our own code.
+
 ### Code Review
 - After ANY change to source, tests, config, schemas, or infrastructure, run the configured review skill before committing, merging, or claiming done — no exceptions. Prose-only edits (README, docs, this file) do not trigger it — but the markdown under `skills/` is this repo's product, not prose, and always triggers it.
 - Here that skill is `necturalabs:iterative-code-review`. Where it isn't installed, fall back to `/code-review` or dispatch a reviewer in a fresh context — the gate is that an independent review happens, not which tool runs it.

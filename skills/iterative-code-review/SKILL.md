@@ -161,7 +161,11 @@ Full detailed rules: `references/testing-rules.md`
 7. **Arrange-Act-Assert** — clear separation, one Act per test
 8. **Don't mock what you don't own** — wrap externals, mock the wrapper
 9. **Don't over-mock** — if more mocks than test logic, refactor production code
-10. **Every production bug gets a regression test**
+10. **Every production bug gets a regression test** — a new test, never an edit to an existing one
+11. **Never assert on human-readable copy** — assert ids, roles, codes, and state, not rendered sentences
+12. **Every new test must be observed failing** for its stated reason before it counts as passing
+13. **Never encode a known bug as expected behavior** — fix the defect instead
+14. **Never weaken a test to get green** — flag relaxed assertions, widened tolerances, new skip/xfail markers, and deletions that do not name one of the four legitimate cases
 
 ## Reporting
 

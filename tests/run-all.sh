@@ -59,6 +59,16 @@ if [ -f "$TESTS_DIR/validate-commands.sh" ]; then
     run_test_suite "Command Validation" "$TESTS_DIR/validate-commands.sh"
 fi
 
+# House-rule consistency across the test-skill family
+if [ -f "$TESTS_DIR/validate-house-rules.sh" ]; then
+    run_test_suite "House Rules" "$TESTS_DIR/validate-house-rules.sh"
+fi
+
+# Mutation guard: proves validate-house-rules.sh can actually fail
+if [ -f "$TESTS_DIR/house-rules-guard.sh" ]; then
+    run_test_suite "House Rules Guard" "$TESTS_DIR/house-rules-guard.sh"
+fi
+
 # Aggregation self-check (runs this script against stub suites -- see runner-guard.sh)
 if [ -f "$TESTS_DIR/runner-guard.sh" ]; then
     run_test_suite "Runner Guard" "$TESTS_DIR/runner-guard.sh"

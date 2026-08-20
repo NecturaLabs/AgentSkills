@@ -1,6 +1,6 @@
 # AgentSkills
 
-A curated collection of AI agent skills for Claude Code. Layers on top of [superpowers](https://github.com/obra/superpowers) to add industry-standard code review, security auditing, and project management.
+A curated collection of AI agent skills for Claude Code. Layers on top of [superpowers](https://github.com/obra/superpowers) to add industry-standard code review, security auditing, test management, and project management.
 
 ## Prerequisites
 
@@ -50,6 +50,10 @@ After installation, skills are available as `necturalabs:<skill-name>`. Slash co
 | **`git-workflow`** — Conventional Commits format and git worktree isolation | When committing or starting multi-commit work |
 | **`update-plugins`** — Concurrently updates plugin marketplaces and installed plugins | Manual (`/update-plugins`) or when user asks to update |
 | **`docs-manager`** — Creates and maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
+| **`test-manager`** — Classifies and triages a project's tests, routes work to the level specialists | Test work with no obvious level, spanning levels, or suite-wide |
+| **`unit-test-manager`** — Unit tests: one unit, one process, no I/O | Writing or fixing unit tests |
+| **`integration-test-manager`** — Tests across a process boundary: DB, HTTP, queue, filesystem | Writing or fixing integration tests |
+| **`e2e-test-manager`** — End-to-end and browser tests of critical user journeys | Writing or fixing E2E/browser tests |
 
 ## How It Works
 
@@ -69,6 +73,19 @@ The `docs-manager` skill creates and maintains a `docs/` folder following indust
 - **Reference material** — research, specs, and data models that informed decisions
 
 Structure is scale-adaptive — directories are created only when the first document of that type is written. Every document has YAML frontmatter with status and `last-reviewed` date for staleness tracking. Invoke with `/docs-manager` or ask Claude to document a decision or design.
+
+### Testing (`test-manager` and the level specialists)
+
+Test work is split across four skills so each stays expert in its own level:
+
+- **`test-manager`** — classifies every test in a project, routes work to the right specialist, triages defects (flaky, skipped, duplicated, obsolete, assertion-free, change-detector, copy-asserting), and runs the full suite before the work is called done. Fans out to per-level subagents only when the work spans levels or covers the whole suite.
+- **`unit-test-manager`** — one unit, one process, no I/O.
+- **`integration-test-manager`** — our code against a real database, HTTP server, queue, or filesystem.
+- **`e2e-test-manager`** — critical user journeys through the assembled system.
+
+All four enforce the same six house rules, duplicated in each skill so every one is usable standalone — verbatim apart from clauses a level adds for its own failure modes: never test a library or framework; never assert on human-readable copy; observe every new test failing before trusting it; never weaken a test to get green; never encode a known bug as expected behavior; and own every test defect your own run surfaces — fix it, or report it with file:line, never silently leave it. The add/update/leave decision follows Google's "strive for unchanging tests" rule — refactorings and new features never edit existing tests; only a deliberate behavior change does, or repairing a test that is itself defective.
+
+Rules are sourced from Google's *Software Engineering at Google* and Testing Blog, Martin Fowler, Microsoft Learn, Kent Beck's Test Desiderata, Khorikov's four pillars, and the official docs of pytest, JUnit 5, Jest/Vitest, Go, Playwright, Cypress, Testcontainers, and MSW.
 
 ## New to AI Agent Tooling?
 

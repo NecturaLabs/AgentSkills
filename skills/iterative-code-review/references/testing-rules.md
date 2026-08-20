@@ -18,6 +18,13 @@
 - Core features: thorough testing
 - Plumbing/config: test through integration or not at all
 
+### Don't Assert on Human-Readable Copy
+Rendered sentences, labels, error prose, formatted dates, currency strings, and whole serialized
+documents change for reasons that are not defects. Assert roles, ids, `data-*` attributes, counts,
+status codes, error types and codes, and state. When a specific string genuinely is the requirement,
+assert the identifier the application renders it from — the message key, id, or code — never a
+duplicated literal sentence.
+
 ## Test Structure
 
 ### Arrange-Act-Assert
@@ -46,7 +53,9 @@ Never break encapsulation to test private methods. If a private method needs tes
 Prefer verifying RESULTS over verifying method calls. Mock interactions only when the interaction IS the behavior.
 
 ### Resilient to Refactoring
-The ONLY reasons to modify tests: (1) requirements changed, (2) bug found, (3) test had a bug.
+The ONLY reasons to modify an existing test: (1) the requirement changed, (2) the test
+itself had a bug. A *product* bug gets a new regression test, never an edit to an existing test —
+editing one to accommodate a fix destroys the evidence that the fix was needed.
 
 ## Mocking Rules
 
@@ -58,6 +67,26 @@ If more mock setup than test logic, you're testing mocks, not code. Max 2-3 mock
 
 ### Mock Only External Out-of-Process Dependencies
 Use real objects when fast and deterministic. Mock: external APIs, databases, file systems, clocks, random generators.
+
+## Proving a Test Works
+
+### Every New Test Must Be Observed Failing
+A test that has never been seen red is not yet a test. For a bug fix, the regression test is written
+first and watched failing against the unfixed code. For code that already works, break the line the
+test claims to cover, confirm the failure, then restore. Flag any new test whose author cannot say
+how they saw it fail.
+
+### Never Weaken a Test to Get Green
+Flag any diff that relaxes an assertion, widens a tolerance, adds a `skip`/`only`/`xfail` marker, or
+deletes a test — unless the author states which legitimate case applies: the behavior no longer
+exists, the test duplicates another at the same level, the test was itself defective with no
+salvageable assertion, or the behavior moved to a cheaper level and that replacement was written and
+observed failing first. A failing test means the code is wrong or the requirement changed; neither is
+repaired by editing the assertion to match the output.
+
+### Never Encode a Known Bug as Expected Behavior
+If writing a test reveals a defect, the defect gets fixed. A passing test that asserts the buggy
+output pins the bug in place and guards it against repair — worse than no test at all.
 
 ## Anti-Patterns to Flag
 

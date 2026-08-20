@@ -111,11 +111,15 @@ When changes are security-related (see the skill's description for the full trig
 | `necturalabs:git-workflow` | Conventional Commits + worktree isolation | When committing or starting multi-commit work |
 | `necturalabs:update-plugins` | Updates all plugin marketplaces and plugins concurrently | Manual (`/update-plugins`) |
 | `necturalabs:docs-manager` | Creates/maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
+| `necturalabs:test-manager` | Classifies and triages a project's tests, routes to the level specialists | Test work with no obvious level, spanning levels, or suite-wide |
+| `necturalabs:unit-test-manager` | Unit tests — one unit, one process, no I/O | Writing, updating, or fixing unit tests |
+| `necturalabs:integration-test-manager` | Tests across a process boundary — DB, HTTP, queue, filesystem | Writing, updating, or fixing integration tests |
+| `necturalabs:e2e-test-manager` | End-to-end and browser tests of critical journeys | Writing, updating, or fixing E2E tests |
 | `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
 
-If NecturaLabs skills are installed and the user asks for "code review" or "security audit", invoke the NecturaLabs skill — not the default behavior or any other plugin's version. NecturaLabs skills are complementary to superpowers and layer additional standards on top.
+If NecturaLabs skills are installed and the user asks for "code review", "security audit", or any work on tests, invoke the NecturaLabs skill — not the default behavior or any other plugin's version. NecturaLabs skills are complementary to superpowers and layer additional standards on top.
 
 ## Re-Initialization
 
