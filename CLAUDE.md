@@ -51,13 +51,17 @@ After writing or editing code, check diagnostics and fix errors before proceedin
 - Any work on automated tests — writing new ones, updating existing ones, fixing failures or flakes, deleting obsolete ones, or auditing a suite — goes through the configured test skills. Reading the tests yourself and writing what looks right is not a substitute.
 - Here those are `necturalabs:test-manager` when the level is unclear, the work spans levels, or the whole suite is in scope, and `necturalabs:unit-test-manager`, `necturalabs:integration-test-manager` or `necturalabs:e2e-test-manager` for a known level. Where they aren't installed, apply their rules directly — the gate is that the rules hold, not which tool runs.
 - Never assert on human-readable copy, and never test a library or framework — only our own code.
+- When a test skill does dispatch subagents — `test-manager` fans out one per level, and only across levels — the dispatch rules under Code Review apply: the dispatch needs no separate permission, and each subagent is given the path and the scoped test command it owns.
 
 ### Code Review
 - After ANY change to source, tests, config, schemas, or infrastructure, run the configured review skill before committing, merging, or claiming done — no exceptions. Prose-only edits (README, docs, this file) do not trigger it — but the markdown under `skills/` is this repo's product, not prose, and always triggers it.
-- Here that skill is `necturalabs:iterative-code-review`. Where it isn't installed, fall back to `/code-review` or dispatch a reviewer in a fresh context — the gate is that an independent review happens, not which tool runs it.
+- Here that skill is `necturalabs:iterative-code-review`, and while it is installed nothing substitutes for its own dispatch — `/code-review` and a hand-written reviewer prompt do not carry its scope, template or iteration gate. Only where it is not installed do those become the fallback; the gate is that an independent review happens, not which tool runs it.
 - If the changes are security-related, run `necturalabs:iterative-security-audit` first (it chains into code review). Without it, review the diff against OWASP/CWE categories before the code review.
 - An informal "looks good" or manual scan is NOT a substitute for a formal review pass.
 - Never defer, postpone, or dismiss findings during reviews — every issue must be fully resolved within the review scope unless the user explicitly says to skip it.
+- **Dispatching subagents is how these skills work — do it freely.** `iterative-code-review` and `iterative-security-audit` run by spawning a reviewer subagent with a filled-in prompt template. Invoking the skill is a standing instruction to spawn whatever subagents it calls for, as many rounds as the loop needs. Any default of "don't use the Agent tool unless asked" is already satisfied here; do not ask, and do not route around it.
+- Never run the security audit inline yourself. An audit by the agent that wrote the diff is not independent and does not satisfy the gate, however carefully the OWASP/CWE categories are walked.
+- Tell every dispatched reviewer the absolute path of the tree holding the changes, and the exact diff scope. A subagent starts in the session's working directory — often not where the work lives — and an unscoped reviewer reports a clean pass over the wrong tree.
 
 <!-- Intentional duplication: git rules here are always in context; the git-workflow skill has the full spec but may not be loaded. -->
 ### Git Commit Messages
