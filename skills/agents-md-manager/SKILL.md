@@ -269,3 +269,34 @@ After creating or updating, briefly tell the user:
 - "Updated AGENTS.md — added X, removed Y" (update)
 
 Add one line for anything they need to act on: adapters you created, and any content you inferred but could not verify. Keep it short. Don't dump the file contents.
+
+## Sources
+
+The quantitative claims above come from these studies. Each entry names what it supports and the
+conditions the figure was measured under, so a number in this skill can be traced and its limits
+seen without opening the paper.
+
+- Chatlatanagulchai et al., *Agent READMEs: An Empirical Study of Context Files for Agentic Coding* — https://arxiv.org/abs/2511.12884
+  2,303 context files across 1,925 repositories; security is specified in 14.8% of them and
+  performance in 14.5%. Backs the Boundaries section.
+- Gloaguen et al., *Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?* — https://arxiv.org/abs/2602.11988v2
+  Context files do not generally improve task success while adding over 20% to inference cost, and
+  that holds "across different LLMs, coding agents, and for both LLM-generated and
+  developer-committed context files" — writing the file by hand does not exempt it. §4.2 removes
+  the repository's existing documentation and the same files then help, which is what identifies
+  the effect as redundancy rather than as guidance being useless. Backs the "What to Detect from
+  Code" note and the exclusion table. The same paper finds repository overviews specifically
+  unhelpful, which is why Project Structure here is gated by three tests and omitted when none pass.
+- Shepard and Albrecht, *Probe-and-Refine Tuning of Repository Guidance for Coding Agents* — https://arxiv.org/abs/2606.20512
+  On SWE-bench Verified across four independent trials with Qwen3.5-35B-A3B at 200 steps: 33.0% mean resolve rate
+  for guidance refined against the repository it describes, 28.3% for that same guidance shipped as
+  generated, 25.5% unguided (p<0.001 for both contrasts against probe-and-refine; the 28.3-vs-25.5
+  gap is not established). The gain is coverage, not precision — evaluable patches for 14.5pp more
+  instances while per-patch quality stays flat (~59%, p=0.119). A cross-model run degrades where the
+  model cannot produce output diagnostic enough to refine against. Backs "Verify Before Writing"
+  and the budget set for Project Structure.
+- Lulla et al., *On the Impact of AGENTS.md Files on the Efficiency of AI Coding Agents* — https://arxiv.org/abs/2601.20404
+  Across 10 repositories and 124 pull requests, agents run with an AGENTS.md file showed 28.64%
+  lower median runtime and 16.58% lower output token consumption at comparable task completion. The
+  comparison is presence versus absence of the whole file, so it says nothing about which sections
+  belong in one — it backs keeping the file worth its cost, not any single section's placement.
