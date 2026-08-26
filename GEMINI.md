@@ -1,5 +1,7 @@
 # NecturaLabs Agent Skills
 
+@AGENTS.md
+
 @skills/using-necturalabs/SKILL.md
 
 ## Gemini Tool Mapping

@@ -32,3 +32,6 @@ npm-debug.log*
 # Cache
 .cache/
 .tmp/
+
+# Local git worktrees live here; the tracked .claude/CLAUDE.md must stay tracked
+.claude/worktrees/
