@@ -68,6 +68,24 @@ digraph modes {
 **Author** — fires on any code written or changed. **Audit** — scan a diff, file or tree and
 report. **Fix** — repair, then re-scan.
 
+<HARD-GATE>
+**A secret in a comment is never fixed by deleting it.** Deleting the line removes it from
+the working tree and from nowhere else — it remains in git history, in every clone, in CI
+logs, and in anything already published. It is compromised from the moment it was
+committed.
+
+On finding a credential, key, token, connection string or private key in a comment:
+
+1. Report it before changing anything.
+2. State that it must be rotated or revoked and its history scrubbed.
+3. Hand the finding to `necturalabs:iterative-security-audit`. This skill does not close a
+   secret finding on its own.
+4. Only then remove the line, and never present that removal as the remediation.
+
+Fix mode must not delete a secret and re-scan clean. A clean re-scan over a deleted live
+key is a false all-clear on a live exposure.
+</HARD-GATE>
+
 ### Resolving language rules
 
 1. Read the project's formatter configuration: `.editorconfig`, `rustfmt.toml`,
@@ -90,8 +108,8 @@ a review:
 
 | Severity | Findings |
 |---|---|
-| CRITICAL | Comment contradicts the code; unverified rationale asserted as fact; secret, key, token, internal hostname, internal path or PII in a comment |
-| HIGH | Missing doc on public API; missing error, nullability, ownership or thread-safety contract; commented-out code; annotation with no owner and no tracked reference |
+| CRITICAL | Comment contradicts the code; unverified rationale asserted as fact; credential, key, token, connection string or private key in a comment |
+| HIGH | Internal hostname, internal path, infrastructure detail or PII in a comment; missing doc on public API; missing error, nullability, ownership or thread-safety contract; commented-out code; annotation with no owner and no tracked reference; a security-scanner suppression with no justification and no tracked reference |
 | MEDIUM | Restates the code; over the size limit; implementation detail in an interface comment; journal, byline or time-anchored language; wrong placement; wrong language convention |
 | LOW | Punctuation, grammar, spacing, decorative boxes |
 
@@ -104,7 +122,7 @@ Every row was produced by an agent given a real commenting task without this ski
 | "Team policy says every exported function gets a comment" | A per-construct quota fails Gate 1 by construction. Comment what needs it and say why the rest does not. |
 | "The threshold must be a loyalty perk, I'll write that" | You do not know that. An invented motive is a CRITICAL finding, not a helpful comment. |
 | "It's unused now but it's there for future extensions" | Speculation about the future is unverifiable and reads as fact. Silence, or a tracked annotation. |
-| "I'll note that callers shouldn't touch this directly" | That is an instruction to the reader, not a fact about the code. Enforce it with visibility, not prose. |
+| "I'll note that callers shouldn't touch this directly" | An access convention is enforced by visibility, not prose. This does not extend to caller obligations — a safety contract, precondition or lock-ordering note is a fact about the contract and stays. |
 | "A comment above the loop helps a new joiner follow it" | If the loop needs narrating, Gate 2 applies — rename or extract. `// Accumulate qty * unitPence` is the code, retyped. |
 | "The private field deserves a note saying it's private" | The naming convention already says it. Restating a convention is noise. |
 | "I'll summarise the steps in the doc comment" | A numbered walkthrough of the body is implementation detail in an interface comment. |
@@ -121,7 +139,9 @@ Every row was produced by an agent given a real commenting task without this ski
 - You are adding comments to satisfy a count, a policy, or a reviewer's blanket request.
 - The doc comment explains how the body works.
 - You reached for the doc syntax of the language this one resembles.
-- A comment tells the reader to do something.
+- A comment directs the reader to act outside the code's contract. A caller obligation — a
+  safety requirement, a precondition, a lock that must be held — is not this, and is never
+  deleted on these grounds.
 
 **All of these mean: stop. Re-run the admission gate, or fix the code instead.**
 

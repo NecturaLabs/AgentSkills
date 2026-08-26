@@ -41,6 +41,21 @@ deletes its comments.
 It never instructs its reader, human or agent.
 It describes the code; it does not tell whoever reads it to go and do something.
 
+**A caller obligation is a fact about the contract, not an instruction to the reader.**
+"Caller must hold `lock` before calling", "`# Safety:` `ptr` must be valid for reads of
+`len` bytes", "call `init` first" each state what the code requires in order to be used
+correctly. They are admissible content items 5, 7 and 9 below, and on a Rust `unsafe fn` a
+`# Safety` section is mandatory. What rule 7 bans is a directive aimed at the person or
+agent reading the file: go update something elsewhere, ask someone before editing, ignore a
+tool, or any sentence whose object is the reader rather than the code.
+
+The test: does the sentence constrain how the code may be used, or does it direct the
+reader to act? The first is a contract. The second is not a comment.
+
+**Never delete a safety contract, precondition, invariant, or lock-ordering note on rule 7
+grounds.** Removing one removes a control, and the code goes on relying on an obligation
+nobody is told about any more.
+
 ## The Admission Test
 
 Three gates. A candidate comment passes all three, in order, or it is not written.
@@ -119,8 +134,15 @@ Two closed lists. Content outside them is a finding.
 | Repeating a supertype's doc on an override | Google C++, Google Java, Swift |
 | Apologies, jokes, narration, emotional commentary | Not information about the code |
 | An annotation with no owner and no tracked reference | Google C++, Google Python, Ruby guide |
-| Secrets, keys, tokens, internal hostnames, internal paths, PII, exploit detail | CWE-615, CWE-540, CWE-546; OWASP SCP |
+| Secrets, keys, tokens, internal hostnames, internal paths, PII, exploit detail | CWE-615 (parent CWE-540), CWE-546; OWASP SCP |
 | An instruction aimed at the reader rather than a fact about the code | Rule 7 |
+
+**Finding a secret is not the same as fixing one.** Deleting the line removes the secret
+from the working tree and from nowhere else: it stays in git history, in every clone, in CI
+logs, and in any artifact already published. Treat it as compromised from the moment it was
+committed. Report it, say it must be rotated or revoked and its history scrubbed, and hand
+the finding to `necturalabs:iterative-security-audit`. Removing the line is cleanup after
+remediation, never the remediation itself.
 
 ## Size Limits
 
