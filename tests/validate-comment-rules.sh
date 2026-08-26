@@ -97,6 +97,14 @@ DOC_SURFACE_REQUIRED=(
     "Every public item"
 )
 
+# The inlined width summary carries normative numbers a reviewer acts on. This file's own
+# premise is that a silently widened ceiling is indistinguishable from no ceiling, and these
+# ceilings were the ones left unguarded -- Kotlin had already drifted to a wrong value once.
+WIDTH_REQUIRED=(
+    "Python is 72 even where code is allowed 99"
+    "120 and 100 respectively"
+)
+
 # The severity ladder also appears as prose in the review checklist's step 3, and the table
 # anchors above do not cover it: the prose was silently revertible to CRITICAL while every
 # table stayed correct. The rotate-before-delete instruction lives only in that prose, and
@@ -170,5 +178,6 @@ check_phrases "review-checklist.md" "$REVIEW_CHECKLIST" "the severity ladder" "$
 check_phrases "language-matrix.md" "$MATRIX" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the step 3 leak prose" "${REVIEW_PROSE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" "the inlined width ceilings" "${WIDTH_REQUIRED[@]}"
 
 print_summary

@@ -100,6 +100,8 @@ CANARIES=(
     "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
     "step 3 prose severity reverted|s|or PII in a comment is HIGH.|or PII in a comment is CRITICAL.|"
     "rotate-before-delete prose removed|s|Never accept a diff that presents deleting the line as the remediation.||"
+    "width ceiling widened|s|Python is 72 even where code is allowed 99|Python is 99 like its code|"
+    "Kotlin and C sharp fallbacks dropped|s|120 and 100 respectively|whatever the project prefers|"
 )
 
 # review-checklist.md is the first path the dispatched reviewer is handed, and it was the copy
