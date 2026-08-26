@@ -115,11 +115,12 @@ When changes are security-related (see the skill's description for the full trig
 | `necturalabs:unit-test-manager` | Unit tests — one unit, one process, no I/O | Writing, updating, or fixing unit tests |
 | `necturalabs:integration-test-manager` | Tests across a process boundary — DB, HTTP, queue, filesystem | Writing, updating, or fixing integration tests |
 | `necturalabs:e2e-test-manager` | End-to-end and browser tests of critical journeys | Writing, updating, or fixing E2E tests |
+| `necturalabs:comment-manager` | Comment and doc-comment rules across languages, with a per-language matrix | Writing or changing code that carries comments |
 | `necturalabs:using-necturalabs` | This skill — initializes everything | On init and after agent handoffs |
 
 ## Skill Priority When User Asks
 
-If NecturaLabs skills are installed and the user asks for "code review", "security audit", or any work on tests, invoke the NecturaLabs skill — not the default behavior or any other plugin's version. NecturaLabs skills are complementary to superpowers and layer additional standards on top.
+If NecturaLabs skills are installed and the user asks for "code review", "security audit", any work on tests, or any work on comments, docstrings or in-source documentation, invoke the NecturaLabs skill — not the default behavior or any other plugin's version. NecturaLabs skills are complementary to superpowers and layer additional standards on top.
 
 ## Re-Initialization
 
