@@ -175,6 +175,45 @@ This repo includes a recommended global `CLAUDE.md`. Copy it to your global Clau
 
 On Windows: `C:\Users\<YourUsername>\.claude\CLAUDE.md`
 
+It is a **global** file — keep it free of anything specific to one repository. It follows you across every project, and a relative `@import` written there resolves against `~/.claude/`, not against whatever repo you happen to be in. (Working in this repo, Claude Code also loads it as the project's instructions, since it sits at the root. That's why repo-specific wiring lives in `.claude/CLAUDE.md` instead.)
+
+## CLAUDE.md vs AGENTS.md
+
+Two files, two different jobs. The split is **scope**, not who wrote them.
+
+| | `~/.claude/CLAUDE.md` | `AGENTS.md` |
+|---|---|---|
+| **Answers** | How *you* want an agent to work | What is true of *this codebase* |
+| **Travels with** | You, across every project | The repo, to every contributor |
+| **Contains** | Standards of care, review gates, commit conventions, shell and OS rules, model choices | Build/test/lint commands, project structure, code conventions, boundaries |
+| **Read by** | Claude Code | Codex, Cursor, Copilot and 20+ other tools — [and Claude Code only via an import](#making-agentsmd-load-in-claude-code) |
+| **Checked in** | No — it's yours | Yes |
+
+Two questions settle almost every case:
+
+- *Would this still be true if I switched to a different project?* → global `CLAUDE.md`
+- *Would this still be true if I switched to a different agent?* → `AGENTS.md`
+- *Neither — specific to this repo **and** only meaningful to Claude Code?* → the project's `.claude/CLAUDE.md`, below the import
+
+So "always run the review skill before committing" is global CLAUDE.md — it's how you work. "Run the suite with `SKIP_LIVE_TESTS=1`" is AGENTS.md — it's a fact about this repo, and a Codex or Cursor user needs it just as much as you do.
+
+Never duplicate between them. Anything written twice goes stale in one place first, and a contradiction between two loaded instruction files gets resolved arbitrarily.
+
+### Making AGENTS.md load in Claude Code
+
+Claude Code reads `CLAUDE.md`, not `AGENTS.md`. To have both load without duplicating content, add a one-line import. Claude Code loads `./CLAUDE.md` and `./.claude/CLAUDE.md` both, so either works — but **the path is relative to the file holding it**, and getting it wrong loads nothing and reports nothing:
+
+| Import lives in | Write |
+|---|---|
+| `./CLAUDE.md` | `@AGENTS.md` |
+| `./.claude/CLAUDE.md` | `@../AGENTS.md` |
+
+Use `.claude/CLAUDE.md` when the root `CLAUDE.md` is one you distribute — as this repo's is. Repo-specific wiring stays in `.claude/` and the portable file stays portable.
+
+Then confirm it worked: run `/context` in a fresh session and check that both files appear under **Memory files**, and that something only `AGENTS.md` says is actually in context. A broken import looks identical to a working one until you check.
+
+Run `/agents-md-manager` to have this set up for you, including the equivalent adapter for Gemini CLI.
+
 ## License
 
 MIT
