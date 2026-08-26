@@ -49,3 +49,35 @@ jobs:
             exit 1
           fi
           echo "All config files at $(echo "$VERSIONS" | head -1)"
+
+      # The check above only proves the four files agree with each other. Two
+      # branches can each bump 1.4.0 -> 1.5.0 and both stay green, so whichever
+      # merges second lands a duplicate version. Compare against the base too.
+      # BASE_REF goes through env, not ${{ }} interpolation, so a branch name
+      # cannot inject shell.
+      - name: Check version advances past base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --depth=1 origin "$BASE_REF"
+          read_version() {
+            grep -oE '"version": "[^"]+"' | head -1 | cut -d'"' -f4
+          }
+          BASE=$(git show "origin/$BASE_REF:package.json" | read_version)
+          NEW=$(read_version < package.json)
+          if [ -z "$BASE" ] || [ -z "$NEW" ]; then
+            echo "ERROR: could not read version (base='$BASE' new='$NEW')"
+            exit 1
+          fi
+          if [ "$BASE" = "$NEW" ]; then
+            echo "ERROR: version $NEW is unchanged from $BASE_REF -- bump it"
+            exit 1
+          fi
+          # sort -V puts 1.6.0-rc.1 after 1.6.0, so prerelease tags would compare
+          # backwards. This repo has only ever used plain X.Y.Z; revisit if that changes.
+          if [ "$(printf '%s\n%s\n' "$BASE" "$NEW" | sort -V | tail -1)" != "$NEW" ]; then
+            echo "ERROR: version $NEW is lower than $BASE_REF ($BASE)"
+            exit 1
+          fi
+          echo "Version advances: $BASE -> $NEW"
