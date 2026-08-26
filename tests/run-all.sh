@@ -79,6 +79,12 @@ if [ -f "$TESTS_DIR/comment-rules-guard.sh" ]; then
     run_test_suite "Comment Rules Guard" "$TESTS_DIR/comment-rules-guard.sh"
 fi
 
+# Manifest guard: every registration below is `if [ -f ]`-guarded, so a deleted suite would
+# otherwise vanish from the run without failing anything
+if [ -f "$TESTS_DIR/validate-suite-manifest.sh" ]; then
+    run_test_suite "Suite Manifest" "$TESTS_DIR/validate-suite-manifest.sh"
+fi
+
 # Aggregation self-check (runs this script against stub suites -- see runner-guard.sh)
 if [ -f "$TESTS_DIR/runner-guard.sh" ]; then
     run_test_suite "Runner Guard" "$TESTS_DIR/runner-guard.sh"

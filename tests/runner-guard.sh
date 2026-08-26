@@ -84,4 +84,26 @@ assert_contains "$FIXTURE_OUTPUT" "Results: 3 passed" \
     "a suite fails -- the failing suite's own output is not swallowed" || true
 
 cleanup_fixture
+
+# --- Case 3: a required suite is deleted (manifest guard) ---
+# validate-suite-manifest.sh is what stops a deleted suite from vanishing silently from the
+# run. That guard is itself only worth having if it actually fails, so prove it does: copy
+# the real tests tree, remove one required suite, and assert a non-zero exit. The negative
+# control on the untouched copy is what distinguishes "detected the deletion" from "the
+# script is broken and always fails".
+MANIFEST_DIR=$(mktemp -d)
+trap 'cleanup_fixture; rm -rf "$MANIFEST_DIR"' EXIT
+cp -r "$TESTS_DIR"/. "$MANIFEST_DIR"/
+
+manifest_status=0
+( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh >/dev/null 2>&1 ) || manifest_status=$?
+assert_exit_status "$manifest_status" 0 \
+    "untouched tests tree -- manifest check passes (negative control)" || true
+
+rm -f "$MANIFEST_DIR/validate-comment-rules.sh"
+manifest_status=0
+( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh >/dev/null 2>&1 ) || manifest_status=$?
+assert_exit_status "$manifest_status" 1 \
+    "a required suite is deleted -- manifest check fails" || true
+
 print_summary

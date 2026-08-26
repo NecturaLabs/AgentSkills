@@ -23,6 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Closes the one hole validate-suite-manifest.sh cannot close itself: its own deletion.
+      # run-all.sh guards every suite registration with `if [ -f ]`, so without this the
+      # manifest guard could be deleted and the aggregated run would still report success.
+      - name: Check the suite manifest guard is present
+        run: test -f tests/validate-suite-manifest.sh
+
       - name: Validate skill structure
         run: bash tests/validate-skills.sh
 
