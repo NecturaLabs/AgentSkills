@@ -24,8 +24,20 @@ source "$TESTS_DIR/test-helpers.sh"
 
 echo "Mutation-testing validate-comment-rules.sh..."
 
+# Guarded cleanup rather than `trap 'rm -rf "$SANDBOX"' EXIT` on a bare variable: an
+# unguarded `rm -rf` on a variable is one editing accident away from being destructive, and
+# runner-guard.sh already establishes this pattern in this suite.
+SANDBOX=""
+
+cleanup_sandbox() {
+    if [ -n "$SANDBOX" ] && [ -d "$SANDBOX" ]; then
+        rm -rf "$SANDBOX"
+    fi
+    SANDBOX=""
+}
+trap cleanup_sandbox EXIT
+
 SANDBOX=$(mktemp -d)
-trap 'rm -rf "$SANDBOX"' EXIT
 
 cp -r "$PROJECT_ROOT/skills" "$SANDBOX/skills"
 cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
@@ -43,13 +55,21 @@ if [ "$(run_validator)" = "0" ]; then
 else
     echo -e "  ${RED}FAIL${NC}: unmutated copy FAILS -- the harness is broken, not the rules"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    print_summary
+    # `|| true` then an explicit exit: print_summary returns 1 with FAIL_COUNT set, and under
+    # `set -e` that would terminate here, making a bare `exit 1` below it dead code that only
+    # looks like the thing producing the exit status.
+    print_summary || true
     exit 1
 fi
 
 # label|sed-expression. `|` is the delimiter, so no pattern may contain one. sed matches within a
 # line, so every anchor must sit unbroken on one line in every copy -- a phrase spanning a line
 # break silently matches nothing. The cmp check in check_mutation catches an anchor gone stale.
+#
+# `sed -i` with no backup suffix is GNU syntax. On BSD sed (macOS) the expression is consumed as
+# the suffix and the script aborts under `set -e` -- loud, not a silent pass -- so this is a
+# Linux/Windows-CI assumption, not a hidden failure mode. Add a `sed --version` probe if macOS
+# ever joins the matrix.
 #
 # Headline and tail alternate across the seven rules on purpose: guarding both halves is the whole
 # point of the duplication check, and a matrix that only ever mutated headlines would not prove the
@@ -76,6 +96,15 @@ CANARIES=(
 MATRIX_CASES=(
     "trap table heading removed|s|Derived-Language Traps|Language Notes|"
     "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
+)
+
+# The secret-handling gate and the severity ladder live only in SKILL.md and the review
+# checklist. Losing the rotate-first instruction turns Fix mode into a tool that deletes a
+# live key and reports clean, so it gets a mutation case of its own.
+SKILL_CASES=(
+    "secret gate headline removed|s|A secret in a comment is never fixed by deleting it.||"
+    "rotate-first instruction removed|s|never present that removal as the remediation||"
+    "CRITICAL severity row downgraded|s|credential, key, token, connection string or private key in a comment|assorted sensitive values in a comment|"
 )
 
 check_mutation() {
@@ -127,5 +156,10 @@ run_cases "language-matrix.md" \
     "$SANDBOX/skills/comment-manager/references/language-matrix.md" \
     "$SANDBOX/pristine-language-matrix.md" \
     "${MATRIX_CASES[@]}"
+
+run_cases "comment-manager SKILL.md" \
+    "$SANDBOX/skills/comment-manager/SKILL.md" \
+    "$SANDBOX/pristine-skill.md" \
+    "${SKILL_CASES[@]}"
 
 print_summary

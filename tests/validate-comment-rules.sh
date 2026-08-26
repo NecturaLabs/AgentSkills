@@ -57,9 +57,32 @@ MATRIX_REQUIRED=(
     "Do not infer a convention from a language this one resembles"
 )
 
+# The severity ladder is duplicated into comment-manager/SKILL.md and the review-side
+# checklist, and lives in neither rule copy, so it needs its own pass. Drift here is worse
+# than a missing rule: two loops scoring the same leaked credential differently is how a
+# CRITICAL gets triaged as a MEDIUM and shipped.
+SEVERITY_REQUIRED=(
+    "credential, key, token, connection string or private key in a comment"
+    "Internal hostname, internal path, infrastructure detail or PII in a comment"
+    "security-scanner suppression with no justification and no tracked reference"
+)
+
+# Deleting a leaked secret is not remediating it. If this instruction is lost, Fix mode
+# quietly becomes a tool that removes the evidence and reports clean over a live key.
+SKILL_REQUIRED=(
+    "A secret in a comment is never fixed by deleting it."
+    "never present that removal as the remediation"
+)
+
+CANON_REQUIRED=(
+    "Removing the line is cleanup after remediation, never the remediation itself."
+    "A caller obligation is a fact about the contract, not an instruction to the reader."
+)
+
 CANON="$PROJECT_ROOT/skills/comment-manager/references/comment-rules.md"
 REVIEW="$PROJECT_ROOT/skills/iterative-code-review/references/comment-checklist.md"
 MATRIX="$PROJECT_ROOT/skills/comment-manager/references/language-matrix.md"
+SKILL="$PROJECT_ROOT/skills/comment-manager/SKILL.md"
 
 # Collapse every run of whitespace to a single space so a rule wrapped at a different column, or
 # split across lines, still matches.
@@ -109,5 +132,10 @@ check_phrases() {
 check_phrases "comment-rules.md" "$CANON" "all seven rules and both size limits" "${REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "all seven rules and both size limits" "${REQUIRED[@]}"
 check_phrases "language-matrix.md" "$MATRIX" "derived-language traps and the fallback rule" "${MATRIX_REQUIRED[@]}"
+
+check_phrases "comment-rules.md" "$CANON" "the secret and caller-obligation carve-outs" "${CANON_REQUIRED[@]}"
+check_phrases "comment-manager SKILL.md" "$SKILL" "the secret-handling gate" "${SKILL_REQUIRED[@]}"
+check_phrases "comment-manager SKILL.md" "$SKILL" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
 
 print_summary

@@ -44,7 +44,10 @@ if [ "$(run_validator)" = "0" ]; then
 else
     echo -e "  ${RED}FAIL${NC}: unmutated copy FAILS -- the harness is broken, not the rules"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    print_summary
+    # `|| true` then an explicit exit: print_summary returns 1 with FAIL_COUNT set, and under
+    # `set -e` that would terminate here, making a bare `exit 1` below it dead code that only
+    # looks like the thing producing the exit status.
+    print_summary || true
     exit 1
 fi
 
