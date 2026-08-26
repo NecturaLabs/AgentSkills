@@ -3,8 +3,8 @@
 This is the reference copy of the six house rules. They are duplicated in `../SKILL.md`,
 `../../unit-test-manager/SKILL.md`, `../../integration-test-manager/SKILL.md` and
 `../../e2e-test-manager/SKILL.md`, because an agent that loads only one of those skills must still
-see every rule — verbatim apart from clauses a level adds for its own failure modes.
-`../../../tests/validate-house-rules.sh` fails the build when a copy drifts.
+see every rule — verbatim apart from clauses a level adds for its own failure modes. A
+consistency check in this plugin's own test suite fails the build when a copy drifts.
 
 ## What gets duplicated, and what gets a path
 
@@ -16,8 +16,8 @@ see every rule — verbatim apart from clauses a level adds for its own failure 
 
 Level-specific rules are added as rule 7 and beyond; a level may also insert clauses into rules 1–6
 where its own failure modes need naming. Neither may drop, truncate, or invert any of the six.
-`../../../tests/validate-house-rules.sh` enforces that both guarded halves of every rule
-survive, and `../../../tests/house-rules-guard.sh` proves that check can still fail. An inversion bolted on as an extra
+That consistency check enforces that both guarded halves of every rule survive, and a
+mutation guard beside it proves the check can still fail. An inversion bolted on as an extra
 clause — keeping both halves and appending "…but weakening is fine when CI is red" — passes the
 script; that one is caught in review.
 
