@@ -83,27 +83,66 @@ assert_contains "$FIXTURE_OUTPUT" "Total: 1 suites passed, 1 suites failed (8 in
 assert_contains "$FIXTURE_OUTPUT" "Results: 3 passed" \
     "a suite fails -- the failing suite's own output is not swallowed" || true
 
+# --- Case 3: a suite runs but reports nothing ---
+# Emptying a suite file makes it exit 0 with no output at all. Before run-all.sh checked the
+# per-suite count, that was a fully green run: every gate passed and only the total moved,
+# which nobody reads. Truncating the real validate-skills.sh reproduced exactly that.
+make_fixture 0 0
+: > "$WORK_DIR/validate-skills.sh"
+run_fixture
+assert_exit_status "$FIXTURE_STATUS" 1 "an emptied suite -- runner exits 1" || true
+assert_contains "$FIXTURE_OUTPUT" "reported zero tests" \
+    "an emptied suite -- runner says why rather than just failing" || true
+
 cleanup_fixture
 
-# --- Case 3: a required suite is deleted (manifest guard) ---
-# validate-suite-manifest.sh is what stops a deleted suite from vanishing silently from the
-# run. That guard is itself only worth having if it actually fails, so prove it does: copy
-# the real tests tree, remove one required suite, and assert a non-zero exit. The negative
-# control on the untouched copy is what distinguishes "detected the deletion" from "the
-# script is broken and always fails".
-MANIFEST_DIR=$(mktemp -d)
-trap 'cleanup_fixture; rm -rf "$MANIFEST_DIR"' EXIT
-cp -r "$TESTS_DIR"/. "$MANIFEST_DIR"/
+# --- Case 4: the manifest guard actually fails ---
+# validate-suite-manifest.sh is what stops a deleted or unregistered suite vanishing in
+# silence, and a guard is only worth having if it fails. Prove three things: it passes an
+# untouched tree, it catches a deleted suite file, and it catches a registration removed
+# while its explanatory comment is left behind. The last is not hypothetical -- the first
+# version of that guard substring-matched the whole of run-all.sh, and three suite names
+# appear inside comments there, so deleting a registration block passed green.
+#
+# Unlike make_fixture this copies the whole tests tree, runner-guard.sh included. Safe here
+# because nothing runs run-all.sh from the copy: only the manifest script executes, and it
+# never recurses.
+MANIFEST_DIR=""
 
-manifest_status=0
-( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh >/dev/null 2>&1 ) || manifest_status=$?
-assert_exit_status "$manifest_status" 0 \
+cleanup_manifest() {
+    if [ -n "$MANIFEST_DIR" ] && [ -d "$MANIFEST_DIR" ]; then
+        rm -rf "$MANIFEST_DIR"
+    fi
+    MANIFEST_DIR=""
+}
+trap 'cleanup_fixture; cleanup_manifest' EXIT
+
+reset_manifest_dir() {
+    cleanup_manifest
+    MANIFEST_DIR=$(mktemp -d)
+    cp -r "$TESTS_DIR"/. "$MANIFEST_DIR"/
+}
+
+manifest_exit() {
+    local status=0
+    ( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh >/dev/null 2>&1 ) || status=$?
+    echo "$status"
+}
+
+reset_manifest_dir
+assert_exit_status "$(manifest_exit)" 0 \
     "untouched tests tree -- manifest check passes (negative control)" || true
 
+reset_manifest_dir
 rm -f "$MANIFEST_DIR/validate-comment-rules.sh"
-manifest_status=0
-( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh >/dev/null 2>&1 ) || manifest_status=$?
-assert_exit_status "$manifest_status" 1 \
-    "a required suite is deleted -- manifest check fails" || true
+assert_exit_status "$(manifest_exit)" 1 \
+    "a required suite file is deleted -- manifest check fails" || true
+
+reset_manifest_dir
+sed -i '/run_test_suite "Comment Rules" /d' "$MANIFEST_DIR/run-all.sh"
+assert_exit_status "$(manifest_exit)" 1 \
+    "a registration is deleted but its comment kept -- manifest check fails" || true
+
+cleanup_manifest
 
 print_summary

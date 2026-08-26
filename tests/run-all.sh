@@ -18,6 +18,8 @@ TOTAL_TESTS=0
 run_test_suite() {
     local suite_name="$1"
     local suite_script="$2"
+    # Third argument, literally "allow_zero", exempts a suite from the zero-test check below.
+    local allow_zero="${3:-}"
 
     if [ ! -f "$suite_script" ]; then
         echo "SKIP: $suite_name -- script not found"
@@ -26,13 +28,10 @@ run_test_suite() {
 
     echo "--- $suite_name ---"
     local output
-    if output=$(bash "$suite_script" $VERBOSE 2>&1); then
-        # $(( )) assignment, never (( x++ )) -- post-increment from 0 evaluates to 0,
-        # which is a non-zero exit status and aborts the script under `set -e`.
-        TOTAL_SUITES_PASS=$((TOTAL_SUITES_PASS + 1))
-    else
-        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
-    fi
+    local suite_ok=1
+    # $VERBOSE is deliberately unquoted: empty means "pass no argument", where "$VERBOSE"
+    # would pass one empty argument instead.
+    output=$(bash "$suite_script" $VERBOSE 2>&1) || suite_ok=0
     echo "$output"
 
     # Extract individual test count from suite output (matches "X passed" pattern).
@@ -41,12 +40,30 @@ run_test_suite() {
     local suite_tests
     suite_tests=$(echo "$output" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
     TOTAL_TESTS=$((TOTAL_TESTS + suite_tests))
+
+    # A suite that exits cleanly while reporting no tests is indistinguishable from one that
+    # was emptied: truncating validate-skills.sh to zero bytes passed every gate and moved
+    # only the total, which nobody reads. Existence and registration are not execution.
+    # skill-triggering is the one legitimate zero, and only because SKIP_LIVE_TESTS skips
+    # every case in it.
+    if [ "$suite_tests" -eq 0 ] && [ "$allow_zero" != "allow_zero" ]; then
+        echo "FAIL: $suite_name -- exited cleanly but reported zero tests (emptied or gutted suite?)"
+        suite_ok=0
+    fi
+
+    # $(( )) assignment, never (( x++ )) -- post-increment from 0 evaluates to 0,
+    # which is a non-zero exit status and aborts the script under `set -e`.
+    if [ "$suite_ok" = "1" ]; then
+        TOTAL_SUITES_PASS=$((TOTAL_SUITES_PASS + 1))
+    else
+        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
+    fi
     echo ""
 }
 
 # Skill triggering tests
 if [ -d "$TESTS_DIR/skill-triggering" ]; then
-    run_test_suite "Skill Triggering" "$TESTS_DIR/skill-triggering/run-all.sh"
+    run_test_suite "Skill Triggering" "$TESTS_DIR/skill-triggering/run-all.sh" allow_zero
 fi
 
 # Skill content validation

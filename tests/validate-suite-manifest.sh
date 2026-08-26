@@ -47,11 +47,25 @@ RUNNER="$TESTS_DIR/run-all.sh"
 if [ ! -f "$RUNNER" ]; then
     echo -e "${RED}FAIL${NC}: run-all.sh is missing at $RUNNER"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    print_summary
+    # `|| true` then an explicit exit: print_summary returns 1 with FAIL_COUNT set, and under
+    # `set -e` that would terminate here, making a bare `exit 1` below it dead code.
+    print_summary || true
     exit 1
 fi
 
-runner_text=$(<"$RUNNER")
+# Match ONLY real registration lines. Several suite names also appear inside explanatory
+# comments in run-all.sh, so a whole-file substring match is satisfied by the comment alone:
+# deleting a registration block while leaving its comment above it produced a fully green run
+# with the suite silently gone. Strip comments, then keep only run_test_suite call lines.
+# grep exits 1 when nothing matches, which `set -e` would treat as fatal, hence `|| true`.
+registrations=$(grep -v '^[[:space:]]*#' "$RUNNER" | grep 'run_test_suite' || true)
+
+if [ -z "$registrations" ]; then
+    echo -e "${RED}FAIL${NC}: run-all.sh contains no suite registrations at all"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    print_summary || true
+    exit 1
+fi
 
 for suite in "${REQUIRED_SUITES[@]}"; do
     if [ ! -f "$TESTS_DIR/$suite" ]; then
@@ -60,7 +74,7 @@ for suite in "${REQUIRED_SUITES[@]}"; do
         continue
     fi
 
-    if [[ $runner_text != *"$suite"* ]]; then
+    if [[ $registrations != *"$suite"* ]]; then
         echo -e "${RED}FAIL${NC}: $suite -- file exists but run-all.sh never registers it"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
@@ -77,7 +91,7 @@ for suite_dir in "${REQUIRED_SUITE_DIRS[@]}"; do
         continue
     fi
 
-    if [[ $runner_text != *"$suite_dir"* ]]; then
+    if [[ $registrations != *"$suite_dir"* ]]; then
         echo -e "${RED}FAIL${NC}: $suite_dir/ -- exists but run-all.sh never registers it"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
