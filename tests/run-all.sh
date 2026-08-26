@@ -90,14 +90,16 @@ run_test_suite() {
     # stdin detached, cwd fixed, and stderr kept out of $output: a suite echoing
     # "Results: 500 passed" to stderr was credited 500 tests and cleared the zero-test gate.
     # $VERBOSE is deliberately unquoted so empty passes no argument.
-    local errfile
-    errfile=$(mktemp)
+    local errfile errfd
+    errfile=$(mktemp) || { echo "ERROR: cannot create a temp file for suite stderr" >&2; exit 1; }
     output=$( cd "$TESTS_DIR" && bash "$suite_script" $VERBOSE </dev/null 2>"$errfile" ) || suite_ok=0
     echo "$output"
-    if [ -s "$errfile" ]; then
-        cat "$errfile"
-    fi
+    # Open the file, then unlink the name: a suite that unlinks its own stderr target would
+    # otherwise make the content unreachable and its diagnostics vanish silently.
+    exec {errfd}<"$errfile"
     rm -f "$errfile"
+    cat <&"$errfd"
+    exec {errfd}<&-
 
     # `pipefail` is what keeps this numeric when grep matches nothing: its status propagates
     # through the pipe, `|| echo "0"` fires, and suite_tests stays a digit string. `tail -1`
@@ -144,12 +146,15 @@ parse_manifest() {
     while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}" ]; do
         # A UTF-8 BOM on line 1 otherwise makes the first row malformed and reports it as a
         # missing script path, which sends the reader looking at the wrong thing.
-        suite_name=${suite_name#$'ï»¿'}
-        suite_name=${suite_name%$''}
+        suite_name=${suite_name#$'\xef\xbb\xbf'}
+        suite_name=${suite_name%$'
+'}
         suite_path=${suite_path:-}
-        suite_path=${suite_path%$''}
+        suite_path=${suite_path%$'
+'}
         suite_flags=${suite_flags:-}
-        suite_flags=${suite_flags%$''}
+        suite_flags=${suite_flags%$'
+'}
 
         # Trim so an indented `#` reads as a comment rather than running as a row, and a
         # padded name does not silently become a different name.

@@ -101,6 +101,14 @@ fi
 # Defined before the loop that calls it: bash resolves functions at call time, so a definition
 # placed after its first call leaves that call exiting 127 -- the duplicate-row check below was
 # dead code printing "command not found" once per row while failing nothing.
+key_declared() {
+    local needle="$1" entry
+    for entry in ${DECLARED_KEYS+"${DECLARED_KEYS[@]}"}; do
+        [ "$entry" = "$needle" ] && return 0
+    done
+    return 1
+}
+
 declared_contains() {
     local needle="$1" entry
     for entry in ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"}; do
@@ -110,6 +118,7 @@ declared_contains() {
 }
 
 DECLARED_PATHS=()
+DECLARED_KEYS=()
 DECLARED_COUNT=0
 
 while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}" ]; do
@@ -118,6 +127,13 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
     suite_path=${suite_path%$'\r'}
     suite_flags=${suite_flags:-}
     suite_flags=${suite_flags%$'\r'}
+
+    # Trim and BOM handling mirror run-all.sh exactly. When they differed, an indented '#'
+    # was a comment to the runner and a malformed row to its own guard -- one manifest, two
+    # readings, and a build red for the wrong reason.
+    suite_name=${suite_name#$'\xef\xbb\xbf'}
+    suite_name=${suite_name#"${suite_name%%[![:space:]]*}"}
+    suite_name=${suite_name%"${suite_name##*[![:space:]]}"}
 
     case "$suite_name" in
         ''|'#'*) continue ;;
@@ -143,7 +159,7 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
     # case name one file. When only the runner folded case, the variant reached this script's
     # happy path and failed elsewhere, incidentally.
     suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
-    if declared_contains "$suite_key"; then
+    if key_declared "$suite_key"; then
         fail "$suite_path -- declared more than once; the run would execute it twice and double-count it"
         continue
     fi
@@ -168,7 +184,8 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
         continue
     fi
 
-    DECLARED_PATHS+=("$suite_key")
+    DECLARED_PATHS+=("$suite_path")
+    DECLARED_KEYS+=("$suite_key")
     pass "$suite_path -- declared and present"
 done < "$MANIFEST"
 

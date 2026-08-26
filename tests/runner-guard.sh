@@ -106,7 +106,7 @@ cleanup_fixture
 # --- Case 4: a suite that reads stdin ---
 # The manifest used to be the loop's stdin, so one suite calling `cat` consumed the remaining
 # rows and every later suite silently left the run while the aggregator exited 0. The manifest
-# is now on fd 3 and suites are invoked with stdin detached.
+# is read to completion before any suite runs, and suites are invoked with stdin detached.
 make_fixture 0 0
 printf 'cat >/dev/null\necho "Results: 3 passed, 0 failed, 0 skipped"\n' > "$WORK_DIR/skill-triggering/run-all.sh"
 run_fixture

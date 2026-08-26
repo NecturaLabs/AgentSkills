@@ -68,7 +68,7 @@ jobs:
           # missing config file read as "no versions found here" rather than as an error.
           for f in package.json .claude-plugin/plugin.json .cursor-plugin/plugin.json gemini-extension.json; do
             [ -f "$f" ] || { echo "ERROR: $f is missing"; exit 1; }
-            n=$(grep -cE '"version": "[^"]+"' "$f" || true)
+            n=$(grep -oE '"version": "[^"]+"' "$f" | wc -l)
             [ "$n" = "1" ] || { echo "ERROR: $f yields $n version strings, expected 1"; exit 1; }
           done
           VERSIONS=$(grep -hoE '"version": "[^"]+"' \

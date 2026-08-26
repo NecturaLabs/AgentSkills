@@ -46,6 +46,7 @@ REQUIRED=(
     "It never instructs its reader, human or agent."
     "one paragraph, at most 7 lines"
     "exactly one sentence on one physical line"
+    "or up to 20 lines where the design-rationale carve-out applies"
 )
 
 # The matrix carries what the two rule copies deliberately do not: the per-language deltas. These
