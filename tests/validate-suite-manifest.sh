@@ -15,12 +15,19 @@
 #   - allow_zero, which suppresses the "reported zero tests" failure, appears only on the one
 #     row entitled to it -- it is a bypass switch, and an unrestricted bypass switch is how
 #     the hole it was written to close got reopened;
-#   - every suite-shaped file in tests/ is declared, so adding a suite and forgetting to
-#     register it fails rather than passing quietly;
-#   - run-all.sh still reads the manifest, so it cannot be swapped back for hardcoded blocks.
+#   - every shell script under tests/, other than the runner and its helpers, is declared, so
+#     adding a suite and forgetting to register it fails rather than passing quietly;
+#   - run-all.sh executes exactly the declared set -- checked by running it in --list-suites
+#     mode, not by matching its source text, because the previous text match was satisfied by
+#     run-all.sh's own header comment while five suites had stopped running.
 #
-# Residual, stated rather than hidden: this cannot detect its own deletion.
-# .github/workflows/ci.yml asserts the file is present before running the suite.
+# Residuals, stated rather than hidden:
+#   - this script is itself a manifest row, so deleting its row would stop it running.
+#     .github/workflows/ci.yml runs it as its own step, independent of the aggregator, which
+#     is what closes that. A guard registered only in the artifact it guards cannot enforce
+#     its own registration.
+#   - a suite reporting a count it did not earn is believed by the aggregator; per-suite
+#     mutation guards are what cover that.
 
 set -euo pipefail
 
@@ -73,13 +80,12 @@ if [ ! -f "$RUNNER" ]; then
     exit 1
 fi
 
-# run-all.sh must still be manifest-driven. If someone reintroduces hardcoded registrations,
-# this manifest stops describing what actually runs and every check below becomes decorative.
-if ! grep -q 'required-suites.txt' "$RUNNER"; then
-    fail "run-all.sh no longer reads required-suites.txt -- the manifest is not driving the run"
-else
-    pass "run-all.sh is manifest-driven"
-fi
+# Deliberately NOT a text match. An earlier version grepped run-all.sh for the manifest
+# filename, and run-all.sh's own header comment satisfied that grep: repointing MANIFEST= at
+# a different file left the string present, this check green, and five suites silently not
+# running. --list-suites reports the paths the runner would actually execute, so the two lists
+# diverge the moment it stops using this manifest.
+RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null || true)
 
 DECLARED_PATHS=()
 DECLARED_COUNT=0
@@ -96,10 +102,23 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
     esac
 
     DECLARED_COUNT=$((DECLARED_COUNT + 1))
-    DECLARED_PATHS+=("$suite_path")
 
     if [ -z "$suite_path" ]; then
         fail "manifest row '$suite_name' declares no script path"
+        continue
+    fi
+
+    # A row names a suite inside tests/. An absolute path or one containing ".." would run
+    # code from outside the directory this manifest governs.
+    case "$suite_path" in
+        /*|*..*)
+            fail "$suite_path -- row '$suite_name' uses an absolute path or escapes tests/"
+            continue
+            ;;
+    esac
+
+    if declared_contains "$suite_path"; then
+        fail "$suite_path -- declared more than once; the run would execute it twice and double-count it"
         continue
     fi
 
@@ -118,6 +137,7 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
         continue
     fi
 
+    DECLARED_PATHS+=("$suite_path")
     pass "$suite_path -- declared and present"
 done < "$MANIFEST"
 
@@ -141,16 +161,48 @@ for suite in "${REQUIRED_SUITES[@]}"; do
     fi
 done
 
-# Sweep for suite-shaped files that nobody declared. Without this, adding a suite and
-# forgetting to register it leaves it silently never running -- the same end state as
-# deleting it, which is the failure this whole file exists to prevent.
-for candidate in "$TESTS_DIR"/validate-*.sh "$TESTS_DIR"/*-guard.sh; do
-    [ -f "$candidate" ] || continue
-    name=$(basename "$candidate")
-    if declared_contains "$name"; then
+# The runner must execute exactly what this manifest declares. Comparing the two sorted lists
+# catches a runner reading a different manifest, a row it skips, and a row it invents.
+DECLARED_SORTED=$(printf '%s\n' ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"} | sed '/^$/d' | sort)
+LISTED_SORTED=$(printf '%s\n' "$RUNNER_LISTED" | sed '/^$/d' | sort)
+
+if [ -z "$LISTED_SORTED" ]; then
+    fail "run-all.sh --list-suites produced nothing -- the runner is not reading this manifest"
+elif [ "$DECLARED_SORTED" != "$LISTED_SORTED" ]; then
+    fail "run-all.sh executes a different set of suites than this manifest declares"
+    echo "    manifest declares:"
+    printf '      %s\n' $DECLARED_SORTED
+    echo "    runner would execute:"
+    printf '      %s\n' $LISTED_SORTED
+else
+    pass "run-all.sh executes exactly the declared suites"
+fi
+
+# Sweep every shell script under tests/, not two filename shapes. The previous two-glob
+# allowlist missed tests/check-thing.sh and tests/sub/validate-thing.sh entirely: a suite
+# added and never declared never runs, which is the same end state as deleting it.
+NON_SUITE_FILES=(
+    "run-all.sh"
+    "test-helpers.sh"
+)
+
+while IFS= read -r candidate; do
+    rel=${candidate#"$TESTS_DIR/"}
+
+    skip=0
+    for allowed in "${NON_SUITE_FILES[@]}"; do
+        if [ "$rel" = "$allowed" ]; then
+            skip=1
+            break
+        fi
+    done
+    [ "$skip" = "1" ] && continue
+
+    if declared_contains "$rel"; then
         continue
     fi
-    fail "$name -- looks like a suite but is not declared in the manifest"
-done
+
+    fail "$rel -- a shell script under tests/ that no manifest row declares"
+done < <(find "$TESTS_DIR" -type f -name '*.sh' | sort)
 
 print_summary

@@ -103,7 +103,32 @@ assert_contains "$FIXTURE_OUTPUT" "reported zero tests" \
 
 cleanup_fixture
 
-# --- Case 4: the manifest guard actually fails ---
+# --- Case 4: a suite that reads stdin ---
+# The manifest used to be the loop's stdin, so one suite calling `cat` consumed the remaining
+# rows and every later suite silently left the run while the aggregator exited 0. The manifest
+# is now on fd 3 and suites are invoked with stdin detached.
+make_fixture 0 0
+printf 'cat >/dev/null\necho "Results: 3 passed, 0 failed, 0 skipped"\n' > "$WORK_DIR/skill-triggering/run-all.sh"
+run_fixture
+assert_contains "$FIXTURE_OUTPUT" "Total: 2 suites passed, 0 suites failed (8 individual tests)" \
+    "a suite that drains stdin -- every later suite still runs" || true
+
+cleanup_fixture
+
+# --- Case 5: a zero-padded test count ---
+# "08" matches the count pattern but is an invalid octal literal. The arithmetic error used to
+# end the manifest loop outright, dropping that suite and every one after it while still
+# exiting 0 -- a wider blast radius than the bug it replaced.
+make_fixture 0 0
+printf 'echo "Results: 08 passed, 0 failed, 0 skipped"\n' > "$WORK_DIR/skill-triggering/run-all.sh"
+run_fixture
+assert_exit_status "$FIXTURE_STATUS" 0 "a zero-padded count -- the run still completes" || true
+assert_contains "$FIXTURE_OUTPUT" "Total: 2 suites passed, 0 suites failed (13 individual tests)" \
+    "a zero-padded count -- read as decimal 8, no suite dropped" || true
+
+cleanup_fixture
+
+# --- Case 6: the manifest guard actually fails ---
 # validate-suite-manifest.sh is what stops a deleted or undeclared suite vanishing in silence,
 # and a guard that cannot fail is worse than none. These cases cover each way the manifest can
 # stop describing what actually runs: a declared suite missing from disk, a required suite
@@ -112,8 +137,9 @@ cleanup_fixture
 #
 # The earlier version of that guard matched suite names as text inside run-all.sh and was
 # defeated six ways -- inline comments, dead strings, here-docs, a broken `-f` guard, an
-# unreachable call, a `true #` prefix. None of those are expressible any more, because there
-# is no second place where a suite is named.
+# unreachable call, a `true #` prefix. Suite names no longer appear in run-all.sh at all, so
+# those particular expressions have nowhere to live; what replaced them is a check on what the
+# runner reports it would execute, and the cases below are what hold that honest.
 #
 # Unlike make_fixture this copies the whole tests tree, runner-guard.sh included. Safe here
 # because nothing runs run-all.sh from the copy: only the manifest script executes, and it
@@ -164,15 +190,35 @@ sed -i 's#^Comment Rules Guard|comment-rules-guard\.sh$#&|allow_zero#' "$MANIFES
 assert_exit_status "$(manifest_exit)" 1 \
     "allow_zero on a row not entitled to it -- manifest check fails" || true
 
+# check-thing.sh matches neither `validate-*.sh` nor `*-guard.sh`. The previous two-glob
+# sweep missed it and a copy in a subdirectory entirely, so both are named here.
 reset_manifest_dir
-printf '#!/usr/bin/env bash\necho "Results: 1 passed"\n' > "$MANIFEST_DIR/validate-undeclared-thing.sh"
+printf '#!/usr/bin/env bash\necho "Results: 1 passed"\n' > "$MANIFEST_DIR/check-thing.sh"
 assert_exit_status "$(manifest_exit)" 1 \
-    "a suite-shaped file nobody declared -- manifest check fails" || true
+    "an undeclared suite whose name matches no glob -- manifest check fails" || true
 
 reset_manifest_dir
-sed -i 's|required-suites.txt|somewhere-else.txt|g' "$MANIFEST_DIR/run-all.sh"
+mkdir -p "$MANIFEST_DIR/sub"
+printf '#!/usr/bin/env bash\necho "Results: 1 passed"\n' > "$MANIFEST_DIR/sub/validate-thing.sh"
 assert_exit_status "$(manifest_exit)" 1 \
-    "run-all.sh stops reading the manifest -- manifest check fails" || true
+    "an undeclared suite in a subdirectory -- manifest check fails" || true
+
+# Repointing MANIFEST= leaves the filename present in run-all.sh's header comment, which is
+# exactly what defeated the previous text-match check while five suites stopped running.
+reset_manifest_dir
+sed -i 's#^MANIFEST=.*#MANIFEST="$TESTS_DIR/somewhere-else.txt"#' "$MANIFEST_DIR/run-all.sh"
+assert_exit_status "$(manifest_exit)" 1 \
+    "run-all.sh repointed at another manifest -- manifest check fails" || true
+
+reset_manifest_dir
+printf 'Escapes|../outside-suite.sh\n' >> "$MANIFEST_DIR/required-suites.txt"
+assert_exit_status "$(manifest_exit)" 1 \
+    "a row escaping tests/ -- manifest check fails" || true
+
+reset_manifest_dir
+printf 'Duplicate|validate-skills.sh\n' >> "$MANIFEST_DIR/required-suites.txt"
+assert_exit_status "$(manifest_exit)" 1 \
+    "a duplicated row -- manifest check fails" || true
 
 cleanup_manifest
 
