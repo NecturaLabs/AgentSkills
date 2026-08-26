@@ -183,6 +183,29 @@
 - [ ] Pointers nullified after free
 - [ ] Memory-safe languages preferred for new code
 
+## Comment-Borne Disclosure (CWE-615 + OWASP SCP) [CRITICAL]
+
+Comments ship with the source, and for interpreted and client-side code they ship with the
+artifact users receive. Treat anything in a comment as readable by anyone who can read the
+file.
+
+- [ ] No credential, API key, token, password, connection string or private key in a comment (CWE-615)
+- [ ] No internal hostname, IP, port, bucket, queue or service endpoint in a comment (CWE-540)
+- [ ] No internal filesystem, build or developer-machine path in a comment
+- [ ] No PII, customer identifier or real production data in a comment or a doc example
+- [ ] No commented-out code carrying any of the above (CWE-615 + CWE-561)
+- [ ] No comment describing a known weakness, bypass, unpatched defect or exploit path (CWE-546)
+- [ ] No comment revealing internal architecture, table names or auth logic beyond what the API already exposes
+- [ ] Comments in user-accessible production code reveal no backend or other sensitive information (OWASP SCP)
+- [ ] Any secret found is treated as compromised: rotate first, then scrub from history — deleting the line is not remediation
+
+**Severity:** a live credential, key or token is CRITICAL. An internal hostname, path or
+other infrastructure detail is HIGH. Commented-out code carrying either is HIGH. A comment
+naming a weakness or a bypass is HIGH.
+
+**Where these accumulate:** file headers, configuration modules, client-side bundles, test
+fixtures, and commented-out blocks.
+
 ## CWE/SANS Top 25 Quick Reference
 
 | CWE | Name | Check |

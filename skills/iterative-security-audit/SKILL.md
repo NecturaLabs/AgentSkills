@@ -1,5 +1,5 @@
 ---
-description: MUST invoke when code changes touch authentication, authorization, cryptography, input validation, data handling, API endpoints, session management, secrets/config, or dependencies. Also use when the user asks for security review or audit. Requires superpowers plugin. Iterates until clean, then triggers code review.
+description: MUST invoke when code changes touch authentication, authorization, cryptography, input validation, data handling, API endpoints, session management, secrets/config, dependencies, or comments that could carry secrets or internal infrastructure detail. Also use when the user asks for security review or audit. Requires superpowers plugin. Iterates until clean, then triggers code review.
 ---
 
 # Iterative Security Audit
@@ -102,6 +102,7 @@ Full detailed checklist: `references/security-checklist.md`
 | Configuration & Secrets | ASVS V13 | Secret managers, no debug in prod |
 | Supply Chain | NIST SSDF, Microsoft SDL | SBOM, dependency scanning, code signing |
 | Memory Safety | CERT, CWE | Overflow, use-after-free, format strings |
+| Comment-Borne Disclosure | CWE-615/540/546, OWASP SCP | Secrets, keys, internal hosts and paths, PII in comments |
 
 ### CWE/SANS Top 25 (2025) — Top 10
 
