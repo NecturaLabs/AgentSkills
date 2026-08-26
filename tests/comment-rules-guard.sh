@@ -69,7 +69,8 @@ fi
 
 # label|sed-expression. `|` is the delimiter, so no pattern may contain one. sed matches within a
 # line, so every anchor must sit unbroken on one line in every copy -- a phrase spanning a line
-# break silently matches nothing. The cmp check in check_mutation catches an anchor gone stale.
+# break silently matches nothing. Markdown emphasis must be escaped (\*\*), since sed reads a bare
+# * as a quantifier. The cmp check in check_mutation catches an anchor gone stale.
 #
 # `sed -i` with no backup suffix is GNU syntax, so this suite targets Linux and Windows/Git Bash
 # only. On BSD sed (macOS) the expression is consumed as the backup suffix and the script aborts
@@ -100,6 +101,8 @@ CANARIES=(
     "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
     "step 3 prose severity reverted|s|or PII in a comment is HIGH.|or PII in a comment is CRITICAL.|"
     "rotate-before-delete prose removed|s|Never accept a diff that presents deleting the line as the remediation.||"
+    "GDScript spot check inverted|s|`##` above the member|a docstring inside the body|"
+    "sentinel dropped from the ladder|s|thread-safety or sentinel contract|thread-safety contract|"
     "width ceiling widened|s|Python is 72 even where code is allowed 99|Python is 99 like its code|"
     "Kotlin and C sharp fallbacks dropped|s|120 and 100 respectively|whatever the project prefers|"
 )
@@ -115,6 +118,8 @@ MATRIX_CASES=(
     "trap table heading removed|s|Derived-Language Traps|Language Notes|"
     "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
     "matrix doc surface softened|s|All top-level exports|Whatever seems useful|"
+    "GDScript trap row inverted|s|`##` doc comments \*\*above\*\* the member|a docstring inside the body|"
+    "unlisted-language doc branch removed|s|surface was \*\*derived, not looked up\*\*||"
 )
 
 # The secret-handling gate is duplicated across SKILL.md, comment-rules.md and both review

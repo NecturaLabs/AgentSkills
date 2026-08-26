@@ -37,7 +37,7 @@ REQUIRED=(
     "A language's comment convention comes from its own creators."
     "Never inherit it from the language it resembles."
     "Never write a rationale you have not verified."
-    "An unknown why is silence, never an invention."
+    "An unknown why is silence or a tracked question, never an invention."
     "A wrong comment is worse than no comment."
     "Editing code means you own every comment on it."
     "A comment states facts about the code."
@@ -55,6 +55,27 @@ MATRIX_REQUIRED=(
     "Never emit a comment"
     "dropped by the type system"
     "Do not infer a convention from a language this one resembles"
+    "surface was **derived, not looked up**"
+    "PEP 8, even where code is allowed 99"
+)
+
+# Rule 4 rests entirely on the trap table, and it was the largest duplicated surface with no
+# content anchor at all -- only its heading. The two copies are deliberately worded differently
+# (authoring guidance vs. reviewer spot-check), so each is anchored on its own wording.
+# Residual, stated rather than implied: this asserts each copy still says the thing. It does
+# not assert the two copies agree byte for byte, and no check here does.
+TRAP_MATRIX_REQUIRED=(
+    "block doc comments are not permitted"
+    "begins with the item's name"
+    "JSON has no comment syntax at all"
+    "`##` doc comments **above** the member"
+)
+
+TRAP_CHECKLIST_REQUIRED=(
+    "`##` above the member"
+    "summary is a sentence fragment"
+    "no tags exist"
+    "none exists; the note goes in a sibling doc"
 )
 
 # The severity ladder is duplicated into comment-manager/SKILL.md and the review-side
@@ -65,6 +86,7 @@ SEVERITY_REQUIRED=(
     "credential, key, token, connection string or private key in a comment"
     "Internal hostname, internal path, infrastructure detail or PII in a comment"
     "security-scanner suppression with no justification and no tracked reference"
+    "thread-safety or sentinel contract"
 )
 
 # Deleting a leaked secret is not remediating it. If this instruction is lost, Fix mode
@@ -179,5 +201,7 @@ check_phrases "language-matrix.md" "$MATRIX" "the doc-required surface" "${DOC_S
 check_phrases "comment-checklist.md" "$REVIEW" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the step 3 leak prose" "${REVIEW_PROSE_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the inlined width ceilings" "${WIDTH_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" "the derived-language traps" "${TRAP_MATRIX_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" "the derived-language spot checks" "${TRAP_CHECKLIST_REQUIRED[@]}"
 
 print_summary
