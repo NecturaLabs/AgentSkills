@@ -3,6 +3,14 @@
 - Online research: match depth to stakes — a flag name or version number needs one authoritative source, an architecture or security decision needs several, cross-checked. The source-quality bar never moves: official docs, authoritative blogs, established standards bodies, never a shallow summary or low-quality aggregator.
 - When two rules in this file pull in different directions, resolve in this order: an explicit user instruction, then correctness and safety, then completeness of the work, then token efficiency.
 
+### Scope of Work
+- Work only inside the scope the user assigned. The files, directory, branch or worktree named in the task is the boundary; everything outside it is read-only until the user widens it.
+- **Never write outside that boundary.** Sibling worktrees, other checkouts of the same repo, unrelated projects and machine-level config are somebody else's work in progress — often an agent or a person editing right now. Reading them to understand something is fine. Writing to them is not, even to fix something plainly broken, and even when it looks like it belongs to you.
+- **The shell's working directory persists between commands.** A `cd` into another tree silently redirects every later relative path, writes included — the command looks right and lands in the wrong repo. Prefer absolute paths, use `git -C <path>` for one-off inspection of another tree, and confirm where you are before anything that writes.
+- Commands that fan out are writes too: a test suite that spawns agents, a formatter, a codegen step. Check what a command touches before running it somewhere you do not own.
+- State the boundary explicitly when dispatching a subagent — the absolute path it may change, and that everything else is read-only. A subagent starts in the session's working directory and will otherwise assume the whole machine is fair game.
+- If finishing the task genuinely requires a change outside the boundary, stop and report it: the path, what is needed, and why. Do not make the change and mention it afterwards.
+
 ### Product Standards
 - Treat every project as production software with real users depending on it, unless the user says otherwise. Small, internal, early-stage and experimental codebases get the same care — "it's just a demo" is how defects reach production. The standard of care does not scale down; the ceremony does — a small utility still gets correct error handling and a test for its behavior, not an ADR and a migration plan.
 - Hold every change to production standards: correctness, security, backward compatibility, clear error handling, docs that match the code, and tests for the behavior you touch. This raises the bar on the work you deliver. It is not license to add unrequested features, abstractions or defensive layers — defects you find along the way are governed by Issue Handling below.
