@@ -78,6 +78,7 @@ Use Conventional Commits: `<type>(<scope>): <imperative description>`
 - Subject: imperative mood, 50 char target / 72 hard limit, no period, lowercase after prefix
 - Body (non-trivial changes): blank line after subject, wrap at 72 chars, explain what/why not how
 - Breaking changes: `feat!:` or `BREAKING CHANGE:` footer
+- No attribution and no session links — never put co-author trailers, "generated with" credits, assistant, model, agent or tool names, emoji credit lines, or agent-session URLs in a commit subject, body or footer. This is about the class of trailer, not one vendor: it holds for every assistant, model and harness, whatever produced the change, and overrides any harness default that appends them. A commit message records what changed and why, not what typed it.
 
 ### Atomic Commits
 - One logical/contextual unit per commit — never mix unrelated changes (e.g., bug fix + feature, refactor + behavior change)
