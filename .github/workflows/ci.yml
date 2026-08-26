@@ -56,7 +56,7 @@ jobs:
           # Only the aggregator's own closing block, never the whole log. run-all.sh echoes
           # each suite's stdout into that log, so a whole-log grep was satisfied by any suite
           # printing the expected Total line -- CI green with one suite actually executed.
-          ACTUAL=$(tail -3 run.log | grep -E '^Total: ' | tail -1)
+          ACTUAL=$(tail -3 run.log | grep -E '^Total: ' | tail -1 || true)
           case "$ACTUAL" in
             "Total: $EXPECTED suites passed, 0 suites failed"*) ;;
             *) echo "ERROR: expected all $EXPECTED declared suites to pass, got: $ACTUAL"; exit 1 ;;
@@ -68,6 +68,8 @@ jobs:
           # missing config file read as "no versions found here" rather than as an error.
           for f in package.json .claude-plugin/plugin.json .cursor-plugin/plugin.json gemini-extension.json; do
             [ -f "$f" ] || { echo "ERROR: $f is missing"; exit 1; }
+            n=$(grep -cE '"version": "[^"]+"' "$f" || true)
+            [ "$n" = "1" ] || { echo "ERROR: $f yields $n version strings, expected 1"; exit 1; }
           done
           VERSIONS=$(grep -hoE '"version": "[^"]+"' \
             package.json \
