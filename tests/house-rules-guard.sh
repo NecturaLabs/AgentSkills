@@ -31,7 +31,8 @@ cp -r "$PROJECT_ROOT/skills" "$SANDBOX/skills"
 cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 
 run_validator() {
-    # Never let the validator's own non-zero exit abort this script -- it is the expected result.
+    # The validator's own non-zero exit is the expected result here, so it must not abort this
+    # script; the status is captured rather than propagated.
     ( cd "$SANDBOX" && bash tests/validate-house-rules.sh >/dev/null 2>&1 ) && echo 0 || echo 1
 }
 

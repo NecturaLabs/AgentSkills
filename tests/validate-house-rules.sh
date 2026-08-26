@@ -10,7 +10,7 @@
 # the headline fails the headline check, and inverting a rule fails whichever half it rewrote.
 #
 # tests/house-rules-guard.sh mutation-tests this script and fails if any of those blind spots
-# returns. Run it after rewording a rule.
+# returns, which is what makes rewording a rule here a change that gets checked.
 #
 # Level-specific tailoring IS allowed: a skill may insert clauses into a rule and may add rules 7+.
 # What is not allowed is dropping, truncating, or inverting any of the six.
