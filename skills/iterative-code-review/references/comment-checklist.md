@@ -49,8 +49,16 @@ For every comment in the diff, in this order:
    is implementation detail contaminating an interface.
 6. **Does it use this language's conventions?** Check the derived-language traps below.
 7. **Is it within the size limits?**
-8. **Does the public API surface it touches have the contract a caller needs?** Missing
-   error, nullability, ownership, thread-safety or sentinel semantics is HIGH.
+8. **Is anything the language mandates documenting left undocumented?** Read the surface
+   off the "Doc Comment Required On" table in
+   `skills/comment-manager/references/language-matrix.md` — Go's every exported name,
+   Rust's every public item, Swift's every open or public declaration, TypeScript's all
+   top-level exports, Shell's all library functions, Terraform's `description` on every
+   variable and output. Missing error, nullability, ownership, thread-safety or sentinel
+   semantics on that surface is HIGH.
+
+Under-documenting and over-commenting are both defects. Do not let a diff that correctly
+deleted noise pass while it also stripped a contract a caller needs.
 
 ## Size Limits
 

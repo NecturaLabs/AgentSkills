@@ -51,6 +51,7 @@ REQUIRED=(
 # fails rather than passing on the strength of the rules living elsewhere.
 MATRIX_REQUIRED=(
     "Derived-Language Traps"
+    "Doc Comment Required On"
     "Never emit a comment"
     "dropped by the type system"
     "Do not infer a convention from a language this one resembles"

@@ -64,9 +64,14 @@ construct does not survive Gate 1, and complying with it produces exactly the no
 policy was meant to prevent.
 
 **Standing exception, itself gated.** Public API surface, where the language's own guide
-requires a doc comment. The published carve-outs still apply: obvious accessors, overrides
-and protocol conformances, self-evident enum cases. Requiring a doc comment does not
-license restating the signature in prose.
+requires a doc comment. What that surface is differs by language and is not a matter of
+judgement — read it off the "Doc Comment Required On" table in `language-matrix.md` rather
+than reasoning about whether this language "really" mandates docs. The published carve-outs
+still apply: obvious accessors, overrides and protocol conformances, self-evident enum
+cases. Requiring a doc comment does not license restating the signature in prose.
+
+Under-documenting is a defect in the same way over-commenting is. The gate exists to
+suppress noise, not to repeal a language's documentation requirements.
 
 ## What a Comment May Contain
 

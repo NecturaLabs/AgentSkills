@@ -8,8 +8,14 @@ overrides it.
 1. **The project's own configuration.** `.editorconfig`, `rustfmt.toml`, `.prettierrc`,
    `checkstyle.xml`, `ruff.toml`, `.clang-format`, `scalafmt.conf`, `.golangci.yml`.
    If it sets a width or a doc-comment rule, it wins.
-2. **This matrix.**
-3. **The universal core.**
+2. **A framework, engine or studio coding standard the project follows.** Epic's C++
+   standard for Unreal, a studio's GDScript guide, an in-house Java style. These rank with
+   the project's own configuration and above this matrix, because they are what the code is
+   actually held to. Epic's is the worked example: *"Code documents the implementation while
+   comments document the intent"*, and its parameter comments carry units, expected ranges,
+   impossible values and error-code meanings.
+3. **This matrix.**
+4. **The universal core.**
 
 Never reformat a comment that the project's formatter owns. If `rustfmt` has
 `wrap_comments = false`, do not hand-wrap its comments.
@@ -96,6 +102,50 @@ not a citation. Everything else is quoted from the language's own guide.
 | GraphQL | One-sentence description | `"""` descriptions on types and fields | `# TODO:` | **`#` comments are dropped by the type system** and never reach consumers — document with descriptions |
 | Dockerfile | Why-focused | — | `# TODO:` | A `#` line at the very top may be parsed as a parser directive (`# syntax=`) — never put prose there |
 | Makefile | Why-focused | — | `# TODO:` | A `#` inside a recipe line is passed to the shell, not stripped by make |
+
+## Doc Comment Required On
+
+The standing exception in `comment-rules.md` is "public API surface, where the language's
+own guide requires a doc comment". This table is what that means per language. Without it
+the exception is unusable, and the admission gate silently swallows API surface that its
+own language mandates be documented.
+
+Under-documenting is a defect in the same way over-commenting is. The gate suppresses noise;
+it does not repeal these.
+
+| Language | Required on |
+|---|---|
+| Python | All public modules, functions, classes and methods |
+| JavaScript | Exported symbols; classes, methods and properties |
+| TypeScript | **All top-level exports** |
+| Java | All visible classes, members and record components |
+| Kotlin | Public API |
+| Scala | All packages, classes, traits, methods and other members |
+| C# | All publicly visible types and their public members, `<summary>` at minimum |
+| Go | **Every exported (capitalized) name**, plus non-trivial unexported declarations |
+| Rust | Every public item — *"If an item is public then it should be documented"* |
+| C | Any function whose purpose is not obvious, at the function head |
+| C++ | Almost every function declaration; private methods and `.cc` functions are not exempt |
+| Objective-C | Every non-trivial interface, **public and private** |
+| Swift | Every open or public declaration, and every open or public member of one |
+| Dart | Most public libraries, top-level variables, types and members |
+| Ruby | Public API |
+| PHP | Public API |
+| Elixir | Every module via `@moduledoc` and every public function via `@doc` — **never** a private function |
+| Haskell | Exported items |
+| Julia | Exported functions and types |
+| R | Every exported function |
+| Shell, Bash | **All library functions**, and any function not both obvious and short |
+| PowerShell | Every exported function and every script |
+| Lua, Luau | File headers, and headers on functions and objects |
+| GDScript | Public members; underscore-prefixed members are excluded unless documented deliberately |
+| Terraform, HCL | A `description` on **every** variable and **every** output |
+| GraphQL | Descriptions on public types and fields |
+
+**The carve-outs still apply** — they are part of the same guides, not an escape from them:
+simple obvious accessors (Java), overrides and protocol conformances (Swift, C++, Java),
+self-evident enum cases (Swift), trivial destructors (C++). And a required doc comment is
+never a licence to restate the signature in prose.
 
 ## Derived-Language Traps
 

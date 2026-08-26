@@ -75,6 +75,7 @@ CANARIES=(
 # The matrix is checked by a third call with its own phrase list, so it needs its own case.
 MATRIX_CASES=(
     "trap table heading removed|s|Derived-Language Traps|Language Notes|"
+    "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
 )
 
 check_mutation() {

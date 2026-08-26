@@ -73,7 +73,8 @@ report. **Fix** — repair, then re-scan.
 1. Read the project's formatter configuration: `.editorconfig`, `rustfmt.toml`,
    `.prettierrc`, `checkstyle.xml`, `ruff.toml`, `.clang-format`, `scalafmt.conf`. It wins.
 2. Read the language's row in `references/language-matrix.md` — width, doc marker, summary
-   form, contract sections, tag policy, prohibitions.
+   form, contract sections, tag policy, prohibitions. Read its "Doc Comment Required On"
+   row too: what a language mandates documenting is looked up there, never reasoned about.
 3. **Check the derived-language trap table.** A language that borrows another's syntax
    rarely borrows its documentation conventions.
 4. Apply the universal core unchanged.
