@@ -10,12 +10,17 @@
 # What this file guarantees, stated precisely because an earlier version of this comment
 # claimed more than the code delivered:
 #   - every declared row is executed, or the run fails;
-#   - a declared suite that is missing, empty, or reports no tests fails the run;
-#   - the number of suites accounted for at the end equals the number declared, so a loop
-#     that ends early cannot leave suites silently unrun;
-#   - `--list-suites` prints exactly the paths that would be executed and nothing else, so a
+#   - a declared suite that is missing, empty, reporting no tests, or resolving outside
+#     tests/ fails the run;
+#   - every suite runs with stdin detached and the manifest descriptor closed, so it cannot
+#     consume the rows that follow it;
+#   - `--list-suites` prints exactly the paths that would be attempted and nothing else, so a
 #     caller can check the run against the manifest without parsing this file for evidence.
 #     Diagnostics go to stderr precisely so they cannot be mistaken for a path.
+#
+# The ACCOUNTED check below catches a loop that ends early only where DECLARED is already
+# final. It is a backstop, not a guarantee: a manifest truncated mid-run shrinks both sides
+# together. Closing fd 3 to children is what actually prevents that.
 #
 # What it does NOT guarantee: that a suite's self-reported "N passed" was earned. A suite
 # printing a count it did not run is believed here. Per-suite mutation guards cover that.
@@ -23,7 +28,20 @@
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
 MANIFEST="$TESTS_DIR/required-suites.txt"
+
+# The literal-path check below rejects "/" and "..", but `[ -f ]` follows symlinks, so a
+# declared tests/x.sh -> ../outside/evil.sh satisfied every string test and executed code
+# from outside this directory. Resolve the link and require the result to stay inside.
+resolves_inside_tests() {
+    local target="$1" resolved
+    resolved=$(readlink -f "$target" 2>/dev/null || realpath "$target" 2>/dev/null || printf '%s' "$target")
+    case "$resolved" in
+        "$TESTS_REAL"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 MODE="run"
 VERBOSE=""
@@ -59,6 +77,13 @@ run_test_suite() {
 
     # A declared suite that is not on disk is a failure, never a skip. The old SKIP path
     # returned 0 and incremented no counter, so a moved entrypoint left the run in silence.
+    if [ -f "$suite_script" ] && ! resolves_inside_tests "$suite_script"; then
+        echo "FAIL: $suite_name -- resolves outside the tests directory: $suite_script"
+        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
+        echo ""
+        return 0
+    fi
+
     if [ ! -f "$suite_script" ]; then
         echo "FAIL: $suite_name -- declared in the manifest but not found at $suite_script"
         TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
@@ -68,23 +93,26 @@ run_test_suite() {
 
     local output
     local suite_ok=1
-    # `</dev/null`: the manifest is read on fd 3, but a suite that reads stdin would still
-    # inherit whatever the runner was invoked with. Detaching it keeps a suite from consuming
-    # input the runner depends on. $VERBOSE is deliberately unquoted so empty passes no
-    # argument, where "$VERBOSE" would pass one empty argument.
-    output=$(bash "$suite_script" $VERBOSE </dev/null 2>&1) || suite_ok=0
+    # `</dev/null` detaches stdin; `3<&-` closes the manifest descriptor. Both are needed:
+    # children inherit open descriptors and share the parent's file offset, so a suite doing
+    # `cat <&3` consumed the remaining manifest rows and every later suite silently left the
+    # run while the aggregator still exited 0. $VERBOSE is deliberately unquoted so empty
+    # passes no argument, where "$VERBOSE" would pass one empty argument.
+    output=$(bash "$suite_script" $VERBOSE </dev/null 3<&- 2>&1) || suite_ok=0
     echo "$output"
 
     # `pipefail` is what keeps this numeric when grep matches nothing: its status propagates
     # through the pipe, `|| echo "0"` fires, and suite_tests stays a digit string. `tail -1`
     # keeps a multi-match result single-valued.
     local suite_tests
-    suite_tests=$(echo "$output" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
+    suite_tests=$(echo "$output" | grep '^Results:' | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
 
     # Force base 10, and treat anything non-numeric as zero. "08" is a valid match but an
     # invalid octal literal, and the arithmetic error it caused used to end the manifest loop
     # outright -- dropping this suite and every suite after it while still exiting 0.
-    if ! printf '%s' "$suite_tests" | grep -qE '^[0-9]+$'; then
+    # A count longer than 9 digits is rejected rather than converted: $(( )) wraps silently,
+    # and "9223372036854775808 passed" produced a negative grand total on an exit-0 run.
+    if ! printf '%s' "$suite_tests" | grep -qE '^[0-9]{1,9}$'; then
         suite_tests=0
     fi
     suite_tests=$((10#$suite_tests))
@@ -141,13 +169,16 @@ while IFS='|' read -r suite_name suite_path suite_flags <&3 || [ -n "${suite_nam
             ;;
     esac
 
+    # Compared case-insensitively: on Windows and macOS "suite.sh" and "SUITE.SH" are one
+    # file, and two rows for it ran it twice and double-counted its tests.
+    suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
     case "$SEEN_PATHS" in
-        *"|$suite_path|"*)
+        *"|$suite_key|"*)
             echo "ERROR: manifest declares $suite_path more than once" >&2
             exit 1
             ;;
     esac
-    SEEN_PATHS="$SEEN_PATHS|$suite_path|"
+    SEEN_PATHS="$SEEN_PATHS|$suite_key|"
 
     DECLARED=$((DECLARED + 1))
 
