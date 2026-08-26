@@ -36,6 +36,7 @@ After writing or editing code, check diagnostics and fix errors before proceedin
 ### Token Efficiency
 - Don't re-read a file you just wrote or edited — you know its contents. Re-read only when something else may have changed it since: a formatter or hook fired, a script generated it, or the harness flagged an external change.
 - Run a check once and trust the result. Re-run only if something changed since or the outcome was genuinely uncertain.
+- Never poll work you dispatched. A subagent or a background command re-invokes you the moment it finishes, so every status check is a wasted round trip that replays the whole conversation and tells you nothing the notification will not. Having launched it, either do something independent or stop and say you are waiting — in one line, once. The only status checks worth making are ones the user asked for, and external state the harness cannot notify you about, such as a CI run or a remote queue; pace those to how fast that state actually changes, never in a tight loop.
 - Don't echo back large blocks of code or file contents unless asked.
 - Batch related edits into single operations. Don't make 5 edits when 1 handles it.
 - Skip confirmations like "I'll continue..." Just do it.
