@@ -133,8 +133,8 @@ CANON_REQUIRED=(
     "A caller obligation is a fact about the contract, not an instruction to the reader."
 )
 
-# review-checklist.md is the FIRST of the three paths handed to a dispatched
-# reviewer, so a severity stated only in the other two is a severity the
+# review-checklist.md is the FIRST of the four paths handed to a dispatched
+# reviewer, so a severity stated only in the other three is a severity the
 # reviewer never reads. It carries the ladder in its own wording, hence its own
 # list.
 REVIEW_CHECKLIST_REQUIRED=(
