@@ -79,10 +79,29 @@ CANON_REQUIRED=(
     "A caller obligation is a fact about the contract, not an instruction to the reader."
 )
 
+# review-checklist.md is the FIRST of the three paths handed to a dispatched reviewer, so a
+# severity stated only in the other two is a severity the reviewer never reads. It carries the
+# ladder in its own wording, hence its own list.
+REVIEW_CHECKLIST_REQUIRED=(
+    "credential, key, token, connection string or private key in a comment"
+    "Internal hostname, internal path, infrastructure detail or PII in a comment"
+    "A leaked secret is rotated and its history scrubbed, not merely deleted"
+)
+
+# The doc-required surface is inlined into the review checklist because a dispatched subagent
+# cannot resolve a path under another skill. Two copies of a table drift; these anchors are the
+# rows most likely to be silently softened, and they must read identically in both.
+DOC_SURFACE_REQUIRED=(
+    "All top-level exports"
+    "Every exported (capitalized) name"
+    "Every public item"
+)
+
 CANON="$PROJECT_ROOT/skills/comment-manager/references/comment-rules.md"
 REVIEW="$PROJECT_ROOT/skills/iterative-code-review/references/comment-checklist.md"
 MATRIX="$PROJECT_ROOT/skills/comment-manager/references/language-matrix.md"
 SKILL="$PROJECT_ROOT/skills/comment-manager/SKILL.md"
+REVIEW_CHECKLIST="$PROJECT_ROOT/skills/iterative-code-review/references/review-checklist.md"
 
 # Collapse every run of whitespace to a single space so a rule wrapped at a different column, or
 # split across lines, still matches.
@@ -137,5 +156,8 @@ check_phrases "comment-rules.md" "$CANON" "the secret and caller-obligation carv
 check_phrases "comment-manager SKILL.md" "$SKILL" "the secret-handling gate" "${SKILL_REQUIRED[@]}"
 check_phrases "comment-manager SKILL.md" "$SKILL" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
+check_phrases "review-checklist.md" "$REVIEW_CHECKLIST" "the severity ladder" "${REVIEW_CHECKLIST_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
 
 print_summary

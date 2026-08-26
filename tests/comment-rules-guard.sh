@@ -66,10 +66,10 @@ fi
 # line, so every anchor must sit unbroken on one line in every copy -- a phrase spanning a line
 # break silently matches nothing. The cmp check in check_mutation catches an anchor gone stale.
 #
-# `sed -i` with no backup suffix is GNU syntax. On BSD sed (macOS) the expression is consumed as
-# the suffix and the script aborts under `set -e` -- loud, not a silent pass -- so this is a
-# Linux/Windows-CI assumption, not a hidden failure mode. Add a `sed --version` probe if macOS
-# ever joins the matrix.
+# `sed -i` with no backup suffix is GNU syntax, so this suite targets Linux and Windows/Git Bash
+# only. On BSD sed (macOS) the expression is consumed as the backup suffix and the script aborts
+# under `set -e` -- loud, not a silent pass, which is why it is a stated constraint rather than a
+# hidden failure mode.
 #
 # Headline and tail alternate across the seven rules on purpose: guarding both halves is the whole
 # point of the duplication check, and a matrix that only ever mutated headlines would not prove the
@@ -83,6 +83,7 @@ MUTATIONS=(
     "rule 6 tail removed|s|Editing code means you own every comment on it.||"
     "rule 7 tail removed|s|It never instructs its reader, human or agent.||"
     "block ceiling widened|s|one paragraph, at most 7 lines|one paragraph, at most 70 lines|"
+    "caller-obligation carve-out removed|s|A caller obligation is a fact about the contract, not an instruction to the reader.||"
 )
 
 # One rule phrase, one size limit: the validator checks this file on its own pass, and a canary
@@ -90,6 +91,14 @@ MUTATIONS=(
 CANARIES=(
     "rule 1 tail removed|s|Restating the code is a defect, not documentation.||"
     "doc summary limit removed|s|exactly one sentence on one physical line||"
+    "severity ladder row removed|s|Internal hostname, internal path, infrastructure detail or PII in a comment||"
+    "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
+)
+
+# review-checklist.md is the first path the dispatched reviewer is handed, and it was the copy
+# left at the wrong severity by an earlier remediation, so its own pass gets a canary too.
+REVIEW_CHECKLIST_CASES=(
+    "rotate-and-scrub row removed|s|A leaked secret is rotated and its history scrubbed, not merely deleted||"
 )
 
 # The matrix is checked by a third call with its own phrase list, so it needs its own case.
@@ -161,5 +170,10 @@ run_cases "comment-manager SKILL.md" \
     "$SANDBOX/skills/comment-manager/SKILL.md" \
     "$SANDBOX/pristine-skill.md" \
     "${SKILL_CASES[@]}"
+
+run_cases "review-checklist.md" \
+    "$SANDBOX/skills/iterative-code-review/references/review-checklist.md" \
+    "$SANDBOX/pristine-review-checklist.md" \
+    "${REVIEW_CHECKLIST_CASES[@]}"
 
 print_summary
