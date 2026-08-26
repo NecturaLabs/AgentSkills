@@ -81,7 +81,10 @@ policy was meant to prevent.
 **Standing exception, itself gated.** Public API surface, where the language's own guide
 requires a doc comment. What that surface is differs by language and is not a matter of
 judgement — read it off the "Doc Comment Required On" table in `language-matrix.md` rather
-than reasoning about whether this language "really" mandates docs. The published carve-outs
+than reasoning about whether this language "really" mandates docs. Where that table has no
+row for the language, follow *Unlisted Languages* in the same file: the surface is derived
+from the language's own guide or its doc generator, and you say which. An absent row is
+never a reason to document nothing. The published carve-outs
 still apply: obvious accessors, overrides and protocol conformances, self-evident enum
 cases. Requiring a doc comment does not license restating the signature in prose.
 
@@ -152,13 +155,16 @@ remediation, never the remediation itself.
 | Block / implementation comment | comment prose width | one paragraph, at most 7 lines; target 3 sentences or fewer |
 | Doc summary | one physical line within the limit | exactly one sentence on one physical line |
 | Doc body | comment prose width | one paragraph per topic, each at most 7 lines; one sentence per tag description |
-| File or module header | comment prose width | 1 to 3 sentences |
+| File or module header | comment prose width | 1 to 3 sentences, or up to 25 lines where the design-rationale carve-out applies |
 
 A trailing comment that does not fit becomes a block comment above the code. Never wrap it
 onto a second line.
 
-**Provenance.** The widths are quoted from each language's own guide where one exists, and
-are hard rules there. Rows marked **(house)** in `language-matrix.md` — Kotlin, C#, Haskell,
+**Provenance.** The widths are quoted from a published guide for that language where one
+exists, and are hard rules there. Some come from the language's own maintainers (PEP 8, the
+Linux kernel, PSR-12); others from a widely adopted third party (Google, Airbnb, Roblox,
+tidyverse, scalafmt's default), and JavaScript has two different published numbers. Cite the
+guide, not "the language". Rows marked **(house)** in `language-matrix.md` — Kotlin, C#, Haskell,
 PowerShell, SQL, CSS/SCSS, YAML, TOML, XML, Terraform/HCL, GraphQL, Dockerfile, Makefile —
 publish no width, and the number given is our default carrying no citation. Do not enforce
 one of those as though the language mandated it.
@@ -168,7 +174,8 @@ prose guidance to comment bodies: Microsoft's Writing Style Guide ("Three to sev
 about the right length for a paragraph") and Google's documentation style guide ("1-3
 sentences").
 
-**A file-head design rationale is bounded by necessity, not by the paragraph ceiling.**
+**A file-head design rationale may exceed the 1-to-3-sentence header limit, up to 25
+lines.**
 Where the reason a file exists, or the reason it is built the way it is, cannot be recovered
 from its code — a guard that encodes the attacks it was written to catch, a control whose
 threat model is why it looks unusual, a workaround whose trigger lives in something external

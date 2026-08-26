@@ -93,6 +93,8 @@ key is a false all-clear on a live exposure.
 2. Read the language's row in `references/language-matrix.md` — width, doc marker, summary
    form, contract sections, tag policy, prohibitions. Read its "Doc Comment Required On"
    row too: what a language mandates documenting is looked up there, never reasoned about.
+   If the language has no row, follow *Unlisted Languages* in the same file — an absent row
+   is not a licence to document nothing.
 3. **Check the derived-language trap table.** A language that borrows another's syntax
    rarely borrows its documentation conventions.
 4. Apply the universal core unchanged.

@@ -126,7 +126,7 @@ contract.
 | Block / implementation comment | comment prose width | one paragraph, at most 7 lines; target 3 sentences or fewer |
 | Doc summary | one physical line within the limit | exactly one sentence on one physical line |
 | Doc body | comment prose width | one paragraph per topic, each at most 7 lines; one sentence per tag description |
-| File or module header | comment prose width | 1 to 3 sentences |
+| File or module header | comment prose width | 1 to 3 sentences, or up to 25 lines where the design-rationale carve-out applies |
 
 Comment prose width is the project's configured value; failing that, the language's own.
 The ones that catch reviewers out: Python is 72 even where code is allowed 99; Rust is 80
@@ -188,8 +188,11 @@ False positives cost more than they save. These are not findings:
   is, where that is not recoverable from the code. It is bounded by necessity rather than by
   the paragraph ceiling. Narrative padding around it is still a finding; the rationale
   itself is not.
-- A width enforced on a language whose guide publishes none. Those defaults are the house's,
-  not the language's — see the (house) rows in the comment-manager language matrix.
+- A width **overrun** on a language whose guide publishes none, reported as though the
+  language mandated the number. These thirteen publish no width, so the value applied is a
+  house default: Kotlin, C#, Haskell, PowerShell, SQL, CSS/SCSS, YAML, TOML, XML,
+  Terraform/HCL, GraphQL, Dockerfile, Makefile. The overrun is still a finding — a house
+  default is a real limit — but it is LOW, and it is never described as the language's rule.
 - A commented-out line inside a documented example block.
 - An annotation that does carry an owner or a tracked reference, even if it is old — that
   is a backlog question, not a comment defect.
