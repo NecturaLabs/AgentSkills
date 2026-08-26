@@ -101,7 +101,7 @@ CANARIES=(
     "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
     "step 3 prose severity reverted|s|or PII in a comment is HIGH.|or PII in a comment is CRITICAL.|"
     "rotate-before-delete prose removed|s|Never accept a diff that presents deleting the line as the remediation.||"
-    "GDScript spot check inverted|s|`##` above the member|a docstring inside the body|"
+    "GDScript spot check inverted|s|\`##\` above the member|a docstring inside the body|"
     "sentinel dropped from the ladder|s|thread-safety or sentinel contract|thread-safety contract|"
     "width ceiling widened|s|Python is 72 even where code is allowed 99|Python is 99 like its code|"
     "Kotlin and C sharp fallbacks dropped|s|120 and 100 respectively|whatever the project prefers|"
@@ -118,8 +118,9 @@ MATRIX_CASES=(
     "trap table heading removed|s|Derived-Language Traps|Language Notes|"
     "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
     "matrix doc surface softened|s|All top-level exports|Whatever seems useful|"
-    "GDScript trap row inverted|s|`##` doc comments \*\*above\*\* the member|a docstring inside the body|"
+    "GDScript trap row inverted|s|\`##\` doc comments \*\*above\*\* the member|a docstring inside the body|"
     "unlisted-language doc branch removed|s|surface was \*\*derived, not looked up\*\*||"
+    "matrix Rust width widened|s|80 (\`comment_width\`) while code is 100|100, same as its code|"
 )
 
 # The secret-handling gate is duplicated across SKILL.md, comment-rules.md and both review

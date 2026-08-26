@@ -14,6 +14,9 @@
 # tests/comment-rules-guard.sh mutation-tests this script and fails if any of those blind spots
 # returns, which is what makes rewording a rule here a change that gets checked.
 #
+# Backticks in an anchor are escaped: inside a double-quoted bash string a bare backtick opens
+# command substitution, which silently rewrites the phrase before it is ever compared.
+#
 # Matching is done in-process with bash pattern tests rather than by piping to grep. The guard runs
 # this script a dozen times, and a subprocess per phrase per file put the sibling house-rules check
 # at two minutes on Windows; in-process it is instant, and the semantics are identical.
@@ -47,8 +50,10 @@ REQUIRED=(
 )
 
 # The matrix carries what the two rule copies deliberately do not: the per-language deltas. These
-# four anchors cover the sections that exist only there, so a matrix gutted down to a width table
-# fails rather than passing on the strength of the rules living elsewhere.
+# anchors cover the sections that exist only there, so a matrix gutted down to a width table fails
+# rather than passing on the strength of the rules living elsewhere. The width anchors are a
+# sample, not the whole 35-row table: they are the values most likely to be "corrected" to a
+# language's code width by someone who has not read the guide.
 MATRIX_REQUIRED=(
     "Derived-Language Traps"
     "Doc Comment Required On"
@@ -57,6 +62,9 @@ MATRIX_REQUIRED=(
     "Do not infer a convention from a language this one resembles"
     "surface was **derived, not looked up**"
     "PEP 8, even where code is allowed 99"
+    "80 (\`comment_width\`) while code is 100"
+    "**80 for comments** while code is 100 (Roblox)"
+    "**92** (Julia manual)"
 )
 
 # Rule 4 rests entirely on the trap table, and it was the largest duplicated surface with no
@@ -68,11 +76,11 @@ TRAP_MATRIX_REQUIRED=(
     "block doc comments are not permitted"
     "begins with the item's name"
     "JSON has no comment syntax at all"
-    "`##` doc comments **above** the member"
+    "\`##\` doc comments **above** the member"
 )
 
 TRAP_CHECKLIST_REQUIRED=(
-    "`##` above the member"
+    "\`##\` above the member"
     "summary is a sentence fragment"
     "no tags exist"
     "none exists; the note goes in a sibling doc"
@@ -108,6 +116,7 @@ REVIEW_CHECKLIST_REQUIRED=(
     "credential, key, token, connection string or private key in a comment"
     "Internal hostname, internal path, infrastructure detail or PII in a comment"
     "A leaked secret is rotated and its history scrubbed, not merely deleted"
+    "sentinel semantics documented"
 )
 
 # The doc-required surface is inlined into the review checklist because a dispatched subagent
@@ -190,7 +199,7 @@ check_phrases() {
 # against -- and a reword there that is not propagated fails here first.
 check_phrases "comment-rules.md" "$CANON" "all seven rules and both size limits" "${REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "all seven rules and both size limits" "${REQUIRED[@]}"
-check_phrases "language-matrix.md" "$MATRIX" "derived-language traps and the fallback rule" "${MATRIX_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" "the sections that exist only there" "${MATRIX_REQUIRED[@]}"
 
 check_phrases "comment-rules.md" "$CANON" "the secret and caller-obligation carve-outs" "${CANON_REQUIRED[@]}"
 check_phrases "comment-manager SKILL.md" "$SKILL" "the secret-handling gate" "${SKILL_REQUIRED[@]}"
