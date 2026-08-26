@@ -166,6 +166,13 @@ manifest_exit() {
     echo "$status"
 }
 
+# Status alone cannot tell which check fired, and several checks in that script reject the
+# same malformed manifest. A case asserting only exit 1 stayed green after its branch was
+# deleted outright, so cases that name a specific branch assert on its message instead.
+manifest_output() {
+    ( cd "$MANIFEST_DIR" && bash validate-suite-manifest.sh 2>&1 ) || true
+}
+
 reset_manifest_dir
 assert_exit_status "$(manifest_exit)" 0 \
     "untouched tests tree -- manifest check passes (negative control)" || true
@@ -219,6 +226,30 @@ reset_manifest_dir
 printf 'Duplicate|validate-skills.sh\n' >> "$MANIFEST_DIR/required-suites.txt"
 assert_exit_status "$(manifest_exit)" 1 \
     "a duplicated row -- manifest check fails" || true
+assert_contains "$(manifest_output)" "declared more than once"     "a duplicated row -- caught by the dedupe branch, not incidentally" || true
+
+# A symlinked suite satisfies every literal-path test while executing code from outside the
+# tree, and `find -type f` never matches one, so the declared case gets its own check.
+reset_manifest_dir
+OUTSIDE_DIR=$(mktemp -d)
+printf '#!/usr/bin/env bash
+echo "Results: 1 passed"
+' > "$OUTSIDE_DIR/evil.sh"
+# `-L` and not just ln's exit status: on Windows without developer mode, MSYS silently
+# degrades `ln -s` to a copy, which leaves a regular file inside tests/ and makes the attack
+# unexpressible rather than uncaught. Skipping honestly beats a green that proves nothing.
+ln -s "$OUTSIDE_DIR/evil.sh" "$MANIFEST_DIR/escaped.sh" 2>/dev/null || true
+if [ -L "$MANIFEST_DIR/escaped.sh" ]; then
+    printf 'Escaped|escaped.sh
+' >> "$MANIFEST_DIR/required-suites.txt"
+    assert_contains "$(manifest_output)" "resolves outside the tests directory"         "a symlinked suite pointing outside tests/ -- manifest check fails" || true
+else
+    rm -f "$MANIFEST_DIR/escaped.sh"
+    echo -e "  ${YELLOW}SKIP${NC}: symlink case -- this filesystem has no real symlinks (ln -s copied)"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+fi
+rm -rf "$OUTSIDE_DIR"
+
 
 cleanup_manifest
 

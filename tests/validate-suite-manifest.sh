@@ -1,37 +1,32 @@
 #!/usr/bin/env bash
 # Guards the suite manifest that run-all.sh registers from.
 #
-# The previous version of this check matched suite names as text inside run-all.sh, and every
-# text match was defeatable: an inline trailing comment naming the suite, a dead string
-# assignment, a here-doc, a registration whose `-f` guard pointed at a path that did not
-# exist, a call made unreachable with `if false &&`, or one disabled with a `true #` prefix.
-# Each left the name present in the file while the suite no longer ran. Matching source text
-# for evidence of execution is the wrong instrument; run-all.sh is now driven by
-# required-suites.txt, and this checks that manifest instead.
+# Matching suite names as text inside run-all.sh was defeatable six ways -- an inline
+# comment, a dead string, a here-doc, a broken `-f` guard, `if false &&`, a `true #` prefix
+# -- each leaving the name in the file while the suite stopped running. Source text is the
+# wrong evidence for execution, so this checks the manifest, and checks the runner by
+# running it.
 #
 # What is asserted:
-#   - every suite this repo requires is declared;
-#   - every declared suite exists on disk;
-#   - allow_zero, which suppresses the "reported zero tests" failure, appears only on the one
-#     row entitled to it -- it is a bypass switch, and an unrestricted bypass switch is how
-#     the hole it was written to close got reopened;
-#   - every shell script under tests/, other than the runner and its helpers, is declared, so
-#     adding a suite and forgetting to register it fails rather than passing quietly;
-#   - run-all.sh executes exactly the declared set -- checked by running it in --list-suites
-#     mode, not by matching its source text, because the previous text match was satisfied by
-#     run-all.sh's own header comment while five suites had stopped running.
+#   - every required suite is declared, and every declared suite exists inside tests/ once
+#     symlinks are resolved;
+#   - allow_zero, which suppresses the zero-test failure, appears only on the row entitled
+#     to it -- an unrestricted bypass switch is how the hole it closed got reopened;
+#   - every shell script under tests/ bar the runner and its helpers is declared, so adding
+#     a suite and forgetting to register it fails rather than passing quietly;
+#   - run-all.sh executes exactly the declared set, checked via --list-suites rather than by
+#     matching its source, which its own header comment used to satisfy.
 #
 # Residuals, stated rather than hidden:
-#   - this script is itself a manifest row, so deleting its row would stop it running.
-#     .github/workflows/ci.yml runs it as its own step, independent of the aggregator, which
-#     is what closes that. A guard registered only in the artifact it guards cannot enforce
-#     its own registration.
-#   - a suite reporting a count it did not earn is believed by the aggregator; per-suite
-#     mutation guards are what cover that.
+#   - this script is a manifest row, so deleting that row would stop it running; CI runs it
+#     as its own step. A guard registered only in the artifact it guards cannot enforce its
+#     own registration.
+#   - a suite reporting a count it did not earn is believed by the aggregator.
 
 set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating test suite manifest..."
@@ -55,6 +50,17 @@ REQUIRED_SUITES=(
 # The only row permitted to carry allow_zero, and only because SKIP_LIVE_TESTS skips every
 # case in it.
 ZERO_EXEMPT="skill-triggering/run-all.sh"
+
+# The "/" and ".." checks below inspect the literal string only, while `[ -f ]` follows
+# symlinks: a declared tests/x.sh -> ../outside/evil.sh passed every string test and ran.
+resolves_inside_tests() {
+    local target="$1" resolved
+    resolved=$(readlink -f "$target" 2>/dev/null || realpath "$target" 2>/dev/null || printf '%s' "$target")
+    case "$resolved" in
+        "$TESTS_REAL"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 fail() {
     echo -e "${RED}FAIL${NC}: $1"
@@ -88,8 +94,9 @@ fi
 RUNNER_LIST_STATUS=0
 RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null) || RUNNER_LIST_STATUS=$?
 
-# A runner that fails in list mode is a finding in its own right. Swallowing the status left it
-# registering only as a list mismatch, which describes the symptom and not the cause.
+# A runner that fails in list mode is a finding in its own right. Swallowing the status left an
+# unsafe-path row registering only as a list mismatch, and a duplicated row registering as
+# nothing at all -- the duplicate is `continue`d before it reaches the comparison list.
 if [ "$RUNNER_LIST_STATUS" -ne 0 ]; then
     fail "run-all.sh --list-suites exited $RUNNER_LIST_STATUS -- it cannot enumerate its own suites"
 else
@@ -144,6 +151,11 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
 
     if [ ! -f "$TESTS_DIR/$suite_path" ]; then
         fail "$suite_path -- declared in the manifest but missing on disk"
+        continue
+    fi
+
+    if ! resolves_inside_tests "$TESTS_DIR/$suite_path"; then
+        fail "$suite_path -- resolves outside the tests directory once symlinks are followed"
         continue
     fi
 
@@ -215,6 +227,6 @@ while IFS= read -r candidate; do
     fi
 
     fail "$rel -- a shell script under tests/ that no manifest row declares"
-done < <(find "$TESTS_DIR" -type f -name '*.sh' | sort)
+done < <(find "$TESTS_DIR" \( -type f -o -type l \) -name '*.sh' | sort)
 
 print_summary
