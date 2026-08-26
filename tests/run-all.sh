@@ -69,6 +69,16 @@ if [ -f "$TESTS_DIR/house-rules-guard.sh" ]; then
     run_test_suite "House Rules Guard" "$TESTS_DIR/house-rules-guard.sh"
 fi
 
+# Comment-rule consistency between the authoring canon and the review-side copy
+if [ -f "$TESTS_DIR/validate-comment-rules.sh" ]; then
+    run_test_suite "Comment Rules" "$TESTS_DIR/validate-comment-rules.sh"
+fi
+
+# Mutation guard: proves validate-comment-rules.sh can actually fail
+if [ -f "$TESTS_DIR/comment-rules-guard.sh" ]; then
+    run_test_suite "Comment Rules Guard" "$TESTS_DIR/comment-rules-guard.sh"
+fi
+
 # Aggregation self-check (runs this script against stub suites -- see runner-guard.sh)
 if [ -f "$TESTS_DIR/runner-guard.sh" ]; then
     run_test_suite "Runner Guard" "$TESTS_DIR/runner-guard.sh"
