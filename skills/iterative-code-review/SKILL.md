@@ -91,6 +91,7 @@ superpowers skill's, which was announced more recently and does not contain them
 - `<necturalabs:iterative-code-review base>/references/review-checklist.md`
 - `<necturalabs:iterative-code-review base>/references/testing-rules.md`
 - `<necturalabs:iterative-code-review base>/references/comment-checklist.md`
+- `<necturalabs:iterative-code-review base>/references/naming-and-layout.md`
 
 A subagent receives literal text. It cannot resolve a placeholder, and it cannot resolve a
 path relative to a skill it never loaded.
@@ -101,7 +102,7 @@ row below goes into the prompt as literal text — the subagent resolves nothing
 | Template placeholder | Fill with |
 |---|---|
 | `[DESCRIPTION]` | What was implemented |
-| `[PLAN_OR_REQUIREMENTS]` | What it should do, **plus** "review against the checklists at" the three absolute paths from step 2 — this is what makes the reviewer apply OUR standards instead of the template's defaults — **plus** the verification demand below |
+| `[PLAN_OR_REQUIREMENTS]` | What it should do, **plus** "review against the checklists at" the four absolute paths from step 2 — this is what makes the reviewer apply OUR standards instead of the template's defaults — **plus** the verification demand below |
 | `[BASE_SHA]` | Scope start commit, per Scope Detection above |
 | `[HEAD_SHA]` | `git rev-parse HEAD` |
 
@@ -117,7 +118,7 @@ them — that leaves two contradicting instructions in one prompt.
 **Verification demand — append to `[PLAN_OR_REQUIREMENTS]`.** Every failure mode here is
 silent: an empty diff, an unread template, or a dead checklist path each yield a confident,
 clean, well-formatted review. So require the reviewer to report, in its output, the diff
-stat it actually saw and confirmation that it read all three checklist files. It cannot go
+stat it actually saw and confirmation that it read all four checklist files. It cannot go
 in the template's Output Format section, which is fixed.
 
 **A clean pass over an empty diff is a failed dispatch, not a clean review.** Do not accept
@@ -137,7 +138,7 @@ Full detailed checklist: `references/review-checklist.md`
 | Design & Architecture | Google, SOLID | SRP, OCP, LSP, ISP, DIP, Law of Demeter |
 | Complexity | McCabe, SonarQube | Cyclomatic <10, Cognitive <15, Nesting <3, Params <4 |
 | Code Smells | Fowler, Refactoring.Guru | Bloaters, OO abusers, change preventers, dispensables, couplers |
-| Naming | Clean Code, Google | Descriptive, unambiguous, consistent vocabulary |
+| Naming | Clean Code, Google, per-language guides | Descriptive, unambiguous, consistent vocabulary; casing per the language — see `references/naming-and-layout.md` |
 | Functions | Clean Code | Small, one thing, no side effects, no flag args |
 | Error Handling | Clean Code, OWASP | No swallowed exceptions, specific catches, proper cleanup |
 | Testing | Google SWE, Kent Beck, Microsoft | See `references/testing-rules.md` |
@@ -145,7 +146,7 @@ Full detailed checklist: `references/review-checklist.md`
 | Performance | Google, SonarQube | Resource cleanup, N+1, proper data structures |
 | Concurrency | Java Concurrency Checklist | Protected shared state, no deadlocks, proper sync |
 | DRY/KISS/YAGNI | Industry Standard | No duplication, no over-engineering, no speculation |
-| Style | Google/Airbnb Guides | Follow project conventions, no mixed style+logic PRs |
+| Style & Layout | Google/Airbnb Guides, per-language guides | Follow project conventions, no mixed style+logic PRs; indentation, line endings and encoding — see `references/naming-and-layout.md` |
 | API Design | Google API Guide | Backward compat, proper HTTP, consistent errors |
 
 ## Testing Rules (Summary)

@@ -77,14 +77,22 @@
 
 ## 4. Naming
 
+Per-language casing lives in `naming-and-layout.md`. The rules below are the
+language-independent core; that file is what makes them concrete for the language in front
+of you. No formatter renames an identifier, so every rule here is reviewable in every
+language.
+
 | Rule | Severity |
 |------|----------|
 | Names descriptive and unambiguous | High |
 | No `data1`, `data2` — meaningful distinctions | High |
 | Replace magic numbers with named constants | High |
 | Consistent vocabulary — one word per concept | High |
-| Booleans read as predicates: `isEmpty`, `hasAccess` | Medium |
+| Casing matches the language's own convention — see `naming-and-layout.md` | High where the language's own **creators** state it, Low where the rule is a corporate, project or community guide, or a house default |
+| Acronyms cased the way the language specifies, not the way the last language did | Same ladder as casing above |
+| Booleans read as predicates **in the language's own form**: `isEmpty`, `is_empty`, `empty?`, `isequal`, `IsEmpty` | Medium |
 | Class = noun, Method = verb | Medium |
+| No **data type** encoded in the name — no Hungarian notation (`strName`, `iCount`, `lpszBuffer`). Scope, backing-field and kind markers are fine wherever the language's own convention prescribes them: C# `_camelCase`/`s_`/`t_` and `IFoo`, C++ trailing `_` and `kMaxRetries`, Objective-C `_ivar`/`g`/`k` and its class prefix, Kotlin `_name`, Ruby and Lua `_` — see `naming-and-layout.md` | Medium |
 
 ## 5. Functions
 
@@ -134,12 +142,29 @@
 
 ## 9. Style & Consistency
 
+Indentation and layout live in `naming-and-layout.md`, which also draws the line between a
+layout defect that is a finding and one the formatter owns. Read it before filing anything
+in this section — most layout belongs to the tool, and reporting it inflates the iteration
+loop with work the formatter does for free.
+
+Every rule here fires on something the diff introduced or changed. A property the file or
+the repository already had is an INFO note, raised once, that does not block a clean pass.
+
 | Rule | Severity |
 |------|----------|
+| Indentation that changes meaning or misleads — Python, YAML, Makefile recipes, CWE-483 | Critical |
+| CRLF or a BOM the diff introduces into a file with a shebang, a Makefile recipe, or a strict LF-only parser | Critical |
+| Indent character contradicts the language's rule, or tabs and spaces are mixed, in a file the diff adds or re-indents | High |
+| Mixed line endings the diff introduces into a file | High |
+| The same defects, **pre-existing** in a file the diff merely edits | **INFO**, once, non-blocking |
+| A line-ending or encoding flip bundled into a behavior change — it rewrites every line | High |
 | Follows project's established style | High |
 | Style changes NOT mixed with logic changes | High |
-| Consistent naming conventions | High |
 | Consistent error handling patterns | High |
+| A file in the diff is unformatted against the formatter config the project already has | Medium |
+| Missing newline at end of file — POSIX leaves the file ending in an incomplete line | Medium, unless `insert_final_newline` owns it |
+| Missing `.gitattributes`, formatter or linter config — a repository-state observation | **INFO**, once, non-blocking |
+| Column counts, wrap points, trailing whitespace and alignment a configured formatter produced or would fix | **Not a finding** |
 
 Comments and doc comments are checked separately — see section 12.
 
