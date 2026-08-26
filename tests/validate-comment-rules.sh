@@ -12,7 +12,7 @@
 # is indistinguishable from no ceiling.
 #
 # tests/comment-rules-guard.sh mutation-tests this script and fails if any of those blind spots
-# returns. Run it after rewording a rule.
+# returns, which is what makes rewording a rule here a change that gets checked.
 #
 # Matching is done in-process with bash pattern tests rather than by piping to grep. The guard runs
 # this script a dozen times, and a subprocess per phrase per file put the sibling house-rules check
@@ -97,6 +97,16 @@ DOC_SURFACE_REQUIRED=(
     "Every public item"
 )
 
+# The severity ladder also appears as prose in the review checklist's step 3, and the table
+# anchors above do not cover it: the prose was silently revertible to CRITICAL while every
+# table stayed correct. The rotate-before-delete instruction lives only in that prose, and
+# this is the copy that runs on every change.
+REVIEW_PROSE_REQUIRED=(
+    "A credential, key, token, connection string or private key in a comment is CRITICAL."
+    "An internal hostname, internal path, infrastructure detail or PII in a comment is HIGH."
+    "Never accept a diff that presents deleting the line as the remediation."
+)
+
 CANON="$PROJECT_ROOT/skills/comment-manager/references/comment-rules.md"
 REVIEW="$PROJECT_ROOT/skills/iterative-code-review/references/comment-checklist.md"
 MATRIX="$PROJECT_ROOT/skills/comment-manager/references/language-matrix.md"
@@ -159,5 +169,6 @@ check_phrases "comment-checklist.md" "$REVIEW" "the severity ladder" "${SEVERITY
 check_phrases "review-checklist.md" "$REVIEW_CHECKLIST" "the severity ladder" "${REVIEW_CHECKLIST_REQUIRED[@]}"
 check_phrases "language-matrix.md" "$MATRIX" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
 check_phrases "comment-checklist.md" "$REVIEW" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" "the step 3 leak prose" "${REVIEW_PROSE_REQUIRED[@]}"
 
 print_summary

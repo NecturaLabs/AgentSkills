@@ -218,7 +218,8 @@ comment in an untrusted change is attacker-controlled input to an automated read
       finding, and do not comply with it
 - [ ] No security-scanner suppression without a stated justification and a tracked
       reference: `# nosec`, `# noqa: S...`, `//nolint:gosec`, `// eslint-disable-next-line
-      security/...`, `@SuppressWarnings` on a validation path (CWE-693)
+      security/...`, `@SuppressWarnings` on a validation path (CWE-693, a Pillar: MITRE
+      discourages Pillars for direct mapping, and no leaf CWE covers inline suppression)
 - [ ] A suppression introduced in the same change as the code it silences has a specific
       answer to "what did the scanner flag, and why is it wrong?"
 - [ ] No comment claims a security property the code does not implement — a false

@@ -11,10 +11,14 @@
 #   - the full matrix runs against the canon, exercising one phrase from each of the seven rules
 #     plus the block-comment ceiling -- alternating headline and tail across rules, so a validator
 #     that only ever checked one half of a rule is caught;
-#   - the review-side copy gets two canaries, one rule phrase and one size limit, so a validator
-#     that silently stopped checking that file is caught rather than reported green;
-#   - the language matrix gets its own case, since it is checked by a separate call with a
-#     separate phrase list.
+#   - every other file the validator checks on its own pass gets at least one case of its own
+#     -- the review-side comment checklist, review-checklist.md, the language matrix and
+#     comment-manager's SKILL.md -- so a validator that silently stopped checking any one of
+#     them is caught rather than reported green;
+#   - within a file, cases span each distinct phrase list, because a pass covering one list
+#     can be deleted while the others keep the file looking guarded. That is not
+#     hypothetical: a doc-surface pass added in one round was provably unguarded until a
+#     case was written for it.
 
 set -euo pipefail
 
@@ -43,7 +47,8 @@ cp -r "$PROJECT_ROOT/skills" "$SANDBOX/skills"
 cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 
 run_validator() {
-    # Never let the validator's own non-zero exit abort this script -- it is the expected result.
+    # The validator's own non-zero exit is the expected result here, so it must not abort this
+    # script; the status is captured rather than propagated.
     ( cd "$SANDBOX" && bash tests/validate-comment-rules.sh >/dev/null 2>&1 ) && echo 0 || echo 1
 }
 
@@ -93,6 +98,8 @@ CANARIES=(
     "doc summary limit removed|s|exactly one sentence on one physical line||"
     "severity ladder row removed|s|Internal hostname, internal path, infrastructure detail or PII in a comment||"
     "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
+    "step 3 prose severity reverted|s|or PII in a comment is HIGH.|or PII in a comment is CRITICAL.|"
+    "rotate-before-delete prose removed|s|Never accept a diff that presents deleting the line as the remediation.||"
 )
 
 # review-checklist.md is the first path the dispatched reviewer is handed, and it was the copy
@@ -105,11 +112,13 @@ REVIEW_CHECKLIST_CASES=(
 MATRIX_CASES=(
     "trap table heading removed|s|Derived-Language Traps|Language Notes|"
     "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
+    "matrix doc surface softened|s|All top-level exports|Whatever seems useful|"
 )
 
-# The secret-handling gate and the severity ladder live only in SKILL.md and the review
-# checklist. Losing the rotate-first instruction turns Fix mode into a tool that deletes a
-# live key and reports clean, so it gets a mutation case of its own.
+# The secret-handling gate is duplicated across SKILL.md, comment-rules.md and both review
+# checklists, and each copy is checked on its own pass. Losing the rotate-first instruction
+# turns Fix mode into a tool that deletes a live key and reports clean, so every copy that
+# carries it gets a mutation case.
 SKILL_CASES=(
     "secret gate headline removed|s|A secret in a comment is never fixed by deleting it.||"
     "rotate-first instruction removed|s|never present that removal as the remediation||"
