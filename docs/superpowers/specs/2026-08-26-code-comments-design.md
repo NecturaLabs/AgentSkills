@@ -1,7 +1,11 @@
 # Code Comments Skill — Design
 
-**Status:** approved 2026-08-26
+**Status:** approved 2026-08-26, implemented. Kept as the design record.
 **Plan:** `docs/superpowers/plans/2026-08-26-comment-manager.md`
+
+> The file list below names `tests/skill-triggering/prompts/comment-manager.txt`, which
+> no longer exists: that suite was deleted because it could never run without credentials
+> this repo does not hold. A third reference, `trap-examples.md`, was added afterwards.
 
 ## 1. Problem
 

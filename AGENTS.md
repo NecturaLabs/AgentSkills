@@ -22,10 +22,10 @@ The suite runs entirely offline — every check reads files in this repo. Nothin
 - **Distribution-sensitive**: The root `CLAUDE.md` ships to users as their global config (see README). Nothing repo-specific goes in it, and a relative `@import` written there resolves against the user's `~/.claude/`, not this repo. Repo-specific wiring belongs in `.claude/CLAUDE.md`.
 
 ## Plugin Versioning
-- **Always bump the version** in all config files when making changes â€” no exceptions
+- **Bump once per branch, not once per commit.** Work lands on `beta` first and is promoted to `main` when it is ready, so one branch carries one version across its whole change set. This is what CI enforces: that the four files agree on every push, and that the version advances past the base on a pull request **into `main`**. A feature → `beta` PR is deliberately not gated, so the rule below and the workflow agree. A per-commit rule was written here once and never held; it produced churn, not signal.
 - Follow semver: **patch** (bug fixes, typos), **minor** (new skills, new features), **major** (breaking changes, removed skills, restructured config)
-- Bump the version in the same commit as the change, not as a separate commit
-- Files requiring version bumps: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `package.json`, `gemini-extension.json`
+- **Only the integration branch bumps.** A feature branch merging into `beta` does not bump its own version; `beta` bumps once after the merge. Two branches bumping at the same time is how the version went 1.6.0 → 1.5.0 → 1.7.0 → 1.6.1 in a single day, and the tip being correct is luck, not a property of the process.
+- All four files carry the same version and change together: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `package.json`, `gemini-extension.json`
 
 ## Comments
 - All work on comments, doc comments, docstrings and in-source API documentation goes through `necturalabs:comment-manager` — writing them, auditing them, or cleaning them up. Reading the code and writing what looks right is not a substitute.

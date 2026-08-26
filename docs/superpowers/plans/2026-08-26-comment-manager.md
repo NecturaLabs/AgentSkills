@@ -1,5 +1,12 @@
 # Comment Manager Implementation Plan
 
+> **Status: executed. Kept as the record of what was planned, not as instructions.**
+> Two things it says are no longer true of the repo. `tests/skill-triggering` was
+> deleted along with the `SKIP_LIVE_TESTS` switch, so the verification command is now
+> `bash tests/run-all.sh` and the prompt file this plan creates no longer exists.
+> `references/trap-examples.md` was added after the plan closed. Read `AGENTS.md` for
+> the current commands.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship `necturalabs:comment-manager` — a language-neutral comment authoring skill with a per-language matrix — and wire it into both `iterative-code-review` and `iterative-security-audit` so comment defects cannot pass either loop.
