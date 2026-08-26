@@ -51,6 +51,13 @@ EOF
 echo "Results: 5 passed, 0 failed, 0 skipped"
 exit $validation_exit
 EOF
+
+    # run-all.sh registers from the manifest, so the fixture needs its own. Neither stub
+    # carries allow_zero, which keeps the zero-test check live for both.
+    cat > "$WORK_DIR/required-suites.txt" <<'EOF'
+Skill Triggering|skill-triggering/run-all.sh
+Skill Validation|validate-skills.sh
+EOF
 }
 
 run_fixture() {
@@ -97,12 +104,16 @@ assert_contains "$FIXTURE_OUTPUT" "reported zero tests" \
 cleanup_fixture
 
 # --- Case 4: the manifest guard actually fails ---
-# validate-suite-manifest.sh is what stops a deleted or unregistered suite vanishing in
-# silence, and a guard is only worth having if it fails. Prove three things: it passes an
-# untouched tree, it catches a deleted suite file, and it catches a registration removed
-# while its explanatory comment is left behind. The last is not hypothetical -- the first
-# version of that guard substring-matched the whole of run-all.sh, and three suite names
-# appear inside comments there, so deleting a registration block passed green.
+# validate-suite-manifest.sh is what stops a deleted or undeclared suite vanishing in silence,
+# and a guard that cannot fail is worse than none. These cases cover each way the manifest can
+# stop describing what actually runs: a declared suite missing from disk, a required suite
+# dropped from the manifest, the allow_zero bypass switch applied to a row not entitled to it,
+# a suite-shaped file nobody declared, and run-all.sh no longer reading the manifest at all.
+#
+# The earlier version of that guard matched suite names as text inside run-all.sh and was
+# defeated six ways -- inline comments, dead strings, here-docs, a broken `-f` guard, an
+# unreachable call, a `true #` prefix. None of those are expressible any more, because there
+# is no second place where a suite is named.
 #
 # Unlike make_fixture this copies the whole tests tree, runner-guard.sh included. Safe here
 # because nothing runs run-all.sh from the copy: only the manifest script executes, and it
@@ -136,12 +147,32 @@ assert_exit_status "$(manifest_exit)" 0 \
 reset_manifest_dir
 rm -f "$MANIFEST_DIR/validate-comment-rules.sh"
 assert_exit_status "$(manifest_exit)" 1 \
-    "a required suite file is deleted -- manifest check fails" || true
+    "a declared suite file is deleted -- manifest check fails" || true
 
 reset_manifest_dir
-sed -i '/run_test_suite "Comment Rules" /d' "$MANIFEST_DIR/run-all.sh"
+sed -i '/^Comment Rules Guard|/d' "$MANIFEST_DIR/required-suites.txt"
 assert_exit_status "$(manifest_exit)" 1 \
-    "a registration is deleted but its comment kept -- manifest check fails" || true
+    "a required suite is dropped from the manifest -- manifest check fails" || true
+
+# allow_zero suppresses the "reported zero tests" failure. Applied to an arbitrary row it
+# reopens exactly the hole that check was written to close, which is why only one row may
+# carry it and why that restriction is tested.
+# `#` delimiter, not `|`: the manifest's own field separator is `|`, so a `|`-delimited
+# expression here would be parsed as extra sed fields rather than as content.
+reset_manifest_dir
+sed -i 's#^Comment Rules Guard|comment-rules-guard\.sh$#&|allow_zero#' "$MANIFEST_DIR/required-suites.txt"
+assert_exit_status "$(manifest_exit)" 1 \
+    "allow_zero on a row not entitled to it -- manifest check fails" || true
+
+reset_manifest_dir
+printf '#!/usr/bin/env bash\necho "Results: 1 passed"\n' > "$MANIFEST_DIR/validate-undeclared-thing.sh"
+assert_exit_status "$(manifest_exit)" 1 \
+    "a suite-shaped file nobody declared -- manifest check fails" || true
+
+reset_manifest_dir
+sed -i 's|required-suites.txt|somewhere-else.txt|g' "$MANIFEST_DIR/run-all.sh"
+assert_exit_status "$(manifest_exit)" 1 \
+    "run-all.sh stops reading the manifest -- manifest check fails" || true
 
 cleanup_manifest
 

@@ -1,0 +1,15 @@
+# Suite manifest. run-all.sh registers exactly these, in this order, and nothing else.
+#
+# Format: Display Name|path relative to tests/|flags
+#
+# flags: allow_zero exempts a suite from the "exited cleanly but reported zero tests"
+# failure. Only skill-triggering may carry it, and only because SKIP_LIVE_TESTS legitimately
+# skips every case in it. validate-suite-manifest.sh fails if it appears on any other row.
+Skill Triggering|skill-triggering/run-all.sh|allow_zero
+Skill Validation|validate-skills.sh
+House Rules|validate-house-rules.sh
+House Rules Guard|house-rules-guard.sh
+Comment Rules|validate-comment-rules.sh
+Comment Rules Guard|comment-rules-guard.sh
+Suite Manifest|validate-suite-manifest.sh
+Runner Guard|runner-guard.sh
