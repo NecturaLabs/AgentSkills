@@ -40,9 +40,16 @@ For every comment in the diff, in this order:
    be traceable to the code, the commit, the tests, the tracker or a spec. An assertion the
    author could not have known is CRITICAL — invented rationale is believed and cannot be
    falsified by running the code.
-3. **Does it leak?** Secrets, keys, tokens, internal hostnames, internal paths, PII or
-   exploit detail in a comment is CRITICAL. See `iterative-security-audit` for the full
-   category.
+3. **Does it leak?** A credential, key, token, connection string or private key in a comment
+   is CRITICAL. An internal hostname, internal path, infrastructure detail or PII in a
+   comment is HIGH.
+
+   **Deleting the line is not the fix.** A committed secret is compromised the moment it
+   lands: it is in git history, in every clone, in CI logs, and in anything already
+   published. Require that it be rotated or revoked and its history scrubbed, and route the
+   finding to `necturalabs:iterative-security-audit`. Never accept a diff that removes the
+   line and presents that removal as the remediation. This review loop runs on every change
+   and the security audit does not, so this check cannot be left to the audit.
 4. **Does it say anything the code does not?** If it paraphrases the line beneath it, it is
    a MEDIUM finding. Being accurate does not save it.
 5. **Is it in the right kind of comment?** A walkthrough of the body inside a doc comment
@@ -91,7 +98,9 @@ deleted noise pass while it also stripped a contract a caller needs.
 | Swift | Every open or public declaration and member |
 | Dart | Most public libraries, top-level variables, types and members |
 | Elixir | Every module and every public function; never a private function |
-| Haskell, Julia, R | Exported items |
+| Haskell | Exported items |
+| Julia | Exported functions and types |
+| R | Every exported function |
 | Shell, Bash | All library functions, and any function not both obvious and short |
 | PowerShell | Every exported function and every script |
 | Lua, Luau | File headers, and headers on functions and objects |
@@ -114,8 +123,9 @@ conformances (Swift, C++, Java), self-evident enum cases (Swift), trivial destru
 
 Comment prose width is the project's configured value; failing that, the language's own.
 The ones that catch reviewers out: Python is 72 even where code is allowed 99; Rust is 80
-while code is 100; Lua is 80 while code is 100; Java, Kotlin, Swift, Objective-C and
-GDScript are 100; Julia is 92; Elixir is 98; Go sets none and breaks on semantics instead.
+while code is 100; Lua is 80 while code is 100; Java, Swift, Objective-C and GDScript are
+100; Julia is 92; Elixir is 98; Kotlin and C# publish none, so the project's own config
+decides; Go sets none at all and breaks on semantics instead.
 
 Over the ceiling is a design signal, not a formatting nit. Ask for the function to be split
 or the material moved to a doc comment or an ADR — not for the paragraph to be rewrapped.

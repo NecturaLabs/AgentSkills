@@ -44,7 +44,7 @@ It describes the code; it does not tell whoever reads it to go and do something.
 **A caller obligation is a fact about the contract, not an instruction to the reader.**
 "Caller must hold `lock` before calling", "`# Safety:` `ptr` must be valid for reads of
 `len` bytes", "call `init` first" each state what the code requires in order to be used
-correctly. They are admissible content items 5, 7 and 9 below, and on a Rust `unsafe fn` a
+correctly. They are admissible content items 5, 6 and 9 below, and on a Rust `unsafe fn` a
 `# Safety` section is mandatory. What rule 7 bans is a directive aimed at the person or
 agent reading the file: go update something elsewhere, ask someone before editing, ignore a
 tool, or any sentence whose object is the reader rather than the code.

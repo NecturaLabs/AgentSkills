@@ -173,7 +173,9 @@ do-not-flag list: `references/comment-checklist.md`.
 |------|----------|
 | Comment matches what the code actually does | Critical |
 | Every stated rationale is traceable to code, commit, tests, tracker or spec | Critical |
-| No secret, key, token, internal hostname, internal path or PII in a comment | Critical |
+| No credential, key, token, connection string or private key in a comment | Critical |
+| Internal hostname, internal path, infrastructure detail or PII in a comment | High |
+| A leaked secret is rotated and its history scrubbed, not merely deleted | Critical |
 | Public API carries the contract a caller needs | High |
 | Error, nullability, ownership, thread-safety and sentinel semantics documented | High |
 | No commented-out code | High |
