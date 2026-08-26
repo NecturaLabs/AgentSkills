@@ -22,7 +22,6 @@
   ],
   "scripts": {
     "test": "bash tests/run-all.sh",
-    "test:skill-triggering": "bash tests/skill-triggering/run-all.sh",
     "test:runner-guard": "bash tests/runner-guard.sh",
     "test:verbose": "bash tests/run-all.sh --verbose"
   }

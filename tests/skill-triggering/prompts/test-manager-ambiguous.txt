@@ -1,2 +1,0 @@
-# necturalabs:test-manager
-The tests are failing, fix them

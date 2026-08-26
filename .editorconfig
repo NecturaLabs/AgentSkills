@@ -1,0 +1,37 @@
+# Width, indentation and encoding only. Line endings are .gitattributes' job,
+# including the crlf rule for .cmd and .ps1, and declaring them in two places
+# is how the two drift apart.
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# 80 is Google's shell style guide, which comment-manager's language matrix
+# quotes as this language's comment prose width. That skill reads this file
+# before it reads the matrix, so declaring the width here is what makes 80 the
+# repo's own rule rather than a default it inherited.
+#
+# tests/comment-compliance.sh reads this number and enforces it: absolutely on
+# comment lines, and on code lines with the carve-out that guide grants for a
+# literal which cannot sensibly be split.
+[*.sh]
+indent_size = 4
+max_line_length = 80
+
+# hooks/session-start is bash with no extension, so no glob above reaches it,
+# while tests/comment-compliance.sh holds it to this same width. Named so an
+# editor applies what the suite already enforces.
+[session-start]
+indent_size = 4
+max_line_length = 80
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# The markdown under skills/ is the product, not source carrying comments. Its
+# reference tables and rule rows run long by design, so no width binds them.
+[*.md]
+max_line_length = off

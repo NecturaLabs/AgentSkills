@@ -1,2 +1,0 @@
-# necturalabs:e2e-test-manager
-Our Playwright checkout spec is flaky in CI, fix it

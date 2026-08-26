@@ -1,2 +1,0 @@
-# necturalabs:agents-md-manager
-Create an AGENTS.md file for this project

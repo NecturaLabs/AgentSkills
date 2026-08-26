@@ -1,2 +1,0 @@
-# necturalabs:docs-manager
-Set up project documentation and write an architecture decision record

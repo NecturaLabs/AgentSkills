@@ -15,17 +15,31 @@ fi
 UPDATE_MSG=""
 if command -v git &>/dev/null && [ -d "$PLUGIN_ROOT/.git" ]; then
     LOCAL_SHA=$(git -C "$PLUGIN_ROOT" rev-parse HEAD 2>/dev/null || echo "")
-    REMOTE_SHA=$(git -C "$PLUGIN_ROOT" ls-remote origin HEAD 2>/dev/null | cut -f1 || echo "")
-    if [ -n "$LOCAL_SHA" ] && [ -n "$REMOTE_SHA" ] && [ "$LOCAL_SHA" != "$REMOTE_SHA" ]; then
-        UPDATE_MSG="\\n\\n[NecturaLabs] Update available! Run: /plugin marketplace update necturalabs"
+    REMOTE_SHA=$(git -C "$PLUGIN_ROOT" ls-remote origin HEAD 2>/dev/null \
+        | cut -f1 || echo "")
+    if [ -n "$LOCAL_SHA" ] && [ -n "$REMOTE_SHA" ] \
+            && [ "$LOCAL_SHA" != "$REMOTE_SHA" ]; then
+        # Real newlines, not literal backslash-n: escape_for_json converts \n
+        # to the JSON escape itself, and pre-escaping made it double them so
+        # the banner rendered as the characters "\n\n" inline.
+        UPDATE_MSG=$'\n\n[NecturaLabs] Update available! Run: /plugin marketplace update necturalabs'
     fi
 fi
 
-SKILL_CONTENT=$(cat "$SKILL_FILE" 2>&1 || echo "Error reading using-necturalabs skill")
+# 2>/dev/null, not 2>&1: cat's error text carries the absolute plugin path, and
+# merging it here injects that path into the agent session. The `||` branch
+# still reports the failure without disclosing where the file lives.
+SKILL_CONTENT=$(cat "$SKILL_FILE" 2>/dev/null \
+    || echo "Error reading using-necturalabs skill")
 
 # JSON-escape the content using bash parameter substitution
 escape_for_json() {
     local s="$1"
+    # RFC 8259 requires every U+0000-U+001F be escaped. The five below cover
+    # only backslash, quote, newline, return and tab, so the rest are dropped
+    # first: none belongs in a Markdown skill file, and one reaching the output
+    # emits JSON the host cannot parse, which silently loads no skills at all.
+    s="${s//[$'\x01'-$'\x08'$'\x0b'$'\x0c'$'\x0e'-$'\x1f']/}"
     s="${s//\\/\\\\}"
     s="${s//\"/\\\"}"
     s="${s//$'\n'/\\n}"
@@ -38,9 +52,9 @@ ESCAPED=$(escape_for_json "$SKILL_CONTENT")
 UPDATE_ESCAPED=$(escape_for_json "$UPDATE_MSG")
 SESSION_CONTEXT="${ESCAPED}${UPDATE_ESCAPED}"
 
-# Output context injection as JSON
-# Cursor expects additional_context; Claude Code expects hookSpecificOutput.additionalContext
-# Only emit the field for the current platform to avoid double injection
+# Output context injection as JSON. Cursor expects additional_context; Claude
+# Code expects hookSpecificOutput.additionalContext. Only the field for the
+# current platform is emitted, so neither host receives the injection twice.
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
     printf '{\n  "additional_context": "%s"\n}\n' "$SESSION_CONTEXT"
 elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then

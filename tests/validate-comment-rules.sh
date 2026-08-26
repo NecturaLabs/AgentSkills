@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# The seven comment rules are deliberately duplicated: the authoring canon lives in
-# comment-manager, and a review-side copy in iterative-code-review, because a dispatched
-# reviewer subagent can only resolve paths under the skill that dispatched it. Pointing it at
-# another skill's directory resolves to nothing and yields a clean pass over rules never read.
+# The seven comment rules are deliberately duplicated: the authoring canon lives
+# in comment-manager, a review-side copy in iterative-code-review, because a
+# dispatched reviewer resolves paths only under the skill that dispatched it.
+# Pointing it elsewhere yields a clean pass over rules never read.
 #
-# Duplication without a check drifts. Each rule is guarded by TWO disjoint phrases -- headline
-# and actionable tail -- so truncating to the headline drops the tail, dropping the headline
-# fails the headline check, and inverting a rule fails whichever half it rewrote. The size
-# limits and the severity ladder are guarded too: a silently widened ceiling is
-# indistinguishable from no ceiling, and two loops scoring one leak differently is how a
-# CRITICAL ships as a MEDIUM.
+# Duplication without a check drifts. Each rule is guarded by TWO disjoint
+# phrases -- headline and actionable tail -- so truncating to the headline drops
+# the tail and inverting either half fails that half. Size limits and the
+# severity ladder are guarded too: a widened ceiling is indistinguishable from
+# no ceiling, and two loops scoring one leak differently is how a CRITICAL
+# ships as a MEDIUM.
 #
-# Backticks in an anchor are escaped: inside a double-quoted bash string a bare backtick opens
-# command substitution, which rewrites the phrase before it is ever compared.
+# Backticks in an anchor are escaped: inside a double-quoted bash string a bare
+# backtick opens command substitution, rewriting the phrase before it is
+# compared.
 #
-# Matching is in-process rather than piped to grep -- a subprocess per phrase per file put the
-# sibling check at two minutes on Windows. normalize() collapses newlines first, so an anchor
-# that wraps still matches; deliberate, and not what `grep -F` would do. comment-rules-guard.sh
-# mutation-tests this script, which is what makes rewording a rule here a change that gets
-# checked.
+# Matching is in-process, not piped to grep -- a subprocess per phrase per file
+# put the sibling check at two minutes on Windows. normalize() collapses
+# newlines first, so a wrapped anchor still matches. comment-rules-guard.sh
+# mutation-tests this script.
 
 set -euo pipefail
 
@@ -28,7 +28,8 @@ source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating comment-rule consistency..."
 
-# Two phrases per rule -- headline, then actionable tail -- followed by the two size limits.
+# Two phrases per rule -- headline, then actionable tail -- followed by the two
+# size limits.
 REQUIRED=(
     "A comment carries what the code cannot."
     "Restating the code is a defect, not documentation."
@@ -49,10 +50,11 @@ REQUIRED=(
     "or up to 20 lines where the design-rationale carve-out applies"
 )
 
-# The matrix carries what the two rule copies deliberately do not: the per-language deltas. These
-# anchors cover the sections that exist only there, so a matrix gutted down to a width table fails
-# rather than passing on the strength of the rules living elsewhere. The width anchors are a
-# sample, not the whole 35-row table: they are the values most likely to be "corrected" to a
+# The matrix carries what the two rule copies deliberately do not: the
+# per-language deltas. These anchors cover the sections that exist only there,
+# so a matrix gutted down to a width table fails rather than passing on the
+# strength of the rules living elsewhere. The width anchors are a sample, not
+# the whole 35-row table: they are the values most likely to be "corrected" to a
 # language's code width by someone who has not read the guide.
 MATRIX_REQUIRED=(
     "Derived-Language Traps"
@@ -67,11 +69,12 @@ MATRIX_REQUIRED=(
     "**92** (Julia manual)"
 )
 
-# Rule 4 rests entirely on the trap table, and it was the largest duplicated surface with no
-# content anchor at all -- only its heading. The two copies are deliberately worded differently
-# (authoring guidance vs. reviewer spot-check), so each is anchored on its own wording.
-# Residual, stated rather than implied: this asserts each copy still says the thing. It does
-# not assert the two copies agree byte for byte, and no check here does.
+# Rule 4 rests entirely on the trap table, and it was the largest duplicated
+# surface with no content anchor at all -- only its heading. The two copies are
+# deliberately worded differently (authoring guidance vs. reviewer spot-check),
+# so each is anchored on its own wording. Residual, stated rather than implied:
+# this asserts each copy still says the thing. It does not assert the two copies
+# agree byte for byte, and no check here does.
 TRAP_MATRIX_REQUIRED=(
     "block doc comments are not permitted"
     "begins with the item's name"
@@ -86,10 +89,30 @@ TRAP_CHECKLIST_REQUIRED=(
     "none exists; the note goes in a sibling doc"
 )
 
-# The severity ladder is duplicated into comment-manager/SKILL.md and the review-side
-# checklist, and lives in neither rule copy, so it needs its own pass. Drift here is worse
-# than a missing rule: two loops scoring the same leaked credential differently is how a
-# CRITICAL gets triaged as a MEDIUM and shipped.
+# Trap rows are read out of the matrix, never restated here. A hand-kept list
+# leaves exactly the hole the derived rule check below closes: an added trap row
+# with no worked pair passes a fixed list green, and the reader is sent to a
+# file that does not answer. Row names must therefore match section names
+# exactly -- a drift this check caught once already, "Terraform, HCL" against
+# "Terraform and HCL".
+extract_trap_languages() {
+    awk '
+        /^## Derived-Language Traps/ { in_traps = 1; next }
+        in_traps && /^## / { in_traps = 0 }
+        in_traps && /^\| \*\*/ {
+            line = $0
+            sub(/^\| \*\*/, "", line)
+            sub(/\*\*.*$/, "", line)
+            if (line != "") print line
+        }
+    ' "$1"
+}
+
+# The severity ladder is duplicated into comment-manager/SKILL.md and the
+# review-side checklist, and lives in neither rule copy, so it needs its own
+# pass. Drift here is worse than a missing rule: two loops scoring the same
+# leaked credential differently is how a CRITICAL gets triaged as a MEDIUM and
+# shipped.
 SEVERITY_REQUIRED=(
     "credential, key, token, connection string or private key in a comment"
     "Internal hostname, internal path, infrastructure detail or PII in a comment"
@@ -97,8 +120,9 @@ SEVERITY_REQUIRED=(
     "thread-safety or sentinel contract"
 )
 
-# Deleting a leaked secret is not remediating it. If this instruction is lost, Fix mode
-# quietly becomes a tool that removes the evidence and reports clean over a live key.
+# Deleting a leaked secret is not remediating it. If this instruction is lost,
+# Fix mode quietly becomes a tool that removes the evidence and reports clean
+# over a live key.
 SKILL_REQUIRED=(
     "A secret in a comment is never fixed by deleting it."
     "never present that removal as the remediation"
@@ -109,9 +133,10 @@ CANON_REQUIRED=(
     "A caller obligation is a fact about the contract, not an instruction to the reader."
 )
 
-# review-checklist.md is the FIRST of the three paths handed to a dispatched reviewer, so a
-# severity stated only in the other two is a severity the reviewer never reads. It carries the
-# ladder in its own wording, hence its own list.
+# review-checklist.md is the FIRST of the three paths handed to a dispatched
+# reviewer, so a severity stated only in the other two is a severity the
+# reviewer never reads. It carries the ladder in its own wording, hence its own
+# list.
 REVIEW_CHECKLIST_REQUIRED=(
     "credential, key, token, connection string or private key in a comment"
     "Internal hostname, internal path, infrastructure detail or PII in a comment"
@@ -119,42 +144,90 @@ REVIEW_CHECKLIST_REQUIRED=(
     "sentinel semantics documented"
 )
 
-# The doc-required surface is inlined into the review checklist because a dispatched subagent
-# cannot resolve a path under another skill. Two copies of a table drift; these anchors are the
-# rows most likely to be silently softened, and they must read identically in both.
+# The doc-required surface is inlined into the review checklist because a
+# dispatched subagent cannot resolve a path under another skill. Two copies of a
+# table drift; these anchors are the rows most likely to be silently softened,
+# and they must read identically in both.
 DOC_SURFACE_REQUIRED=(
     "All top-level exports"
     "Every exported (capitalized) name"
     "Every public item"
 )
 
-# The inlined width summary carries normative numbers a reviewer acts on. This file's own
-# premise is that a silently widened ceiling is indistinguishable from no ceiling, and these
-# ceilings were the ones left unguarded -- Kotlin had already drifted to a wrong value once.
+# The inlined width summary carries normative numbers a reviewer acts on. This
+# file's own premise is that a silently widened ceiling is indistinguishable
+# from no ceiling, and these ceilings were the ones left unguarded -- Kotlin had
+# already drifted to a wrong value once.
 WIDTH_REQUIRED=(
     "Python is 72 even where code is allowed 99"
     "120 and 100 respectively"
+    "Never report a recommendation as a violated rule."
 )
 
-# The severity ladder also appears as prose in the review checklist's step 3, and the table
-# anchors above do not cover it: the prose was silently revertible to CRITICAL while every
-# table stayed correct. The rotate-before-delete instruction lives only in that prose, and
-# this is the copy that runs on every change.
+# Two paragraphs added to the canon and the matrix that no anchor covered: the
+# strength distinction above, and the nil-obligation rule for formats with no
+# doc-comment concept. Both are normative and both were droppable in silence.
+CANON_STRENGTH_REQUIRED=(
+    "Never report a recommendation as a violated rule."
+)
+
+MATRIX_NIL_REQUIRED=(
+    "Formats with no doc-comment concept are absent from this table on purpose."
+    "That is a nil obligation, not a missing row"
+)
+
+# The severity ladder also appears as prose in the review checklist's step 3,
+# and the table anchors above do not cover it: the prose was silently revertible
+# to CRITICAL while every table stayed correct. The rotate-before-delete
+# instruction lives only in that prose, and this is the copy that runs on every
+# change.
 REVIEW_PROSE_REQUIRED=(
     "A credential, key, token, connection string or private key in a comment is CRITICAL."
     "An internal hostname, internal path, infrastructure detail or PII in a comment is HIGH."
     "Never accept a diff that presents deleting the line as the remediation."
 )
 
-CANON="$PROJECT_ROOT/skills/comment-manager/references/comment-rules.md"
-REVIEW="$PROJECT_ROOT/skills/iterative-code-review/references/comment-checklist.md"
-MATRIX="$PROJECT_ROOT/skills/comment-manager/references/language-matrix.md"
-SKILL="$PROJECT_ROOT/skills/comment-manager/SKILL.md"
-REVIEW_CHECKLIST="$PROJECT_ROOT/skills/iterative-code-review/references/review-checklist.md"
+# Each rule in the canon is a bold "**N. headline**" line with its actionable
+# tail on the line beneath. Both halves are emitted so the derived check binds
+# the same two-phrase rule the hand-kept list does.
+extract_canon_rules() {
+    awk '
+        /^\*\*[0-9]+\./ && /\*\*$/ {
+            headline = $0
+            sub(/^\*\*[0-9]+\.[[:space:]]*/, "", headline)
+            sub(/\*\*$/, "", headline)
+            if ((getline tail) > 0) {
+                print headline
+                print tail
+            }
+        }
+    ' "$1"
+}
 
-# Collapse every run of whitespace to a single space so a rule wrapped at a different column, or
-# split across lines, still matches.
+CM="$PROJECT_ROOT/skills/comment-manager"
+ICR="$PROJECT_ROOT/skills/iterative-code-review/references"
+
+CANON="$CM/references/comment-rules.md"
+REVIEW="$ICR/comment-checklist.md"
+MATRIX="$CM/references/language-matrix.md"
+TRAP_EXAMPLES="$CM/references/trap-examples.md"
+SKILL="$CM/SKILL.md"
+REVIEW_CHECKLIST="$ICR/review-checklist.md"
+
+# Collapse every run of whitespace to a single space so a rule wrapped at a
+# different column, or split across lines, still matches.
+# Memoized by path. Eighteen check_phrases calls cover six distinct files, and
+# collapsing a 24 KB matrix costs about half a second each time, so the repeats
+# were most of this script's runtime -- and the guards multiply that by one full
+# run per mutation.
+declare -A NORMALIZED_CACHE
+
 normalize() {
+    if [ -n "${NORMALIZED_CACHE[$1]+set}" ]; then
+        printf '%s' "${NORMALIZED_CACHE[$1]}"
+        return
+    fi
+
     local text
     text=$(<"$1")
     text=${text//$'\r'/ }
@@ -163,6 +236,7 @@ normalize() {
     while [[ $text == *"  "* ]]; do
         text=${text//  / }
     done
+    NORMALIZED_CACHE[$1]=$text
     printf '%s' "$text"
 }
 
@@ -195,22 +269,109 @@ check_phrases() {
     fi
 }
 
-# The canon must carry every phrase, or it cannot be the reference the review copy is checked
-# against -- and a reword there that is not propagated fails here first.
-check_phrases "comment-rules.md" "$CANON" "all seven rules and both size limits" "${REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "all seven rules and both size limits" "${REQUIRED[@]}"
-check_phrases "language-matrix.md" "$MATRIX" "the sections that exist only there" "${MATRIX_REQUIRED[@]}"
+# The canon must carry every phrase, or it cannot be the reference the review
+# copy is checked against -- and a reword there that is not propagated fails
+# here first.
+check_phrases "comment-rules.md" "$CANON" \
+    "all seven rules and both size limits" "${REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "all seven rules and both size limits" "${REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" \
+    "the sections that exist only there" "${MATRIX_REQUIRED[@]}"
 
-check_phrases "comment-rules.md" "$CANON" "the secret and caller-obligation carve-outs" "${CANON_REQUIRED[@]}"
-check_phrases "comment-manager SKILL.md" "$SKILL" "the secret-handling gate" "${SKILL_REQUIRED[@]}"
-check_phrases "comment-manager SKILL.md" "$SKILL" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "the severity ladder" "${SEVERITY_REQUIRED[@]}"
-check_phrases "review-checklist.md" "$REVIEW_CHECKLIST" "the severity ladder" "${REVIEW_CHECKLIST_REQUIRED[@]}"
-check_phrases "language-matrix.md" "$MATRIX" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "the step 3 leak prose" "${REVIEW_PROSE_REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "the inlined width ceilings" "${WIDTH_REQUIRED[@]}"
-check_phrases "language-matrix.md" "$MATRIX" "the derived-language traps" "${TRAP_MATRIX_REQUIRED[@]}"
-check_phrases "comment-checklist.md" "$REVIEW" "the derived-language spot checks" "${TRAP_CHECKLIST_REQUIRED[@]}"
+check_phrases "comment-rules.md" "$CANON" \
+    "the secret and caller-obligation carve-outs" "${CANON_REQUIRED[@]}"
+check_phrases "comment-manager SKILL.md" "$SKILL" \
+    "the secret-handling gate" "${SKILL_REQUIRED[@]}"
+check_phrases "comment-manager SKILL.md" "$SKILL" \
+    "the severity ladder" "${SEVERITY_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "the severity ladder" "${SEVERITY_REQUIRED[@]}"
+check_phrases "review-checklist.md" "$REVIEW_CHECKLIST" \
+    "the severity ladder" "${REVIEW_CHECKLIST_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" \
+    "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "the doc-required surface" "${DOC_SURFACE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "the step 3 leak prose" "${REVIEW_PROSE_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "the inlined width ceilings" "${WIDTH_REQUIRED[@]}"
+check_phrases "comment-rules.md" "$CANON" \
+    "the width-strength distinction" "${CANON_STRENGTH_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" \
+    "the nil doc-obligation rule" "${MATRIX_NIL_REQUIRED[@]}"
+check_phrases "language-matrix.md" "$MATRIX" \
+    "the derived-language traps" "${TRAP_MATRIX_REQUIRED[@]}"
+check_phrases "comment-checklist.md" "$REVIEW" \
+    "the derived-language spot checks" "${TRAP_CHECKLIST_REQUIRED[@]}"
+# The trailing space keeps "## R " from matching "## Rust", and the anchors
+# stay ASCII so no locale makes the comparison fragile.
+TRAP_ANCHORS=()
+while IFS= read -r trap_lang; do
+    [ -n "$trap_lang" ] && TRAP_ANCHORS+=("## $trap_lang ")
+done < <(extract_trap_languages "$MATRIX")
+
+# The floor is the current row count, not a round number under it: slack lets a
+# row be deleted along with its anchor and still pass green, which is the same
+# ask-for-less failure the derived rule check below is floored against exactly.
+if [ "${#TRAP_ANCHORS[@]}" -lt 22 ]; then
+    echo -e "${RED}FAIL${NC}: language-matrix.md -- ${#TRAP_ANCHORS[@]} trap rows, expected 22+"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+else
+    check_phrases "trap-examples.md" "$TRAP_EXAMPLES" \
+        "a section for every trap row" "${TRAP_ANCHORS[@]}"
+fi
+
+# The check above proves only that a heading string appears: replacing the file
+# with its 22 headings and nothing else passed it. The promise is a worked
+# PAIR, so each section must carry both halves.
+missing_trap_pairs() {
+    awk '
+        # Fence tracking is not optional: GDScript documents with `##`, so its
+        # own example line reads as a markdown heading and split the file into
+        # a bogus section that could never carry a pair.
+        /^```/ { in_fence = !in_fence; next }
+        !in_fence && /^## / {
+            if (heading != "" && !(seen_wrong && seen_right)) print heading
+            heading = $0
+            seen_wrong = 0
+            seen_right = 0
+            next
+        }
+        !in_fence && /\*\*Wrong\*\*/ { seen_wrong = 1 }
+        !in_fence && /\*\*Right\*\*/ { seen_right = 1 }
+        END { if (heading != "" && !(seen_wrong && seen_right)) print heading }
+    ' "$1"
+}
+
+INCOMPLETE=$(missing_trap_pairs "$TRAP_EXAMPLES")
+if [ -n "$INCOMPLETE" ]; then
+    echo -e "${RED}FAIL${NC}: trap-examples.md -- sections missing a wrong or right half:"
+    printf '    %s\n' "$INCOMPLETE"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+else
+    echo -e "${GREEN}PASS${NC}: trap-examples.md -- every section carries both halves"
+    PASS_COUNT=$((PASS_COUNT + 1))
+fi
+
+# A second pass over the review copy, derived rather than hand-listed. REQUIRED
+# above still runs and still pins exact wording; this adds what a fixed list
+# cannot give -- an eighth rule added to the canon becomes required in the copy
+# at once, with no anchor list for anyone to remember to extend.
+DERIVED_RULES=()
+while IFS= read -r phrase; do
+    [ -n "$phrase" ] && DERIVED_RULES+=("$phrase")
+done < <(extract_canon_rules "$CANON")
+
+# Under fourteen halves means the canon lost a rule, and a derived check would
+# otherwise pass by asking for less than it did yesterday.
+if [ "${#DERIVED_RULES[@]}" -lt 14 ]; then
+    echo -e "${RED}FAIL${NC}: comment-rules.md -- ${#DERIVED_RULES[@]} rule halves, expected 14+"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+else
+    check_phrases "comment-checklist.md" "$REVIEW" \
+        "every rule half derived from the canon" "${DERIVED_RULES[@]}"
+fi
 
 print_summary

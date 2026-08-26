@@ -1,2 +1,0 @@
-# necturalabs:comment-manager
-Add docstrings to the payment retry helper I just wrote

@@ -1,2 +1,0 @@
-# necturalabs:iterative-security-audit
-Audit this codebase for security vulnerabilities and OWASP issues

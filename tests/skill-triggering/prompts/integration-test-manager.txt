@@ -1,2 +1,0 @@
-# necturalabs:integration-test-manager
-Add tests for the order repository that hit a real Postgres instance

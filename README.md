@@ -196,7 +196,7 @@ Two questions settle almost every case:
 - *Would this still be true if I switched to a different agent?* → `AGENTS.md`
 - *Neither — specific to this repo **and** only meaningful to Claude Code?* → the project's `.claude/CLAUDE.md`, below the import
 
-So "always run the review skill before committing" is global CLAUDE.md — it's how you work. "Run the suite with `SKIP_LIVE_TESTS=1`" is AGENTS.md — it's a fact about this repo, and a Codex or Cursor user needs it just as much as you do.
+So "always run the review skill before committing" is global CLAUDE.md — it's how you work. "Run the suite from Git Bash, not PowerShell" is AGENTS.md — it's a fact about this repo, and a Codex or Cursor user needs it just as much as you do.
 
 Never duplicate between them. Anything written twice goes stale in one place first, and a contradiction between two loaded instruction files gets resolved arbitrarily.
 

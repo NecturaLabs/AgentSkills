@@ -16,13 +16,6 @@ PASS_COUNT=0
 FAIL_COUNT=0
 SKIP_COUNT=0
 
-# Run claude with a prompt and capture output
-run_claude() {
-    local prompt="$1"
-    local timeout="${2:-120}"
-    timeout "$timeout" claude -p "$prompt" --output-format stream-json 2>/dev/null || true
-}
-
 # Assert output contains a string
 assert_contains() {
     local output="$1"
@@ -73,65 +66,6 @@ assert_exit_status() {
         echo -e "${RED}FAIL${NC}: $test_name -- expected exit $expected, got $actual"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         return 1
-    fi
-}
-
-# Assert a skill was invoked
-assert_skill_invoked() {
-    local output="$1"
-    local skill_name="$2"
-    local test_name="${3:-skill invocation}"
-
-    # -F: skill names are literal text. Without it a name containing '.' would match
-    # too loosely and yield a false PASS -- the worst direction for an assertion.
-    if echo "$output" | grep -qF -- "\"name\":\"Skill\"" && echo "$output" | grep -qF -- "$skill_name"; then
-        echo -e "${GREEN}PASS${NC}: $test_name -- skill '$skill_name' was invoked"
-        PASS_COUNT=$((PASS_COUNT + 1))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC}: $test_name -- skill '$skill_name' was NOT invoked"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        return 1
-    fi
-}
-
-# Assert some skill was invoked BEFORE any other tool.
-# Deliberately name-agnostic -- the first tool call is all this can see. Pair it
-# with assert_skill_invoked to check WHICH skill ran.
-assert_skill_ran_before_other_tools() {
-    local output="$1"
-    local test_name="${2:-skill priority}"
-
-    local first_tool
-    first_tool=$(echo "$output" | grep -o '"name":"[^"]*"' | head -1)
-
-    if echo "$first_tool" | grep -q "Skill"; then
-        echo -e "${GREEN}PASS${NC}: $test_name -- skill invoked before other tools"
-        PASS_COUNT=$((PASS_COUNT + 1))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC}: $test_name -- other tools invoked before skill: $first_tool"
-        FAIL_COUNT=$((FAIL_COUNT + 1))
-        return 1
-    fi
-}
-
-# Create a temporary test project
-create_test_project() {
-    local project_name="${1:-test-project}"
-    local test_dir
-    test_dir=$(mktemp -d)
-    mkdir -p "$test_dir/$project_name"
-    cd "$test_dir/$project_name"
-    git init -q
-    echo "$test_dir/$project_name"
-}
-
-# Clean up test project
-cleanup_test_project() {
-    local project_dir="$1"
-    if [ -d "$project_dir" ]; then
-        rm -rf "$project_dir"
     fi
 }
 

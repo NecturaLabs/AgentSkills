@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # Guards the suite manifest that run-all.sh registers from.
 #
-# Matching suite names as text inside run-all.sh was defeatable six ways -- an inline
-# comment, a dead string, a here-doc, a broken `-f` guard, `if false &&`, a `true #` prefix
-# -- each leaving the name in the file while the suite stopped running. Source text is the
-# wrong evidence for execution, so this checks the manifest and checks the runner by running
-# it in --list-suites mode.
+# Matching suite names as text inside run-all.sh was defeatable six ways -- an
+# inline comment, a dead string, a here-doc, a broken `-f` guard, `if false &&`,
+# a `true #` prefix -- each leaving the name in the file while the suite stopped
+# running. Source text is the wrong evidence for execution, so this checks the
+# manifest and checks the runner by running it in --list-suites mode.
 #
-# Asserted: every required suite is declared; every declared suite exists inside tests/ once
-# symlinks are resolved; allow_zero appears only on the row entitled to it, an unrestricted
-# bypass switch being how the hole it closed got reopened; every shell script under tests/
-# bar the runner and its helpers is declared; and run-all.sh executes exactly the declared
-# set.
+# Asserted: every required suite is declared; every declared suite exists inside
+# tests/ once symlinks are resolved; no row carries a flag, since none is
+# defined and an unrestricted bypass switch is how the zero-test hole was
+# reopened once; every shell script under tests/ bar the runner and its helpers
+# is declared; and run-all.sh executes exactly the declared set.
 #
-# Residuals: this script is a manifest row, so deleting that row would stop it running -- CI
-# runs it as its own step, because a guard registered only in the artifact it guards cannot
-# enforce its own registration. A suite reporting a count it did not earn is believed by the
-# aggregator.
+# Residuals: this script is a manifest row, so deleting that row would stop it
+# running -- CI runs it as its own step, because a guard registered only in the
+# artifact it guards cannot enforce its own registration. A suite reporting a
+# count it did not earn is believed by the aggregator.
 
 set -euo pipefail
 
@@ -29,28 +29,30 @@ echo "Validating test suite manifest..."
 MANIFEST="$TESTS_DIR/required-suites.txt"
 RUNNER="$TESTS_DIR/run-all.sh"
 
-# A suite listed here must be declared in the manifest. Removing one is a deliberate decision
-# that shows up in review; forgetting one is caught by the suite-shaped-file sweep below.
+# A suite listed here must be declared in the manifest. Removing one is a
+# deliberate decision that shows up in review; forgetting one is caught by the
+# suite-shaped-file sweep below.
 REQUIRED_SUITES=(
-    "skill-triggering/run-all.sh"
     "validate-skills.sh"
     "validate-house-rules.sh"
     "house-rules-guard.sh"
     "validate-comment-rules.sh"
     "comment-rules-guard.sh"
+    "comment-compliance.sh"
+    "comment-compliance-guard.sh"
+    "hook-guard.sh"
     "validate-suite-manifest.sh"
     "runner-guard.sh"
 )
 
-# The only row permitted to carry allow_zero, and only because SKIP_LIVE_TESTS skips every
-# case in it.
-ZERO_EXEMPT="skill-triggering/run-all.sh"
-
-# The "/" and ".." checks below inspect the literal string only, while `[ -f ]` follows
-# symlinks: a declared tests/x.sh -> ../outside/evil.sh passed every string test and ran.
+# The "/" and ".." checks below inspect the literal string only, while `[ -f ]`
+# follows symlinks: a declared tests/x.sh -> ../outside/evil.sh passed every
+# string test and ran.
 resolves_inside_tests() {
     local target="$1" resolved
-    resolved=$(readlink -f "$target" 2>/dev/null || realpath "$target" 2>/dev/null || printf '%s' "$target")
+    resolved=$(readlink -f "$target" 2>/dev/null \
+        || realpath "$target" 2>/dev/null \
+        || printf '%s' "$target")
     case "$resolved" in
         "$TESTS_REAL"/*) return 0 ;;
         *) return 1 ;;
@@ -69,8 +71,9 @@ pass() {
 
 if [ ! -f "$MANIFEST" ]; then
     fail "required-suites.txt is missing at $MANIFEST"
-    # `|| true` then an explicit exit: print_summary returns 1 with FAIL_COUNT set, and under
-    # `set -e` that would terminate here, making a bare `exit 1` below it dead code.
+    # `|| true` then an explicit exit: print_summary returns 1 with FAIL_COUNT
+    # set, and under `set -e` that would terminate here, making a bare `exit 1`
+    # below it dead code.
     print_summary || true
     exit 1
 fi
@@ -81,26 +84,30 @@ if [ ! -f "$RUNNER" ]; then
     exit 1
 fi
 
-# Deliberately NOT a text match. An earlier version grepped run-all.sh for the manifest
-# filename, and run-all.sh's own header comment satisfied that grep: repointing MANIFEST= at
-# a different file left the string present, this check green, and five suites silently not
-# running. --list-suites reports the paths the runner would actually execute, so the two lists
-# diverge the moment it stops using this manifest.
+# Deliberately NOT a text match. An earlier version grepped run-all.sh for the
+# manifest filename, and run-all.sh's own header comment satisfied that grep:
+# repointing MANIFEST= at a different file left the string present, this check
+# green, and five suites silently not running. --list-suites reports the paths
+# the runner would actually execute, so the two lists diverge the moment it
+# stops using this manifest.
 RUNNER_LIST_STATUS=0
-RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null) || RUNNER_LIST_STATUS=$?
+RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null) \
+    || RUNNER_LIST_STATUS=$?
 
-# A runner that fails in list mode is a finding in its own right. Swallowing the status left an
-# unsafe-path row registering only as a list mismatch, and a duplicated row registering as
-# nothing at all -- the duplicate is `continue`d before it reaches the comparison list.
+# A runner that fails in list mode is a finding in its own right. Swallowing the
+# status left an unsafe-path row registering only as a list mismatch, and a
+# duplicated row registering as nothing at all -- the duplicate is `continue`d
+# before it reaches the comparison list.
 if [ "$RUNNER_LIST_STATUS" -ne 0 ]; then
     fail "run-all.sh --list-suites exited $RUNNER_LIST_STATUS -- it cannot enumerate its own suites"
 else
     pass "run-all.sh enumerates its suites without error"
 fi
 
-# Defined before the loop that calls it: bash resolves functions at call time, so a definition
-# placed after its first call leaves that call exiting 127 -- the duplicate-row check below was
-# dead code printing "command not found" once per row while failing nothing.
+# Defined before the loop that calls it: bash resolves functions at call time,
+# so a definition placed after its first call leaves that call exiting 127 --
+# the duplicate-row check below was dead code printing "command not found" once
+# per row while failing nothing.
 key_declared() {
     local needle="$1" entry
     for entry in ${DECLARED_KEYS+"${DECLARED_KEYS[@]}"}; do
@@ -121,16 +128,17 @@ DECLARED_PATHS=()
 DECLARED_KEYS=()
 DECLARED_COUNT=0
 
-while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}" ]; do
+while IFS='|' read -r suite_name suite_path suite_flags \
+        || [ -n "${suite_name:-}" ]; do
     suite_name=${suite_name%$'\r'}
     suite_path=${suite_path:-}
     suite_path=${suite_path%$'\r'}
     suite_flags=${suite_flags:-}
     suite_flags=${suite_flags%$'\r'}
 
-    # Trim and BOM handling mirror run-all.sh exactly. When they differed, an indented '#'
-    # was a comment to the runner and a malformed row to its own guard -- one manifest, two
-    # readings, and a build red for the wrong reason.
+    # Trim and BOM handling mirror run-all.sh exactly. When they differed, an
+    # indented '#' was a comment to the runner and a malformed row to its own
+    # guard -- one manifest, two readings, and a build red for the wrong reason.
     suite_name=${suite_name#$'\xef\xbb\xbf'}
     suite_name=${suite_name#"${suite_name%%[![:space:]]*}"}
     suite_name=${suite_name%"${suite_name##*[![:space:]]}"}
@@ -146,8 +154,8 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
         continue
     fi
 
-    # A row names a suite inside tests/. An absolute path or one containing ".." would run
-    # code from outside the directory this manifest governs.
+    # A row names a suite inside tests/. An absolute path or one containing ".."
+    # would run code from outside the directory this manifest governs.
     case "$suite_path" in
         /*|*..*)
             fail "$suite_path -- row '$suite_name' uses an absolute path or escapes tests/"
@@ -155,9 +163,10 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
             ;;
     esac
 
-    # Case-insensitive, matching run-all.sh: on Windows and macOS two rows differing only by
-    # case name one file. When only the runner folded case, the variant reached this script's
-    # happy path and failed elsewhere, incidentally.
+    # Case-insensitive, matching run-all.sh: on Windows and macOS two rows
+    # differing only by case name one file. When only the runner folded case,
+    # the variant reached this script's happy path and failed elsewhere,
+    # incidentally.
     suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
     if key_declared "$suite_key"; then
         fail "$suite_path -- declared more than once; the run would execute it twice and double-count it"
@@ -174,13 +183,8 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
         continue
     fi
 
-    if [ -n "$suite_flags" ] && [ "$suite_flags" != "allow_zero" ]; then
-        fail "$suite_path -- unknown manifest flag '$suite_flags'"
-        continue
-    fi
-
-    if [ "$suite_flags" = "allow_zero" ] && [ "$suite_path" != "$ZERO_EXEMPT" ]; then
-        fail "$suite_path -- carries allow_zero, which only $ZERO_EXEMPT may have"
+    if [ -n "$suite_flags" ]; then
+        fail "$suite_path -- unknown manifest flag '$suite_flags'; no flag is defined"
         continue
     fi
 
@@ -201,9 +205,11 @@ for suite in "${REQUIRED_SUITES[@]}"; do
     fi
 done
 
-# The runner must execute exactly what this manifest declares. Comparing the two sorted lists
-# catches a runner reading a different manifest, a row it skips, and a row it invents.
-DECLARED_SORTED=$(printf '%s\n' ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"} | sed '/^$/d' | sort)
+# The runner must execute exactly what this manifest declares. Comparing the two
+# sorted lists catches a runner reading a different manifest, a row it skips,
+# and a row it invents.
+DECLARED_SORTED=$(printf '%s\n' ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"} \
+    | sed '/^$/d' | sort)
 LISTED_SORTED=$(printf '%s\n' "$RUNNER_LISTED" | sed '/^$/d' | sort)
 
 if [ -z "$LISTED_SORTED" ]; then
@@ -218,9 +224,10 @@ else
     pass "run-all.sh executes exactly the declared suites"
 fi
 
-# Sweep every shell script under tests/, not two filename shapes. The previous two-glob
-# allowlist missed tests/check-thing.sh and tests/sub/validate-thing.sh entirely: a suite
-# added and never declared never runs, which is the same end state as deleting it.
+# Sweep every shell script under tests/, not two filename shapes. The previous
+# two-glob allowlist missed tests/check-thing.sh and tests/sub/validate-thing.sh
+# entirely: a suite added and never declared never runs, which is the same end
+# state as deleting it.
 NON_SUITE_FILES=(
     "run-all.sh"
     "test-helpers.sh"

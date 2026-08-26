@@ -1,2 +1,0 @@
-# necturalabs:agent-context-loader
-Load the project AGENTS.md and global CLAUDE.md into context

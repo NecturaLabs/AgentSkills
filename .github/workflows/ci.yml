@@ -22,7 +22,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      # Pinned to a commit, not the mutable `v7` tag: NIST SSDF and OpenSSF
+      # Scorecard both call for it, because a tag can be repointed at any
+      # commit after review. Bump the SHA and the trailing comment together.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The two self-check suites run as their own steps, not only through the aggregator.
       # Both are themselves manifest rows, so deleting their two rows removed both from the
@@ -39,15 +42,12 @@ jobs:
 
       # Regression guard for the aggregator itself: a `set -e`-unsafe construct in
       # run-all.sh aborts the run before it prints "Total:", failing this step.
-      # The live-LLM suite is skipped -- it needs the claude CLI and credentials.
       #
       # The count assertion exists because a shrinking run is what every bypass of this
       # harness produced: fewer suites executed, still exit 0. EXPECTED is derived from the
       # manifest rather than from run-all.sh, so a runner that stopped reading the manifest
       # cannot also lower the bar it is measured against.
       - name: Run aggregated test suite
-        env:
-          SKIP_LIVE_TESTS: "1"
         run: |
           set -o pipefail
           EXPECTED=$(grep -cE '^[[:space:]]*[^#[:space:]]' tests/required-suites.txt)
@@ -94,8 +94,13 @@ jobs:
       # merges second lands a duplicate version. Compare against the base too.
       # BASE_REF goes through env, not ${{ }} interpolation, so a branch name
       # cannot inject shell.
+      #
+      # Only for PRs into main. AGENTS.md makes beta the branch that bumps, once
+      # per change set, so requiring a bump on every feature -> beta PR would
+      # fail the workflow this repo actually follows and teach people to bypass
+      # the gate.
       - name: Check version advances past base
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |

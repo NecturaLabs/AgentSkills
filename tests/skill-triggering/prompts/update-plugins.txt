@@ -1,2 +1,0 @@
-# necturalabs:update-plugins
-Update all my installed plugins and marketplaces to the latest versions

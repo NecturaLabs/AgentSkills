@@ -1,2 +1,0 @@
-# necturalabs:unit-test-manager
-Write unit tests for the discount calculation function I just added
