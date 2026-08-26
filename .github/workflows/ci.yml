@@ -1,10 +1,14 @@
 name: CI
 
+# beta is the integration branch feature work merges into, so it needs CI as much as
+# main does. Triggering only on main meant every merge into beta landed unvalidated and
+# the first real signal arrived whenever beta was eventually promoted -- by which point
+# the breaking change is buried among everything else that merged since.
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
   pull_request:
-    branches: [main]
+    branches: [main, beta]
 
 # The job only reads the checkout and runs bash -- it never uses the token after
 # actions/checkout, so the default write scopes are unnecessary.
