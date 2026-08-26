@@ -155,7 +155,7 @@ remediation, never the remediation itself.
 | Block / implementation comment | comment prose width | one paragraph, at most 7 lines; target 3 sentences or fewer |
 | Doc summary | one physical line within the limit | exactly one sentence on one physical line |
 | Doc body | comment prose width | one paragraph per topic, each at most 7 lines; one sentence per tag description |
-| File or module header | comment prose width | 1 to 3 sentences, or up to 25 lines where the design-rationale carve-out applies |
+| File or module header | comment prose width | 1 to 3 sentences, or up to 20 lines where the design-rationale carve-out applies |
 
 A trailing comment that does not fit becomes a block comment above the code. Never wrap it
 onto a second line.
@@ -174,7 +174,7 @@ prose guidance to comment bodies: Microsoft's Writing Style Guide ("Three to sev
 about the right length for a paragraph") and Google's documentation style guide ("1-3
 sentences").
 
-**A file-head design rationale may exceed the 1-to-3-sentence header limit, up to 25
+**A file-head design rationale may exceed the 1-to-3-sentence header limit, up to 20
 lines.**
 Where the reason a file exists, or the reason it is built the way it is, cannot be recovered
 from its code — a guard that encodes the attacks it was written to catch, a control whose

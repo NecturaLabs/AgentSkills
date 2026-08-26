@@ -1,25 +1,24 @@
 #!/usr/bin/env bash
 # The seven comment rules are deliberately duplicated: the authoring canon lives in
-# comment-manager, and a review-side copy lives in iterative-code-review because a dispatched
-# reviewer subagent can only resolve absolute paths under the skill that dispatched it. Pointing
-# the reviewer at another skill's directory would resolve to nothing and yield a confident clean
-# pass over rules it never read.
+# comment-manager, and a review-side copy in iterative-code-review, because a dispatched
+# reviewer subagent can only resolve paths under the skill that dispatched it. Pointing it at
+# another skill's directory resolves to nothing and yields a clean pass over rules never read.
 #
-# Duplication without a check drifts. Each rule is guarded by TWO disjoint phrases -- the headline
-# and the actionable tail -- so truncating to the headline drops the tail, dropping the headline
-# fails the headline check, and inverting a rule fails whichever half it rewrote. The two size
-# limits are guarded too: they are the numbers a reviewer acts on, and a silently widened ceiling
-# is indistinguishable from no ceiling.
-#
-# tests/comment-rules-guard.sh mutation-tests this script and fails if any of those blind spots
-# returns, which is what makes rewording a rule here a change that gets checked.
+# Duplication without a check drifts. Each rule is guarded by TWO disjoint phrases -- headline
+# and actionable tail -- so truncating to the headline drops the tail, dropping the headline
+# fails the headline check, and inverting a rule fails whichever half it rewrote. The size
+# limits and the severity ladder are guarded too: a silently widened ceiling is
+# indistinguishable from no ceiling, and two loops scoring one leak differently is how a
+# CRITICAL ships as a MEDIUM.
 #
 # Backticks in an anchor are escaped: inside a double-quoted bash string a bare backtick opens
-# command substitution, which silently rewrites the phrase before it is ever compared.
+# command substitution, which rewrites the phrase before it is ever compared.
 #
-# Matching is done in-process with bash pattern tests rather than by piping to grep. The guard runs
-# this script a dozen times, and a subprocess per phrase per file put the sibling house-rules check
-# at two minutes on Windows; in-process it is instant, and the semantics are identical.
+# Matching is in-process rather than piped to grep -- a subprocess per phrase per file put the
+# sibling check at two minutes on Windows. normalize() collapses newlines first, so an anchor
+# that wraps still matches; deliberate, and not what `grep -F` would do. comment-rules-guard.sh
+# mutation-tests this script, which is what makes rewording a rule here a change that gets
+# checked.
 
 set -euo pipefail
 

@@ -126,7 +126,7 @@ contract.
 | Block / implementation comment | comment prose width | one paragraph, at most 7 lines; target 3 sentences or fewer |
 | Doc summary | one physical line within the limit | exactly one sentence on one physical line |
 | Doc body | comment prose width | one paragraph per topic, each at most 7 lines; one sentence per tag description |
-| File or module header | comment prose width | 1 to 3 sentences, or up to 25 lines where the design-rationale carve-out applies |
+| File or module header | comment prose width | 1 to 3 sentences, or up to 20 lines where the design-rationale carve-out applies |
 
 Comment prose width is the project's configured value; failing that, the language's own.
 The ones that catch reviewers out: Python is 72 even where code is allowed 99; Rust is 80
@@ -185,9 +185,8 @@ False positives cost more than they save. These are not findings:
   are the contract. Never flag one as "an instruction to the reader", and never accept a
   diff that deletes one on those grounds.
 - A file-head design rationale that records why a file exists or why it is built the way it
-  is, where that is not recoverable from the code. It is bounded by necessity rather than by
-  the paragraph ceiling. Narrative padding around it is still a finding; the rationale
-  itself is not.
+  is, where that is not recoverable from the code. Up to 20 lines, per the file-header row
+  above. Narrative padding inside it is still a finding; the rationale itself is not.
 - A width **overrun** on a language whose guide publishes none, reported as though the
   language mandated the number. These thirteen publish no width, so the value applied is a
   house default: Kotlin, C#, Haskell, PowerShell, SQL, CSS/SCSS, YAML, TOML, XML,
