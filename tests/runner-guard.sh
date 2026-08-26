@@ -235,10 +235,11 @@ OUTSIDE_DIR=$(mktemp -d)
 printf '#!/usr/bin/env bash
 echo "Results: 1 passed"
 ' > "$OUTSIDE_DIR/evil.sh"
-# `-L` and not just ln's exit status: on Windows without developer mode, MSYS silently
-# degrades `ln -s` to a copy, which leaves a regular file inside tests/ and makes the attack
-# unexpressible rather than uncaught. Skipping honestly beats a green that proves nothing.
-ln -s "$OUTSIDE_DIR/evil.sh" "$MANIFEST_DIR/escaped.sh" 2>/dev/null || true
+# MSYS=winsymlinks:nativestrict asks MSYS for a real symlink instead of its default copy, so
+# this case actually runs on Windows rather than skipping. `-L` still gates it: where the
+# filesystem genuinely has no symlinks the attack is unexpressible, and skipping honestly
+# beats a green that proves nothing.
+MSYS=winsymlinks:nativestrict ln -s "$OUTSIDE_DIR/evil.sh" "$MANIFEST_DIR/escaped.sh" 2>/dev/null || true
 if [ -L "$MANIFEST_DIR/escaped.sh" ]; then
     printf 'Escaped|escaped.sh
 ' >> "$MANIFEST_DIR/required-suites.txt"
@@ -249,6 +250,27 @@ else
     SKIP_COUNT=$((SKIP_COUNT + 1))
 fi
 rm -rf "$OUTSIDE_DIR"
+
+# The same escape against run-all.sh, whose guard is a separate implementation and had no test
+# of its own -- removing it would have gone unnoticed.
+make_fixture 0 0
+RUNNER_OUTSIDE=$(mktemp -d)
+printf '#!/usr/bin/env bash
+echo "Results: 9 passed"
+' > "$RUNNER_OUTSIDE/evil.sh"
+MSYS=winsymlinks:nativestrict ln -s "$RUNNER_OUTSIDE/evil.sh" "$WORK_DIR/escaped.sh" 2>/dev/null || true
+if [ -L "$WORK_DIR/escaped.sh" ]; then
+    printf 'Escaped|escaped.sh
+' >> "$WORK_DIR/required-suites.txt"
+    run_fixture
+    assert_contains "$FIXTURE_OUTPUT" "resolves outside the tests directory"         "a symlinked suite -- the runner rejects it too, not just the manifest guard" || true
+else
+    rm -f "$WORK_DIR/escaped.sh"
+    echo -e "  ${YELLOW}SKIP${NC}: runner symlink case -- no real symlinks on this filesystem"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+fi
+rm -rf "$RUNNER_OUTSIDE"
+cleanup_fixture
 
 
 cleanup_manifest

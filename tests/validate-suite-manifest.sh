@@ -4,24 +4,19 @@
 # Matching suite names as text inside run-all.sh was defeatable six ways -- an inline
 # comment, a dead string, a here-doc, a broken `-f` guard, `if false &&`, a `true #` prefix
 # -- each leaving the name in the file while the suite stopped running. Source text is the
-# wrong evidence for execution, so this checks the manifest, and checks the runner by
-# running it.
+# wrong evidence for execution, so this checks the manifest and checks the runner by running
+# it in --list-suites mode.
 #
-# What is asserted:
-#   - every required suite is declared, and every declared suite exists inside tests/ once
-#     symlinks are resolved;
-#   - allow_zero, which suppresses the zero-test failure, appears only on the row entitled
-#     to it -- an unrestricted bypass switch is how the hole it closed got reopened;
-#   - every shell script under tests/ bar the runner and its helpers is declared, so adding
-#     a suite and forgetting to register it fails rather than passing quietly;
-#   - run-all.sh executes exactly the declared set, checked via --list-suites rather than by
-#     matching its source, which its own header comment used to satisfy.
+# Asserted: every required suite is declared; every declared suite exists inside tests/ once
+# symlinks are resolved; allow_zero appears only on the row entitled to it, an unrestricted
+# bypass switch being how the hole it closed got reopened; every shell script under tests/
+# bar the runner and its helpers is declared; and run-all.sh executes exactly the declared
+# set.
 #
-# Residuals, stated rather than hidden:
-#   - this script is a manifest row, so deleting that row would stop it running; CI runs it
-#     as its own step. A guard registered only in the artifact it guards cannot enforce its
-#     own registration.
-#   - a suite reporting a count it did not earn is believed by the aggregator.
+# Residuals: this script is a manifest row, so deleting that row would stop it running -- CI
+# runs it as its own step, because a guard registered only in the artifact it guards cannot
+# enforce its own registration. A suite reporting a count it did not earn is believed by the
+# aggregator.
 
 set -euo pipefail
 
@@ -144,7 +139,11 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
             ;;
     esac
 
-    if declared_contains "$suite_path"; then
+    # Case-insensitive, matching run-all.sh: on Windows and macOS two rows differing only by
+    # case name one file. When only the runner folded case, the variant reached this script's
+    # happy path and failed elsewhere, incidentally.
+    suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
+    if declared_contains "$suite_key"; then
         fail "$suite_path -- declared more than once; the run would execute it twice and double-count it"
         continue
     fi
@@ -169,7 +168,7 @@ while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}
         continue
     fi
 
-    DECLARED_PATHS+=("$suite_path")
+    DECLARED_PATHS+=("$suite_key")
     pass "$suite_path -- declared and present"
 done < "$MANIFEST"
 
