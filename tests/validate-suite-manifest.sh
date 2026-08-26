@@ -85,7 +85,27 @@ fi
 # a different file left the string present, this check green, and five suites silently not
 # running. --list-suites reports the paths the runner would actually execute, so the two lists
 # diverge the moment it stops using this manifest.
-RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null || true)
+RUNNER_LIST_STATUS=0
+RUNNER_LISTED=$(bash "$RUNNER" --list-suites 2>/dev/null) || RUNNER_LIST_STATUS=$?
+
+# A runner that fails in list mode is a finding in its own right. Swallowing the status left it
+# registering only as a list mismatch, which describes the symptom and not the cause.
+if [ "$RUNNER_LIST_STATUS" -ne 0 ]; then
+    fail "run-all.sh --list-suites exited $RUNNER_LIST_STATUS -- it cannot enumerate its own suites"
+else
+    pass "run-all.sh enumerates its suites without error"
+fi
+
+# Defined before the loop that calls it: bash resolves functions at call time, so a definition
+# placed after its first call leaves that call exiting 127 -- the duplicate-row check below was
+# dead code printing "command not found" once per row while failing nothing.
+declared_contains() {
+    local needle="$1" entry
+    for entry in ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"}; do
+        [ "$entry" = "$needle" ] && return 0
+    done
+    return 1
+}
 
 DECLARED_PATHS=()
 DECLARED_COUNT=0
@@ -144,14 +164,6 @@ done < "$MANIFEST"
 if [ "$DECLARED_COUNT" -eq 0 ]; then
     fail "the manifest declares no suites"
 fi
-
-declared_contains() {
-    local needle="$1" entry
-    for entry in ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"}; do
-        [ "$entry" = "$needle" ] && return 0
-    done
-    return 1
-}
 
 for suite in "${REQUIRED_SUITES[@]}"; do
     if declared_contains "$suite"; then

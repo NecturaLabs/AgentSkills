@@ -13,8 +13,9 @@
 #   - a declared suite that is missing, empty, or reports no tests fails the run;
 #   - the number of suites accounted for at the end equals the number declared, so a loop
 #     that ends early cannot leave suites silently unrun;
-#   - `--list-suites` prints exactly the paths that would be executed, so a caller can check
-#     the run against the manifest without parsing this file for evidence.
+#   - `--list-suites` prints exactly the paths that would be executed and nothing else, so a
+#     caller can check the run against the manifest without parsing this file for evidence.
+#     Diagnostics go to stderr precisely so they cannot be mistaken for a path.
 #
 # What it does NOT guarantee: that a suite's self-reported "N passed" was earned. A suite
 # printing a count it did not run is believed here. Per-suite mutation guards cover that.
@@ -32,7 +33,7 @@ case "${1:-}" in
 esac
 
 if [ ! -f "$MANIFEST" ]; then
-    echo "ERROR: suite manifest missing at $MANIFEST"
+    echo "ERROR: suite manifest missing at $MANIFEST" >&2
     exit 1
 fi
 
@@ -127,7 +128,7 @@ while IFS='|' read -r suite_name suite_path suite_flags <&3 || [ -n "${suite_nam
     esac
 
     if [ -z "$suite_path" ]; then
-        echo "ERROR: manifest row '$suite_name' declares no script path"
+        echo "ERROR: manifest row '$suite_name' declares no script path" >&2
         exit 1
     fi
 
@@ -135,14 +136,14 @@ while IFS='|' read -r suite_name suite_path suite_flags <&3 || [ -n "${suite_nam
     # execute code outside this directory, which no legitimate row needs.
     case "$suite_path" in
         /*|*..*)
-            echo "ERROR: manifest row '$suite_name' has an unsafe path: $suite_path"
+            echo "ERROR: manifest row '$suite_name' has an unsafe path: $suite_path" >&2
             exit 1
             ;;
     esac
 
     case "$SEEN_PATHS" in
         *"|$suite_path|"*)
-            echo "ERROR: manifest declares $suite_path more than once"
+            echo "ERROR: manifest declares $suite_path more than once" >&2
             exit 1
             ;;
     esac
@@ -164,7 +165,7 @@ while IFS='|' read -r suite_name suite_path suite_flags <&3 || [ -n "${suite_nam
 done 3< "$MANIFEST"
 
 if [ "$DECLARED" -eq 0 ]; then
-    echo "ERROR: the suite manifest declares no suites"
+    echo "ERROR: the suite manifest declares no suites" >&2
     exit 1
 fi
 
@@ -176,7 +177,7 @@ fi
 # have landed in exactly one counter.
 ACCOUNTED=$((TOTAL_SUITES_PASS + TOTAL_SUITES_FAIL))
 if [ "$ACCOUNTED" -ne "$DECLARED" ]; then
-    echo "ERROR: $DECLARED suites declared but only $ACCOUNTED accounted for -- the run ended early"
+    echo "ERROR: $DECLARED suites declared but only $ACCOUNTED accounted for -- the run ended early" >&2
     exit 1
 fi
 
@@ -189,6 +190,6 @@ if [ "$TOTAL_SUITES_FAIL" -gt 0 ]; then
 fi
 
 if [ "$TOTAL_TESTS" -eq 0 ]; then
-    echo "ERROR: Zero tests ran across all suites"
+    echo "ERROR: Zero tests ran across all suites" >&2
     exit 1
 fi
