@@ -90,6 +90,7 @@ superpowers skill's, which was announced more recently and does not contain them
 
 - `<necturalabs:iterative-code-review base>/references/review-checklist.md`
 - `<necturalabs:iterative-code-review base>/references/testing-rules.md`
+- `<necturalabs:iterative-code-review base>/references/comment-checklist.md`
 
 A subagent receives literal text. It cannot resolve a placeholder, and it cannot resolve a
 path relative to a skill it never loaded.
@@ -100,7 +101,7 @@ row below goes into the prompt as literal text — the subagent resolves nothing
 | Template placeholder | Fill with |
 |---|---|
 | `[DESCRIPTION]` | What was implemented |
-| `[PLAN_OR_REQUIREMENTS]` | What it should do, **plus** "review against the checklists at" the two absolute paths from step 2 — this is what makes the reviewer apply OUR standards instead of the template's defaults — **plus** the verification demand below |
+| `[PLAN_OR_REQUIREMENTS]` | What it should do, **plus** "review against the checklists at" the three absolute paths from step 2 — this is what makes the reviewer apply OUR standards instead of the template's defaults — **plus** the verification demand below |
 | `[BASE_SHA]` | Scope start commit, per Scope Detection above |
 | `[HEAD_SHA]` | `git rev-parse HEAD` |
 
@@ -116,8 +117,8 @@ them — that leaves two contradicting instructions in one prompt.
 **Verification demand — append to `[PLAN_OR_REQUIREMENTS]`.** Every failure mode here is
 silent: an empty diff, an unread template, or a dead checklist path each yield a confident,
 clean, well-formatted review. So require the reviewer to report, in its output, the diff
-stat it actually saw and confirmation that it read both checklist files. It cannot go in
-the template's Output Format section, which is fixed.
+stat it actually saw and confirmation that it read all three checklist files. It cannot go
+in the template's Output Format section, which is fixed.
 
 **A clean pass over an empty diff is a failed dispatch, not a clean review.** Do not accept
 it and do not re-send the same prompt — an identically-derived prompt reproduces the
@@ -140,6 +141,7 @@ Full detailed checklist: `references/review-checklist.md`
 | Functions | Clean Code | Small, one thing, no side effects, no flag args |
 | Error Handling | Clean Code, OWASP | No swallowed exceptions, specific catches, proper cleanup |
 | Testing | Google SWE, Kent Beck, Microsoft | See `references/testing-rules.md` |
+| Comments | Ousterhout, Clean Code, per-language guides | See `references/comment-checklist.md` |
 | Performance | Google, SonarQube | Resource cleanup, N+1, proper data structures |
 | Concurrency | Java Concurrency Checklist | Protected shared state, no deadlocks, proper sync |
 | DRY/KISS/YAGNI | Industry Standard | No duplication, no over-engineering, no speculation |

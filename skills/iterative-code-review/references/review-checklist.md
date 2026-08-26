@@ -140,9 +140,8 @@
 | Style changes NOT mixed with logic changes | High |
 | Consistent naming conventions | High |
 | Consistent error handling patterns | High |
-| Comments explain WHY, not WHAT | High |
-| No commented-out code | High |
-| Public APIs have doc comments | High |
+
+Comments and doc comments are checked separately — see section 12.
 
 ## 10. API Design
 
@@ -164,3 +163,27 @@
 | Copy-Paste Programming | High |
 | Golden Hammer (one pattern for everything) | High |
 | Lava Flow (dead code nobody removes) | High |
+
+## 12. Comments & Documentation
+
+Full checklist, including the size limits, the derived-language spot checks and the
+do-not-flag list: `references/comment-checklist.md`.
+
+| Rule | Severity |
+|------|----------|
+| Comment matches what the code actually does | Critical |
+| Every stated rationale is traceable to code, commit, tests, tracker or spec | Critical |
+| No secret, key, token, internal hostname, internal path or PII in a comment | Critical |
+| Public API carries the contract a caller needs | High |
+| Error, nullability, ownership, thread-safety and sentinel semantics documented | High |
+| No commented-out code | High |
+| Every annotation has an owner or a tracked reference | High |
+| No comment restates the code | Medium |
+| Comments within the size limits for their kind | Medium |
+| No implementation detail inside an interface comment | Medium |
+| No change history, bylines or time-anchored language | Medium |
+| Language's own comment convention used, not a resembling language's | Medium |
+| Comment sits above the code it describes, correctly indented | Low |
+
+Two failure directions, both defects: a public API with no contract, and noise that
+restates the code. The cure for one is never the other.
