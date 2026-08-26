@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Branch `feature/comment-manager`, worktree `.claude/worktrees/feature+comment-manager`, merges into **`beta`** — never `main`.
-- Conventional Commits; atomic commits; each commit leaves the repo passing `bash tests/run-all.sh`.
+- Conventional Commits; atomic commits; each commit leaves the repo passing `SKIP_LIVE_TESTS=1 bash tests/run-all.sh` (the unset form needs a live `claude` CLI and credentials, and fails in most environments for reasons unrelated to this branch).
 - Version bump is **minor** (new skill), applied in the same commit as the change, across all four: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `package.json`, `gemini-extension.json`. Current version `1.4.0` → `1.5.0`.
 - `SKILL.md` frontmatter: `description` field required, must start with `Use `/`MUST `/`Create `/`Update `, frontmatter under 1024 chars, no `name:` field mismatch with the directory (`tests/validate-skills.sh`).
 - Every numeric limit that is our synthesis rather than a published rule must be labelled as such at the point of use.
@@ -191,7 +191,7 @@ Delete `Comments explain WHY, not WHAT`, `No commented-out code`, `Public APIs h
 
 - [ ] **Step 5: Verify**
 
-Run: `bash tests/run-all.sh`
+Run: `SKIP_LIVE_TESTS=1 bash tests/run-all.sh`
 Expected: all suites pass.
 
 - [ ] **Step 6: Commit**
@@ -219,7 +219,7 @@ CWE-615 (sensitive information in source code comments), CWE-540 (sensitive info
 
 - [ ] **Step 3: Verify**
 
-Run: `bash tests/run-all.sh`
+Run: `SKIP_LIVE_TESTS=1 bash tests/run-all.sh`
 Expected: all suites pass.
 
 - [ ] **Step 4: Commit**
@@ -266,7 +266,7 @@ Add two `run_test_suite` blocks after the existing House Rules Guard block, foll
 
 - [ ] **Step 6: Verify the whole suite**
 
-Run: `bash tests/run-all.sh`
+Run: `SKIP_LIVE_TESTS=1 bash tests/run-all.sh`
 Expected: all suites pass, total test count increased.
 
 - [ ] **Step 7: Commit**
@@ -314,7 +314,7 @@ State that comment work routes through the skill and that both review loops enfo
 
 - [ ] **Step 6: Verify**
 
-Run: `bash tests/run-all.sh`
+Run: `SKIP_LIVE_TESTS=1 bash tests/run-all.sh`
 Expected: all suites pass.
 
 - [ ] **Step 7: Commit**
@@ -355,7 +355,7 @@ git commit -m "fix(comment-manager): close loopholes found in verification"
 
 - [ ] **Step 1: Run the full suite**
 
-Run: `bash tests/run-all.sh`
+Run: `SKIP_LIVE_TESTS=1 bash tests/run-all.sh`
 Expected: all suites pass, zero failures.
 
 - [ ] **Step 2: Run `necturalabs:iterative-security-audit`**
