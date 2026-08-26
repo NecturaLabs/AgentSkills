@@ -147,11 +147,23 @@ simple obvious accessors (Java), overrides and protocol conformances (Swift, C++
 self-evident enum cases (Swift), trivial destructors (C++). And a required doc comment is
 never a licence to restate the signature in prose.
 
+**Formats with no doc-comment concept are absent from this table on purpose.** JSON, SQL,
+HTML, CSS/SCSS, YAML, TOML, XML, Dockerfile and Makefile have rows in the width table above
+and none here, because their ecosystems define no doc comment for this table to describe.
+That is a nil obligation, not a missing row: *Unlisted Languages* below does not apply to
+them, and its "derive the surface" branch is not triggered by their absence. Where one of
+these formats needs documenting, the documentation is a sibling artifact — a JSON Schema
+`description`, a generated reference, a README — never a comment in the file.
+
 ## Derived-Language Traps
 
 **Rule 4 in operational form.** A language that borrows another's syntax almost never
 borrows its documentation conventions. Reaching for the ancestor's habit is the single most
 common way to get a derived language's comments wrong. Check the row before you type.
+
+Every row below has a worked wrong-and-right pair in `trap-examples.md`. Read the pair for
+the language you are about to comment in: the column names the wrong instinct, the pair
+shows it, and the instinct survives being named far more often than being seen.
 
 | Language | Reads like | The wrong instinct | What its creators actually specify |
 |---|---|---|---|

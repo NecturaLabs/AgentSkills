@@ -12,9 +12,11 @@ engineering practices, CWE and OWASP — not from taste.
 
 - Universal core: `references/comment-rules.md`
 - Per-language deltas and the derived-language traps: `references/language-matrix.md`
+- A wrong-and-right pair for every trap row: `references/trap-examples.md`
 
-Read both before writing a comment. The core binds everywhere; the matrix carries only what
-genuinely differs between languages.
+Read the first two before writing a comment. The core binds everywhere; the matrix carries
+only what genuinely differs between languages. Read the third only when the language has a
+trap row — the pairs are there to be looked up, not carried.
 
 ## The Admission Gate
 
@@ -96,7 +98,9 @@ key is a false all-clear on a live exposure.
    If the language has no row, follow *Unlisted Languages* in the same file — an absent row
    is not a licence to document nothing.
 3. **Check the derived-language trap table.** A language that borrows another's syntax
-   rarely borrows its documentation conventions.
+   rarely borrows its documentation conventions. Where the language has a row, read its pair
+   in `references/trap-examples.md` before typing — naming the wrong instinct is weaker than
+   seeing it.
 4. Apply the universal core unchanged.
 
 ## Reporting

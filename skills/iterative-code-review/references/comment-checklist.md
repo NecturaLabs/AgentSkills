@@ -135,6 +135,13 @@ while code is 100; Lua is 80 while code is 100; Java, Swift, Objective-C and GDS
 decides and, failing that, 120 and 100 respectively; Go sets none at all and breaks on
 semantics instead.
 
+**Report each at the strength its own guide states it.** Several of those numbers are
+mandates and several are explicitly softer: Julia *recommends* 92, GDScript says *try to
+keep* lines under 80, PSR-12 makes 80 a SHOULD against a 120 soft limit, the Linux kernel
+calls 80 *preferred*, and Go sets no limit at all.
+**Never report a recommendation as a violated rule.**
+A 95-column Julia comment is at most a LOW note, never a width violation.
+
 Over the ceiling is a design signal, not a formatting nit. Ask for the function to be split
 or the material moved to a doc comment or an ADR — not for the paragraph to be rewrapped.
 

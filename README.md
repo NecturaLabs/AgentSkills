@@ -51,7 +51,7 @@ After installation, skills are available as `necturalabs:<skill-name>`. Slash co
 | **`update-plugins`** — Concurrently updates plugin marketplaces and installed plugins | Manual (`/update-plugins`) or when user asks to update |
 | **`docs-manager`** — Creates and maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
 | **`test-manager`** — Classifies and triages a project's tests, routes work to the level specialists | Test work with no obvious level, spanning levels, or suite-wide |
-| **`comment-manager`** — Comment and doc-comment rules across languages, with a per-language matrix | Writing or changing code that carries comments |
+| **`comment-manager`** — Comment and doc-comment rules across languages, with a per-language matrix and a worked example per derived-language trap | Writing or changing code that carries comments |
 | **`unit-test-manager`** — Unit tests: one unit, one process, no I/O | Writing or fixing unit tests |
 | **`integration-test-manager`** — Tests across a process boundary: DB, HTTP, queue, filesystem | Writing or fixing integration tests |
 | **`e2e-test-manager`** — End-to-end and browser tests of critical user journeys | Writing or fixing E2E/browser tests |

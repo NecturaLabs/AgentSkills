@@ -161,7 +161,11 @@ A trailing comment that does not fit becomes a block comment above the code. Nev
 onto a second line.
 
 **Provenance.** The widths are quoted from a published guide for that language where one
-exists, and are hard rules there. Some come from the language's own maintainers (PEP 8, the
+exists. Enforce each at the strength its own guide states it: several are mandates, and
+several are explicitly softer — Julia *recommends* 92, GDScript says *try to keep* lines
+under 80, PSR-12 makes 80 a SHOULD against a 120 soft limit, the Linux kernel calls 80
+*preferred*, and Go sets no limit at all. Never report a recommendation as a violated rule.
+Some come from the language's own maintainers (PEP 8, the
 Linux kernel, PSR-12); others from a widely adopted third party (Google, Airbnb, Roblox,
 tidyverse, scalafmt's default), and JavaScript has two different published numbers. Cite the
 guide, not "the language". Rows marked **(house)** in `language-matrix.md` — Kotlin, C#, Haskell,
