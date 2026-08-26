@@ -2,8 +2,8 @@
 
 Review-side counterpart to `necturalabs:comment-manager`. That skill governs how a comment
 is written; this governs how a bad one is found. The rules below are carried verbatim from
-`skills/comment-manager/references/comment-rules.md` and are kept identical by
-`tests/validate-comment-rules.sh`.
+that skill's comment rules, and everything a reviewer needs is inlined here — a dispatched
+reviewer cannot resolve a path into a skill it never loaded.
 
 ## The Seven Rules
 
@@ -22,7 +22,7 @@ Implementation detail in an interface comment is a finding.
 Never inherit it from the language it resembles.
 
 **5. Never write a rationale you have not verified.**
-An unknown why is silence, never an invention.
+An unknown why is silence or a tracked question, never an invention.
 
 **6. A wrong comment is worse than no comment.**
 Editing code means you own every comment on it.
@@ -112,6 +112,12 @@ deleted noise pass while it also stripped a contract a caller needs.
 Carve-outs that are not findings: simple obvious accessors (Java), overrides and protocol
 conformances (Swift, C++, Java), self-evident enum cases (Swift), trivial destructors (C++).
 
+**A language not in this table still has a surface.** Take it from that language's own
+published guide, or failing that from whatever its doc generator puts in generated API
+documentation. An absent row is not a licence to document nothing — that is the
+under-documentation failure, and it is a finding at the same severity as any other missing
+contract.
+
 ## Size Limits
 
 | Kind | Width | Size |
@@ -178,6 +184,12 @@ False positives cost more than they save. These are not findings:
   held, an ordering that must be preserved. These read like instructions and are not; they
   are the contract. Never flag one as "an instruction to the reader", and never accept a
   diff that deletes one on those grounds.
+- A file-head design rationale that records why a file exists or why it is built the way it
+  is, where that is not recoverable from the code. It is bounded by necessity rather than by
+  the paragraph ceiling. Narrative padding around it is still a finding; the rationale
+  itself is not.
+- A width enforced on a language whose guide publishes none. Those defaults are the house's,
+  not the language's — see the (house) rows in the comment-manager language matrix.
 - A commented-out line inside a documented example block.
 - An annotation that does carry an owner or a tracked reference, even if it is old — that
   is a backlog question, not a comment defect.

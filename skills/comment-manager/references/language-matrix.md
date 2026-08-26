@@ -184,6 +184,23 @@ Apply, in order: the project's formatter configuration; failing that, 80 columns
 comment prose; the language's canonical doc-comment syntax and its doc generator, taken
 from that language's own documentation; and the universal core unchanged.
 
+**The doc-required surface for an unlisted language.** The standing exception in
+`comment-rules.md` says to read the surface off the table rather than reason about it. That
+instruction is unfollowable when there is no row, so it has a branch, and the branch is not
+"write nothing":
+
+1. Take the surface from that language's own published guide, the same way every row above
+   was derived — most languages state what must be documented even when they state no width.
+2. Where the language publishes nothing, document what its ecosystem's doc generator
+   consumes: whatever appears in generated API documentation is the public surface.
+3. Say in your summary that the surface was **derived, not looked up**, so the next reader
+   knows which it was.
+
+Falling through to "no row, therefore no obligation" reproduces the failure this table was
+added to fix: an agent reasoned that TypeScript had no blanket doc rule and documented
+nothing. Under-documenting is a defect in the same way over-commenting is, and an absent
+row is not a licence.
+
 Do not infer a convention from a language this one resembles — that is exactly the trap
 above. If the language publishes no convention, say so rather than inventing one, and fall
 back to the universal core.

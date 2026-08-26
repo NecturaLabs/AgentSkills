@@ -109,7 +109,7 @@ a review:
 | Severity | Findings |
 |---|---|
 | CRITICAL | Comment contradicts the code; unverified rationale asserted as fact; credential, key, token, connection string or private key in a comment |
-| HIGH | Internal hostname, internal path, infrastructure detail or PII in a comment; missing doc on public API; missing error, nullability, ownership or thread-safety contract; commented-out code; annotation with no owner and no tracked reference; a security-scanner suppression with no justification and no tracked reference |
+| HIGH | Internal hostname, internal path, infrastructure detail or PII in a comment; missing doc on public API; missing error, nullability, ownership, thread-safety or sentinel contract; commented-out code; annotation with no owner and no tracked reference; a security-scanner suppression with no justification and no tracked reference |
 | MEDIUM | Restates the code; over the size limit; implementation detail in an interface comment; journal, byline or time-anchored language; wrong placement; wrong language convention |
 | LOW | Punctuation, grammar, spacing, decorative boxes |
 

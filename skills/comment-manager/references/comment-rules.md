@@ -27,7 +27,7 @@ Take it from that language's own published guide. A derived language keeps its p
 syntax while dropping its parent's documentation conventions more often than not.
 
 **5. Never write a rationale you have not verified.**
-An unknown why is silence, never an invention.
+An unknown why is silence or a tracked question, never an invention.
 "Explain why, not what" is not a licence to invent a why. If the reason is not in the code,
 the commit, the tests, the tracker or the spec, you do not know it. Say nothing, or record
 the open question as a tracked annotation.
@@ -157,11 +157,25 @@ remediation, never the remediation itself.
 A trailing comment that does not fit becomes a block comment above the code. Never wrap it
 onto a second line.
 
-**Provenance.** The widths come from each language's own guide and are hard rules; see
-`language-matrix.md` for the per-language value and its source. The 7-line paragraph
-ceiling and the 3-sentence target are our synthesis, applying prose guidance to comment
-bodies: Microsoft's Writing Style Guide ("Three to seven lines is about the right length
-for a paragraph") and Google's documentation style guide ("1-3 sentences").
+**Provenance.** The widths are quoted from each language's own guide where one exists, and
+are hard rules there. Rows marked **(house)** in `language-matrix.md` — Kotlin, C#, Haskell,
+PowerShell, SQL, CSS/SCSS, YAML, TOML, XML, Terraform/HCL, GraphQL, Dockerfile, Makefile —
+publish no width, and the number given is our default carrying no citation. Do not enforce
+one of those as though the language mandated it.
+
+The 7-line paragraph ceiling and the 3-sentence target are likewise our synthesis, applying
+prose guidance to comment bodies: Microsoft's Writing Style Guide ("Three to seven lines is
+about the right length for a paragraph") and Google's documentation style guide ("1-3
+sentences").
+
+**A file-head design rationale is bounded by necessity, not by the paragraph ceiling.**
+Where the reason a file exists, or the reason it is built the way it is, cannot be recovered
+from its code — a guard that encodes the attacks it was written to catch, a control whose
+threat model is why it looks unusual, a workaround whose trigger lives in something external
+— the header may run past the block ceiling. It still passes all three gates, it still
+carries only what the code cannot, and length is never licence for narrative. Material that
+is reference rather than rationale belongs in the project's documentation, cited from a
+short header.
 
 **Over the ceiling is a design signal, not a formatting problem.** The Linux kernel style
 guide says a function needing heavy in-body commentary should be split; Ousterhout treats
