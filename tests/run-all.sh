@@ -1,29 +1,23 @@
 #!/usr/bin/env bash
 # Run all NecturaLabs skill tests.
 #
-# Suites are declared in required-suites.txt rather than by if-guarded blocks in this file.
-# When each registration was its own `if [ -f ... ]` block, a suite could leave the run
-# without failing anything -- delete the file, point the guard at a missing path, make the
-# call unreachable, comment it out -- and the aggregator still exited 0 with a smaller total
-# that nobody reads.
+# Suites are declared in required-suites.txt, not by if-guarded blocks here. When each
+# registration was its own `if [ -f ]` block, a suite could leave the run without failing
+# anything and the aggregator still exited 0 with a smaller total that nobody reads.
 #
-# What this file guarantees, stated precisely because an earlier version of this comment
-# claimed more than the code delivered:
-#   - every declared row is executed, or the run fails;
-#   - a declared suite that is missing, empty, reporting no tests, or resolving outside
-#     tests/ fails the run;
-#   - every suite runs with stdin detached and the manifest descriptor closed, so it cannot
-#     consume the rows that follow it;
-#   - `--list-suites` prints exactly the paths that would be attempted and nothing else, so a
-#     caller can check the run against the manifest without parsing this file for evidence.
-#     Diagnostics go to stderr precisely so they cannot be mistaken for a path.
+# The manifest is parsed once into arrays before any suite runs. Reading it incrementally
+# left the file open at an offset the parent returned to after every suite, so a suite that
+# rewrote it in place substituted every later row and one that truncated it ended the run
+# early -- both at exit 0. Closing the descriptor stopped a suite consuming rows; only
+# reading the file to completion first stops it rewriting them.
 #
-# The ACCOUNTED check below catches a loop that ends early only where DECLARED is already
-# final. It is a backstop, not a guarantee: a manifest truncated mid-run shrinks both sides
-# together. Closing fd 3 to children is what actually prevents that.
+# Guarantees: every declared row is executed or the run fails; a suite that is missing,
+# empty, reporting no tests, or resolving outside tests/ fails the run; suites accounted for
+# equals suites declared; `--list-suites` prints exactly the paths that would be attempted,
+# diagnostics going to stderr so they cannot be mistaken for one.
 #
-# What it does NOT guarantee: that a suite's self-reported "N passed" was earned. A suite
-# printing a count it did not run is believed here. Per-suite mutation guards cover that.
+# Not guaranteed: that a suite's self-reported "N passed" was earned. Per-suite mutation
+# guards cover that.
 
 set -euo pipefail
 
@@ -93,19 +87,24 @@ run_test_suite() {
 
     local output
     local suite_ok=1
-    # `</dev/null` detaches stdin; `3<&-` closes the manifest descriptor. Both are needed:
-    # children inherit open descriptors and share the parent's file offset, so a suite doing
-    # `cat <&3` consumed the remaining manifest rows and every later suite silently left the
-    # run while the aggregator still exited 0. $VERBOSE is deliberately unquoted so empty
-    # passes no argument, where "$VERBOSE" would pass one empty argument.
-    output=$(bash "$suite_script" $VERBOSE </dev/null 3<&- 2>&1) || suite_ok=0
+    # stdin detached, cwd fixed, and stderr kept out of $output: a suite echoing
+    # "Results: 500 passed" to stderr was credited 500 tests and cleared the zero-test gate.
+    # $VERBOSE is deliberately unquoted so empty passes no argument.
+    local errfile
+    errfile=$(mktemp)
+    output=$( cd "$TESTS_DIR" && bash "$suite_script" $VERBOSE </dev/null 2>"$errfile" ) || suite_ok=0
     echo "$output"
+    if [ -s "$errfile" ]; then
+        cat "$errfile"
+    fi
+    rm -f "$errfile"
 
     # `pipefail` is what keeps this numeric when grep matches nothing: its status propagates
     # through the pipe, `|| echo "0"` fires, and suite_tests stays a digit string. `tail -1`
     # keeps a multi-match result single-valued.
     local suite_tests
-    suite_tests=$(echo "$output" | grep '^Results:' | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
+    suite_tests=$(printf '%s
+' "$output" | grep '^Results:' | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
 
     # Force base 10, and treat anything non-numeric as zero. "08" is a valid match but an
     # invalid octal literal, and the arithmetic error it caused used to end the manifest loop
@@ -136,64 +135,81 @@ run_test_suite() {
     return 0
 }
 
-# fd 3 carries the manifest so that a suite reading stdin cannot consume the remaining rows.
-# When the loop read from stdin directly, one suite calling `cat` removed every later suite
-# from the run and the aggregator still exited 0.
-while IFS='|' read -r suite_name suite_path suite_flags <&3 || [ -n "${suite_name:-}" ]; do
-    suite_name=${suite_name%$'\r'}
-    suite_path=${suite_path:-}
-    suite_path=${suite_path%$'\r'}
-    suite_flags=${suite_flags:-}
-    suite_flags=${suite_flags%$'\r'}
+SUITE_NAMES=()
+SUITE_PATHS=()
+SUITE_FLAGS=()
 
-    # Trim surrounding whitespace so an indented `#` reads as a comment rather than running
-    # as a row, and so a padded name does not silently become a different name.
-    suite_name=${suite_name#"${suite_name%%[![:space:]]*}"}
-    suite_name=${suite_name%"${suite_name##*[![:space:]]}"}
+parse_manifest() {
+    local suite_name suite_path suite_flags suite_key
+    while IFS='|' read -r suite_name suite_path suite_flags || [ -n "${suite_name:-}" ]; do
+        # A UTF-8 BOM on line 1 otherwise makes the first row malformed and reports it as a
+        # missing script path, which sends the reader looking at the wrong thing.
+        suite_name=${suite_name#$'ï»¿'}
+        suite_name=${suite_name%$''}
+        suite_path=${suite_path:-}
+        suite_path=${suite_path%$''}
+        suite_flags=${suite_flags:-}
+        suite_flags=${suite_flags%$''}
 
-    case "$suite_name" in
-        ''|'#'*) continue ;;
-    esac
+        # Trim so an indented `#` reads as a comment rather than running as a row, and a
+        # padded name does not silently become a different name.
+        suite_name=${suite_name#"${suite_name%%[![:space:]]*}"}
+        suite_name=${suite_name%"${suite_name##*[![:space:]]}"}
 
-    if [ -z "$suite_path" ]; then
-        echo "ERROR: manifest row '$suite_name' declares no script path" >&2
-        exit 1
-    fi
+        case "$suite_name" in
+            ''|'#'*) continue ;;
+        esac
 
-    # A row names a suite inside tests/. An absolute path, or one containing "..", would
-    # execute code outside this directory, which no legitimate row needs.
-    case "$suite_path" in
-        /*|*..*)
-            echo "ERROR: manifest row '$suite_name' has an unsafe path: $suite_path" >&2
+        if [ -z "$suite_path" ]; then
+            echo "ERROR: manifest row '$suite_name' declares no script path" >&2
             exit 1
-            ;;
-    esac
+        fi
 
-    # Compared case-insensitively: on Windows and macOS "suite.sh" and "SUITE.SH" are one
-    # file, and two rows for it ran it twice and double-counted its tests.
-    suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
-    case "$SEEN_PATHS" in
-        *"|$suite_key|"*)
-            echo "ERROR: manifest declares $suite_path more than once" >&2
-            exit 1
-            ;;
-    esac
-    SEEN_PATHS="$SEEN_PATHS|$suite_key|"
+        # A row names a suite inside tests/. An absolute path, or one containing "..", would
+        # execute code outside this directory, which no legitimate row needs.
+        case "$suite_path" in
+            /*|*..*)
+                echo "ERROR: manifest row '$suite_name' has an unsafe path: $suite_path" >&2
+                exit 1
+                ;;
+        esac
 
-    DECLARED=$((DECLARED + 1))
+        # Compared case-insensitively: on Windows and macOS "suite.sh" and "SUITE.SH" are one
+        # file, and two rows for it ran it twice and double-counted its tests.
+        suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
+        case "$SEEN_PATHS" in
+            *"|$suite_key|"*)
+                echo "ERROR: manifest declares $suite_path more than once" >&2
+                exit 1
+                ;;
+        esac
+        SEEN_PATHS="$SEEN_PATHS|$suite_key|"
 
-    if [ "$MODE" = "list" ]; then
-        echo "$suite_path"
-        continue
-    fi
+        SUITE_NAMES+=("$suite_name")
+        SUITE_PATHS+=("$suite_path")
+        SUITE_FLAGS+=("$suite_flags")
+    done < "$MANIFEST"
+}
 
-    # Fail closed: if the runner itself errors while handling a suite, that suite is counted
-    # as failed rather than vanishing from both counters.
-    if ! run_test_suite "$suite_name" "$TESTS_DIR/$suite_path" "$suite_flags"; then
-        echo "FAIL: $suite_name -- the runner errored while running this suite"
-        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
-    fi
-done 3< "$MANIFEST"
+parse_manifest
+DECLARED=${#SUITE_PATHS[@]}
+
+if [ "$MODE" = "list" ]; then
+    for idx in ${SUITE_PATHS+"${!SUITE_PATHS[@]}"}; do
+        echo "${SUITE_PATHS[$idx]}"
+    done
+fi
+
+if [ "$MODE" = "run" ]; then
+    for idx in ${SUITE_PATHS+"${!SUITE_PATHS[@]}"}; do
+        # Fail closed: if the runner itself errors while handling a suite, that suite is
+        # counted as failed rather than vanishing from both counters.
+        if ! run_test_suite "${SUITE_NAMES[$idx]}" "$TESTS_DIR/${SUITE_PATHS[$idx]}" "${SUITE_FLAGS[$idx]}"; then
+            echo "FAIL: ${SUITE_NAMES[$idx]} -- the runner errored while running this suite"
+            TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
+        fi
+    done
+fi
 
 if [ "$DECLARED" -eq 0 ]; then
     echo "ERROR: the suite manifest declares no suites" >&2
@@ -204,7 +220,7 @@ if [ "$MODE" = "list" ]; then
     exit 0
 fi
 
-# The invariant that makes an early loop exit impossible to miss: every declared suite must
+# A real invariant now that DECLARED is fixed before any suite runs: every declared suite must
 # have landed in exactly one counter.
 ACCOUNTED=$((TOTAL_SUITES_PASS + TOTAL_SUITES_FAIL))
 if [ "$ACCOUNTED" -ne "$DECLARED" ]; then
