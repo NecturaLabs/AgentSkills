@@ -5,34 +5,41 @@ The universal core. Every rule here binds in every language. Per-language deltas
 
 ## The Seven Rules
 
+Each rule is a headline and an actionable tail. Both halves bind; neither is optional.
+
 **1. A comment carries what the code cannot.**
+Restating the code is a defect, not documentation.
 Its content is the information a competent reader of this language cannot recover from the
-code itself. Restating the code is a defect, not documentation.
+code itself.
 
 **2. Write no comment that fails the admission test.**
-Necessity, then irreducibility, then durability. All three gates, in order, or no comment.
+All three gates, in order, or no comment.
+The gates are necessity, then irreducibility, then durability.
 
 **3. Interface comments and implementation comments never mix.**
+Implementation detail in an interface comment is a finding.
 An interface comment states the contract a caller needs; an implementation comment states
-why this code is the way it is. Implementation detail in an interface comment is a finding.
+why this code is the way it is.
 
 **4. A language's comment convention comes from its own creators.**
-Look the convention up in that language's own published guide, never inherited from the
-language it resembles. A derived language keeps its parent's syntax and drops its parent's
-documentation conventions more often than not.
+Never inherit it from the language it resembles.
+Take it from that language's own published guide. A derived language keeps its parent's
+syntax while dropping its parent's documentation conventions more often than not.
 
 **5. Never write a rationale you have not verified.**
+An unknown why is silence, never an invention.
 "Explain why, not what" is not a licence to invent a why. If the reason is not in the code,
-the commit, the tests, the tracker or the spec, you do not know it. An unknown why is
-silence or a tracked question, never an invention.
+the commit, the tests, the tracker or the spec, you do not know it. Say nothing, or record
+the open question as a tracked annotation.
 
 **6. A wrong comment is worse than no comment.**
-It is believed, and it cannot be falsified by running the code. Editing code means you own
-every comment attached to it; deleting code deletes its comments.
+Editing code means you own every comment on it.
+A wrong comment is believed, and it cannot be falsified by running the code. Deleting code
+deletes its comments.
 
 **7. A comment states facts about the code.**
-It describes the code to whoever reads it; it never instructs whoever reads it, human or
-agent, to take an action elsewhere.
+It never instructs its reader, human or agent.
+It describes the code; it does not tell whoever reads it to go and do something.
 
 ## The Admission Test
 
