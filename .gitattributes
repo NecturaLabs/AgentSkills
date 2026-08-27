@@ -13,6 +13,11 @@ hooks/session-start text eol=lf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
+# Polyglot hook wrapper: must be LF for the embedded bash portion to parse
+# (CRLF breaks the heredoc terminator and shell built-ins). Modern cmd.exe
+# tolerates LF-only line endings, so the Windows path still works.
+hooks/run-hook.cmd text eol=lf
+
 # Text data files
 *.txt text eol=lf
 
