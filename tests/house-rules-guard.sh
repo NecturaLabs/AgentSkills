@@ -20,8 +20,12 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Mutation-testing validate-house-rules.sh..."
@@ -44,17 +48,23 @@ SANDBOX=$(mktemp -d)
 cp -r "$PROJECT_ROOT/skills" "$SANDBOX/skills"
 cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 
+# The validator's own non-zero exit is the expected result here, so it must not
+# abort this script; the status is captured rather than propagated. It is left
+# in a variable rather than echoed, because `x=$(run_validator)` forks a
+# subshell on top of the one the validator already needs, once per mutation.
+VALIDATOR_STATUS=0
+
 run_validator() {
-    # The validator's own non-zero exit is the expected result here, so it must
-    # not abort this script; the status is captured rather than propagated.
+    VALIDATOR_STATUS=0
     ( cd "$SANDBOX" && bash tests/validate-house-rules.sh >/dev/null 2>&1 ) \
-        && echo 0 || echo 1
+        || VALIDATOR_STATUS=1
 }
 
 # Negative control. If an unmutated copy fails, the harness is broken and every
 # "detected" below would be meaningless -- which is exactly what happens when
 # `bash` resolves to a shim that exits non-zero without running anything.
-if [ "$(run_validator)" = "0" ]; then
+run_validator
+if [ "$VALIDATOR_STATUS" = "0" ]; then
     echo -e "  ${GREEN}PASS${NC}: unmutated copy passes (negative control)"
     PASS_COUNT=$((PASS_COUNT + 1))
 else
@@ -105,7 +115,8 @@ check_mutation() {
         return
     fi
 
-    if [ "$(run_validator)" = "1" ]; then
+    run_validator
+    if [ "$VALIDATOR_STATUS" = "1" ]; then
         echo -e "  ${GREEN}PASS${NC}: $label -- detected"
         PASS_COUNT=$((PASS_COUNT + 1))
     else

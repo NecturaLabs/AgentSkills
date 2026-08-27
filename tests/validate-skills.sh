@@ -3,9 +3,20 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
+
+# A description must open with an actionable verb. Held in a variable because
+# `[[ =~ ]]` parses an unquoted parenthesis as shell grouping before the regex
+# engine sees it, and matched against a lowercased line so the test stays
+# case-insensitive without `shopt`. `I` is the one letter whose fold is
+# locale-dependent, and no verb here contains one, so the fold is safe.
+VERB_RE='^(use |must |create |update )'
 
 # Every references/<file>.md a SKILL.md names is handed to a dispatched subagent
 # as a literal path. A typo there fails silently in the worst direction: the
@@ -22,19 +33,25 @@ source "$TESTS_DIR/test-helpers.sh"
 # against the wrong directory and is reported as missing.
 #
 # Echoes the paths that do not resolve, space-separated, and nothing when they
-# all do. `|| true` is load-bearing under `set -euo pipefail`: grep exits 1 when
-# a skill names no reference at all, which is legal -- 6 of the 13 skills do --
-# and must not abort the run.
+# all do. Matching is in-process: `grep -oE | sort -u` cost three processes per
+# skill, which on Windows outweighs the whole scan. Each path is reported once,
+# in the order the file names it, rather than sorted.
 missing_references_for() {
-    local dir="$1" file="$2" refs ref_path missing=""
+    local dir="$1" file="$2" line rest ref missing=""
+    local ref_re='(\.\./[A-Za-z0-9_-]+/)?references/[A-Za-z0-9_.-]+\.md'
+    local -A seen=()
 
-    refs=$(grep -oE '(\.\./[A-Za-z0-9_-]+/)?references/[A-Za-z0-9_.-]+\.md' "$file" | sort -u || true)
-    [ -n "$refs" ] || return 0
-
-    while IFS= read -r ref_path; do
-        [ -n "$ref_path" ] || continue
-        [ -f "$dir/$ref_path" ] || missing="$missing $ref_path"
-    done <<< "$refs"
+    while IFS= read -r line || [ -n "$line" ]; do
+        rest="$line"
+        while [[ $rest =~ $ref_re ]]; do
+            ref="${BASH_REMATCH[0]}"
+            rest="${rest#*"$ref"}"
+            if [ -z "${seen[$ref]+set}" ]; then
+                seen[$ref]=1
+                [ -f "$dir/$ref" ] || missing="$missing $ref"
+            fi
+        done
+    done < "$file"
 
     printf '%s' "$missing"
 }
@@ -42,7 +59,8 @@ missing_references_for() {
 echo "Validating skill structure..."
 
 for skill_dir in "$PROJECT_ROOT"/skills/*/; do
-    skill_name=$(basename "$skill_dir")
+    skill_name="${skill_dir%/}"
+    skill_name="${skill_name##*/}"
     skill_file="$skill_dir/SKILL.md"
 
     # SKILL.md must exist
@@ -52,23 +70,68 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
         continue
     fi
 
+    # One read, then every check in the shell. `head`, four `grep` calls, three
+    # `sed` calls and a `basename` per skill were most of this suite's runtime.
+    mapfile -t SKILL_LINES < "$skill_file"
+
     # Must have YAML frontmatter
-    if ! head -1 "$skill_file" | grep -q "^---"; then
+    if [[ ${SKILL_LINES[0]-} != ---* ]]; then
         echo -e "${RED}FAIL${NC}: $skill_name -- missing YAML frontmatter"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
 
+    # `name:` and `description:` are collected the way `grep | sed` collected
+    # them: every line that opens with the key, not the first, so a file
+    # carrying two of either is still measured whole.
+    #
+    # FRONTMATTER reproduces the `sed -n` range this replaced: it opens on a
+    # fence line, closes on the next, and can open again further down. The
+    # 1024-char ceiling is applied to that whole span, so a second range has to
+    # count here exactly as it counted there.
+    NAME_VALUES=()
+    DESC_VALUES=()
+    FRONTMATTER=""
+    in_range=0
+
+    for line in ${SKILL_LINES+"${SKILL_LINES[@]}"}; do
+        if [ "$in_range" = "0" ]; then
+            if [ "$line" = "---" ]; then
+                in_range=1
+                FRONTMATTER="$FRONTMATTER$line"$'\n'
+            fi
+        else
+            FRONTMATTER="$FRONTMATTER$line"$'\n'
+            if [ "$line" = "---" ]; then
+                in_range=0
+            fi
+        fi
+
+        case "$line" in
+            name:*)
+                value="${line#name:}"
+                NAME_VALUES+=("${value#"${value%%[! ]*}"}")
+                ;;
+            description:*)
+                value="${line#description:}"
+                DESC_VALUES+=("${value#"${value%%[! ]*}"}")
+                ;;
+        esac
+    done
+
     # Must have description field
-    if ! grep -q "^description:" "$skill_file"; then
+    if [ "${#DESC_VALUES[@]}" -eq 0 ]; then
         echo -e "${RED}FAIL${NC}: $skill_name -- missing 'description' in frontmatter"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
 
     # Name must match directory name (if present)
-    if grep -q "^name:" "$skill_file"; then
-        frontmatter_name=$(grep "^name:" "$skill_file" | sed 's/^name: *//')
+    if [ "${#NAME_VALUES[@]}" -gt 0 ]; then
+        old_ifs=$IFS
+        IFS=$'\n'
+        frontmatter_name="${NAME_VALUES[*]}"
+        IFS=$old_ifs
         if [ "$frontmatter_name" != "$skill_name" ]; then
             echo -e "${RED}FAIL${NC}: $skill_name -- frontmatter name '$frontmatter_name' doesn't match directory"
             FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -77,15 +140,24 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
     fi
 
     # Description must start with an actionable verb phrase
-    description=$(grep "^description:" "$skill_file" \
-        | sed 's/^description: *//')
-    if ! echo "$description" | grep -qiE "^(Use |MUST |Create |Update )"; then
+    verb_ok=0
+    for value in "${DESC_VALUES[@]}"; do
+        if [[ ${value,,} =~ $VERB_RE ]]; then
+            verb_ok=1
+            break
+        fi
+    done
+    if [ "$verb_ok" = "0" ]; then
         echo -e "${YELLOW}WARN${NC}: $skill_name -- description should start with an actionable verb (Use/MUST/Create/Update)"
     fi
 
-    # Frontmatter must be under 1024 chars total
-    frontmatter=$(sed -n '/^---$/,/^---$/p' "$skill_file")
-    frontmatter_len=${#frontmatter}
+    # Frontmatter must be under 1024 chars total. The trailing newlines go
+    # first, because the command substitution this replaced stripped them and
+    # the ceiling is stated against that length.
+    while [[ $FRONTMATTER == *$'\n' ]]; do
+        FRONTMATTER="${FRONTMATTER%$'\n'}"
+    done
+    frontmatter_len=${#FRONTMATTER}
     if [ "$frontmatter_len" -gt 1024 ]; then
         echo -e "${RED}FAIL${NC}: $skill_name -- frontmatter exceeds 1024 chars ($frontmatter_len)"
         FAIL_COUNT=$((FAIL_COUNT + 1))

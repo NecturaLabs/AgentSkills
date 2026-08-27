@@ -20,7 +20,10 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, and `|| pwd`
+# for a source path with no directory part. test-helpers.sh states what one
+# process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
 TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -50,6 +53,17 @@ REQUIRED_SUITES=(
 # string test and ran.
 resolves_inside_tests() {
     local target="$1" resolved
+    # A file that is not itself a link, named directly inside tests/, cannot
+    # reach outside it. The resolver costs a process, so it runs only where a
+    # link can be: on the target itself, or on a directory component of a
+    # nested row -- which the manifest has carried before and may again.
+    #
+    # The fast path anchors on TESTS_DIR and the slow path on TESTS_REAL. They
+    # cannot disagree: TESTS_REAL is defined as TESTS_DIR resolved, so a tests/
+    # reached through a symlink lands inside either way.
+    if [ ! -L "$target" ] && [ "${target%/*}" = "$TESTS_DIR" ]; then
+        return 0
+    fi
     resolved=$(readlink -f "$target" 2>/dev/null \
         || realpath "$target" 2>/dev/null \
         || printf '%s' "$target")
@@ -103,6 +117,27 @@ if [ "$RUNNER_LIST_STATUS" -ne 0 ]; then
 else
     pass "run-all.sh enumerates its suites without error"
 fi
+
+# ASCII-only case fold. Both `${x,,}` and `tr` go through the C library, and
+# under a Turkish locale `I` folds to a dotless `i`, so two rows naming one file
+# on a case-insensitive filesystem stopped comparing equal and the duplicate
+# went undetected. The alphabet is spelled out here so the comparison cannot
+# depend on a locale at all.
+ascii_lower() {
+    local s="$1" ch head i
+    local up=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    local lo=abcdefghijklmnopqrstuvwxyz
+
+    ASCII_LOWER=""
+    for ((i = 0; i < ${#s}; i++)); do
+        ch=${s:i:1}
+        head=${up%%"$ch"*}
+        if [ "${#head}" -lt "${#up}" ]; then
+            ch=${lo:${#head}:1}
+        fi
+        ASCII_LOWER="$ASCII_LOWER$ch"
+    done
+}
 
 # Defined before the loop that calls it: bash resolves functions at call time,
 # so a definition placed after its first call leaves that call exiting 127 --
@@ -167,7 +202,8 @@ while IFS='|' read -r suite_name suite_path suite_flags \
     # differing only by case name one file. When only the runner folded case,
     # the variant reached this script's happy path and failed elsewhere,
     # incidentally.
-    suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
+    ascii_lower "$suite_path"
+    suite_key=$ASCII_LOWER
     if key_declared "$suite_key"; then
         fail "$suite_path -- declared more than once; the run would execute it twice and double-count it"
         continue

@@ -19,7 +19,10 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, and `|| pwd`
+# for a source path with no directory part. test-helpers.sh states what one
+# process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating runner aggregation..."

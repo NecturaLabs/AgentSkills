@@ -20,8 +20,12 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Mutation-testing validate-comment-rules.sh..."
@@ -45,16 +49,22 @@ SANDBOX=$(mktemp -d)
 cp -r "$PROJECT_ROOT/skills" "$SANDBOX/skills"
 cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 
+# The validator's own non-zero exit is the expected result here, so it must not
+# abort this script; the status is captured rather than propagated. It is left
+# in a variable rather than echoed, because `x=$(run_validator)` forks a
+# subshell on top of the one the validator already needs, once per mutation.
+VALIDATOR_STATUS=0
+
 run_validator() {
-    # The validator's own non-zero exit is the expected result here, so it must
-    # not abort this script; the status is captured rather than propagated.
+    VALIDATOR_STATUS=0
     ( cd "$SANDBOX" && bash tests/validate-comment-rules.sh >/dev/null 2>&1 ) \
-        && echo 0 || echo 1
+        || VALIDATOR_STATUS=1
 }
 
 # Negative control. If an unmutated copy fails, the harness is broken and every
 # "detected" below would be meaningless.
-if [ "$(run_validator)" = "0" ]; then
+run_validator
+if [ "$VALIDATOR_STATUS" = "0" ]; then
     echo -e "  ${GREEN}PASS${NC}: unmutated copy passes (negative control)"
     PASS_COUNT=$((PASS_COUNT + 1))
 else
@@ -168,7 +178,8 @@ check_mutation() {
         return
     fi
 
-    if [ "$(run_validator)" = "1" ]; then
+    run_validator
+    if [ "$VALIDATOR_STATUS" = "1" ]; then
         echo -e "  ${GREEN}PASS${NC}: $label -- detected"
         PASS_COUNT=$((PASS_COUNT + 1))
     else
@@ -220,5 +231,42 @@ run_cases "trap-examples.md" \
     "$SANDBOX/skills/comment-manager/references/trap-examples.md" \
     "$SANDBOX/pristine-trap-examples.md" \
     "${TRAP_EXAMPLE_CASES[@]}"
+
+# Every case above mutates with `sed -i`, so a file that disappears entirely
+# was never exercised. That is how the extractors came to initialise their
+# result array only after the early return: a missing file left the array
+# unset, `set -u` aborted before print_summary, and the floor message each
+# check was built around never printed. These assert that message, not just a
+# non-zero exit, because an abort exits non-zero too.
+#
+# The matrix case is the odd one: its call site expands the array with
+# `${TRAP_LANGUAGES+...}`, so it survives an unset array either way. What it
+# pins is the floor itself, and it goes red when that floor is removed.
+validator_output() {
+    ( cd "$SANDBOX" && bash tests/validate-comment-rules.sh 2>&1 ) || true
+}
+
+check_deleted() {
+    local label="$1" rel="$2" anchor="$3"
+
+    rm -f "$SANDBOX/$rel"
+    assert_contains "$(validator_output)" "$anchor" "$label" || true
+    cp "$PROJECT_ROOT/$rel" "$SANDBOX/$rel"
+}
+
+check_deleted "comment-rules.md deleted -- the rule floor reports it" \
+    "skills/comment-manager/references/comment-rules.md" \
+    "rule halves, expected 14+"
+
+check_deleted "language-matrix.md deleted -- the trap-row floor reports it" \
+    "skills/comment-manager/references/language-matrix.md" \
+    "trap rows, expected 22+"
+
+# The worked-pair check has no floor of its own: an absent file carries no
+# incomplete sections and it passes. What must not happen is an abort, so this
+# asserts a line printed after it that only a run reaching the end can produce.
+check_deleted "trap-examples.md deleted -- the run still reaches the end" \
+    "skills/comment-manager/references/trap-examples.md" \
+    "every rule half derived from the canon"
 
 print_summary

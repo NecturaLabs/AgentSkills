@@ -21,8 +21,12 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating house-rule consistency..."
@@ -80,9 +84,11 @@ CANONICAL="$PROJECT_ROOT/skills/test-manager/references/house-rules.md"
 # house-rules-guard.sh pays for it once per mutation.
 declare -A NORMALIZED_CACHE
 
+# Leaves the result in the cache rather than echoing it: a caller writing
+# `x=$(normalize ...)` forks a subshell per call, and the nine this file makes
+# cost more than every comparison in it put together.
 normalize() {
     if [ -n "${NORMALIZED_CACHE[$1]+set}" ]; then
-        printf '%s' "${NORMALIZED_CACHE[$1]}"
         return
     fi
 
@@ -95,7 +101,6 @@ normalize() {
         text=${text//  / }
     done
     NORMALIZED_CACHE[$1]=$text
-    printf '%s' "$text"
 }
 
 check_phrases() {
@@ -110,7 +115,8 @@ check_phrases() {
         return
     fi
 
-    normalized=$(normalize "$path")
+    normalize "$path"
+    normalized="${NORMALIZED_CACHE[$path]}"
 
     for phrase in "${phrases[@]}"; do
         if [[ $normalized != *"$phrase"* ]]; then

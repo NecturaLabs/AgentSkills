@@ -17,8 +17,12 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating comment-compliance.sh detects violations..."
@@ -232,6 +236,27 @@ sed -i '/^| Speculation and hedging:/d; /^| Time-anchored language:/d' \
     "$SANDBOX_CANON/comment-rules.md"
 assert_contains "$(compliance_output)" "banned words, expected 8+" \
     "the canon rows deleted -- the derived list fails closed" \
+    || true
+
+# The canon gone entirely, not merely emptied of its rows. Every case here
+# mutates with `sed -i`, so a file that disappears was never exercised -- and
+# that is how the array behind this floor came to be initialised only after
+# the early return, where a missing file left it unset and `set -u` aborted
+# before print_summary. The floor message is asserted rather than the exit
+# status, because an abort exits non-zero too.
+reset_sandbox
+rm -f "$SANDBOX_CANON/comment-rules.md"
+assert_contains "$(compliance_output)" "banned words, expected 8+" \
+    "the canon file deleted -- the floor reports it rather than aborting" \
+    || true
+
+# A term is spliced into a regex, so a metacharacter in one matches nothing
+# while the floor still counts it. That is a term lost in silence, which is the
+# failure the floor exists to prevent, so the shape of a term is checked too.
+reset_sandbox
+sed -i 's/\*probably\*/*probably.*/' "$SANDBOX_CANON/comment-rules.md"
+assert_contains "$(compliance_output)" "not a plain word" \
+    "a banned term carrying a metacharacter -- rejected" \
     || true
 
 # A comment run at end-of-file meets no following code line, so the in-loop

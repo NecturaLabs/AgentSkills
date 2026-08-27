@@ -22,8 +22,12 @@
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$TESTS_DIR/.." && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
+# source path with no directory part, and, where a parent is wanted, a prefix
+# of the canonical result rather than a second `cd`. test-helpers.sh states
+# what one process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating comment-rule consistency..."
@@ -96,16 +100,30 @@ TRAP_CHECKLIST_REQUIRED=(
 # exactly -- a drift this check caught once already, "Terraform, HCL" against
 # "Terraform and HCL".
 extract_trap_languages() {
-    awk '
-        /^## Derived-Language Traps/ { in_traps = 1; next }
-        in_traps && /^## / { in_traps = 0 }
-        in_traps && /^\| \*\*/ {
-            line = $0
-            sub(/^\| \*\*/, "", line)
-            sub(/\*\*.*$/, "", line)
-            if (line != "") print line
-        }
-    ' "$1"
+    local line name in_traps=0
+    # The result is emptied BEFORE the early return, or a missing file leaves
+    # it unset and the floor below reads an unbound variable under `set -u` --
+    # an abort with no summary, where the point is a named failure. A bare
+    # redirection would abort as well, which is why the return is here at all.
+    TRAP_LANGUAGES=()
+    [ -f "$1" ] || return 0
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            '## Derived-Language Traps'*) in_traps=1 ; continue ;;
+        esac
+        [ "$in_traps" = "1" ] || continue
+        case "$line" in
+            '## '*) in_traps=0 ; continue ;;
+            '| **'*) ;;
+            *) continue ;;
+        esac
+        name="${line#'| **'}"
+        name="${name%%'**'*}"
+        if [ -n "$name" ]; then
+            TRAP_LANGUAGES+=("$name")
+        fi
+    done < "$1"
 }
 
 # The severity ladder is duplicated into comment-manager/SKILL.md and the
@@ -191,17 +209,42 @@ REVIEW_PROSE_REQUIRED=(
 # tail on the line beneath. Both halves are emitted so the derived check binds
 # the same two-phrase rule the hand-kept list does.
 extract_canon_rules() {
-    awk '
-        /^\*\*[0-9]+\./ && /\*\*$/ {
-            headline = $0
-            sub(/^\*\*[0-9]+\.[[:space:]]*/, "", headline)
-            sub(/\*\*$/, "", headline)
-            if ((getline tail) > 0) {
-                print headline
-                print tail
-            }
-        }
-    ' "$1"
+    local -a lines
+    # The result is emptied BEFORE the early return, or a missing file leaves
+    # it unset and the floor below reads an unbound variable under `set -u` --
+    # an abort with no summary, where the point is a named failure. A bare
+    # redirection would abort as well, which is why the return is here at all.
+    DERIVED_RULES=()
+    [ -f "$1" ] || return 0
+
+    local i headline tail
+    local head_re='^\*\*[0-9]+\.'
+    local strip_re='^\*\*[0-9]+\.[[:space:]]*'
+
+    mapfile -t lines < "$1"
+    for ((i = 0; i < ${#lines[@]}; i++)); do
+        [[ ${lines[i]} =~ $head_re ]] || continue
+        [[ ${lines[i]} == *'**' ]] || continue
+        [ $((i + 1)) -lt "${#lines[@]}" ] || continue
+
+        headline="${lines[i]}"
+        if [[ $headline =~ $strip_re ]]; then
+            headline="${headline#"${BASH_REMATCH[0]}"}"
+        fi
+        headline="${headline%'**'}"
+        tail="${lines[i + 1]}"
+
+        # The awk pass this replaces consumed the tail with getline, so the
+        # line beneath a headline is never itself read as one. Empty halves
+        # were dropped by the caller and are dropped here instead.
+        i=$((i + 1))
+        if [ -n "$headline" ]; then
+            DERIVED_RULES+=("$headline")
+        fi
+        if [ -n "$tail" ]; then
+            DERIVED_RULES+=("$tail")
+        fi
+    done
 }
 
 CM="$PROJECT_ROOT/skills/comment-manager"
@@ -222,9 +265,11 @@ REVIEW_CHECKLIST="$ICR/review-checklist.md"
 # run per mutation.
 declare -A NORMALIZED_CACHE
 
+# Leaves the result in the cache rather than echoing it: a caller writing
+# `x=$(normalize ...)` forks a subshell per call, and eighteen of those cost
+# more than every check in this file put together.
 normalize() {
     if [ -n "${NORMALIZED_CACHE[$1]+set}" ]; then
-        printf '%s' "${NORMALIZED_CACHE[$1]}"
         return
     fi
 
@@ -237,7 +282,6 @@ normalize() {
         text=${text//  / }
     done
     NORMALIZED_CACHE[$1]=$text
-    printf '%s' "$text"
 }
 
 check_phrases() {
@@ -252,7 +296,8 @@ check_phrases() {
         return
     fi
 
-    normalized=$(normalize "$path")
+    normalize "$path"
+    normalized="${NORMALIZED_CACHE[$path]}"
 
     for phrase in "${phrases[@]}"; do
         if [[ $normalized != *"$phrase"* ]]; then
@@ -308,9 +353,10 @@ check_phrases "comment-checklist.md" "$REVIEW" \
 # The trailing space keeps "## R " from matching "## Rust", and the anchors
 # stay ASCII so no locale makes the comparison fragile.
 TRAP_ANCHORS=()
-while IFS= read -r trap_lang; do
-    [ -n "$trap_lang" ] && TRAP_ANCHORS+=("## $trap_lang ")
-done < <(extract_trap_languages "$MATRIX")
+extract_trap_languages "$MATRIX"
+for trap_lang in ${TRAP_LANGUAGES+"${TRAP_LANGUAGES[@]}"}; do
+    TRAP_ANCHORS+=("## $trap_lang ")
+done
 
 # The floor is the current row count, not a round number under it: slack lets a
 # row be deleted along with its anchor and still pass green, which is the same
@@ -327,28 +373,53 @@ fi
 # with its 22 headings and nothing else passed it. The promise is a worked
 # PAIR, so each section must carry both halves.
 missing_trap_pairs() {
-    awk '
+    local line heading="" in_fence=0 seen_wrong=0 seen_right=0
+    # The result is emptied BEFORE the early return, or a missing file leaves
+    # it unset and the floor below reads an unbound variable under `set -u` --
+    # an abort with no summary, where the point is a named failure. A bare
+    # redirection would abort as well, which is why the return is here at all.
+    INCOMPLETE_SECTIONS=()
+    [ -f "$1" ] || return 0
+
+    while IFS= read -r line || [ -n "$line" ]; do
         # Fence tracking is not optional: GDScript documents with `##`, so its
         # own example line reads as a markdown heading and split the file into
         # a bogus section that could never carry a pair.
-        /^```/ { in_fence = !in_fence; next }
-        !in_fence && /^## / {
-            if (heading != "" && !(seen_wrong && seen_right)) print heading
-            heading = $0
-            seen_wrong = 0
-            seen_right = 0
-            next
-        }
-        !in_fence && /\*\*Wrong\*\*/ { seen_wrong = 1 }
-        !in_fence && /\*\*Right\*\*/ { seen_right = 1 }
-        END { if (heading != "" && !(seen_wrong && seen_right)) print heading }
-    ' "$1"
+        case "$line" in
+            '```'*) in_fence=$((1 - in_fence)) ; continue ;;
+        esac
+        [ "$in_fence" = "0" ] || continue
+
+        case "$line" in
+            '## '*)
+                if [ -n "$heading" ] \
+                        && [ "$((seen_wrong * seen_right))" = "0" ]; then
+                    INCOMPLETE_SECTIONS+=("$heading")
+                fi
+                heading="$line"
+                seen_wrong=0
+                seen_right=0
+                continue
+                ;;
+        esac
+
+        case "$line" in
+            *'**Wrong**'*) seen_wrong=1 ;;
+        esac
+        case "$line" in
+            *'**Right**'*) seen_right=1 ;;
+        esac
+    done < "$1"
+
+    if [ -n "$heading" ] && [ "$((seen_wrong * seen_right))" = "0" ]; then
+        INCOMPLETE_SECTIONS+=("$heading")
+    fi
 }
 
-INCOMPLETE=$(missing_trap_pairs "$TRAP_EXAMPLES")
-if [ -n "$INCOMPLETE" ]; then
+missing_trap_pairs "$TRAP_EXAMPLES"
+if [ "${#INCOMPLETE_SECTIONS[@]}" -gt 0 ]; then
     echo -e "${RED}FAIL${NC}: trap-examples.md -- sections missing a wrong or right half:"
-    printf '    %s\n' "$INCOMPLETE"
+    printf '    %s\n' "${INCOMPLETE_SECTIONS[@]}"
     FAIL_COUNT=$((FAIL_COUNT + 1))
 else
     echo -e "${GREEN}PASS${NC}: trap-examples.md -- every section carries both halves"
@@ -359,10 +430,7 @@ fi
 # above still runs and still pins exact wording; this adds what a fixed list
 # cannot give -- an eighth rule added to the canon becomes required in the copy
 # at once, with no anchor list for anyone to remember to extend.
-DERIVED_RULES=()
-while IFS= read -r phrase; do
-    [ -n "$phrase" ] && DERIVED_RULES+=("$phrase")
-done < <(extract_canon_rules "$CANON")
+extract_canon_rules "$CANON"
 
 # Under fourteen halves means the canon lost a rule, and a derived check would
 # otherwise pass by asking for less than it did yesterday.

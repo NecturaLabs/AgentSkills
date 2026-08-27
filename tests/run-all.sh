@@ -14,14 +14,18 @@
 #
 # Guarantees: every declared row runs or the run fails; a suite that is missing,
 # empty, reporting no tests, or resolving outside tests/ fails the run; suites
-# accounted for equals suites declared; `--list-suites` prints exactly the paths
-# it would attempt, diagnostics to stderr so they cannot be mistaken for one.
-# Not guaranteed: that a suite's self-reported "N passed" was earned -- the
+# accounted for equals suites declared; output and accounting follow manifest
+# order however the concurrent suites finish; `--list-suites` prints exactly the
+# paths it would attempt, diagnostics to stderr so they cannot be mistaken for
+# one. Not guaranteed: that a suite's self-reported "N passed" was earned -- the
 # per-suite mutation guards cover that.
 
 set -euo pipefail
 
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Parameter expansion instead of `dirname` in its own subshell, and `|| pwd`
+# for a source path with no directory part. test-helpers.sh states what one
+# process costs in this suite.
+TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
 TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
 MANIFEST="$TESTS_DIR/required-suites.txt"
 
@@ -31,6 +35,17 @@ MANIFEST="$TESTS_DIR/required-suites.txt"
 # and require the result to stay inside.
 resolves_inside_tests() {
     local target="$1" resolved
+    # A file that is not itself a link, named directly inside tests/, cannot
+    # reach outside it. The resolver costs a process, so it runs only where a
+    # link can be: on the target itself, or on a directory component of a
+    # nested row -- which the manifest has carried before and may again.
+    #
+    # The fast path anchors on TESTS_DIR and the slow path on TESTS_REAL. They
+    # cannot disagree: TESTS_REAL is defined as TESTS_DIR resolved, so a tests/
+    # reached through a symlink lands inside either way.
+    if [ ! -L "$target" ] && [ "${target%/*}" = "$TESTS_DIR" ]; then
+        return 0
+    fi
     resolved=$(readlink -f "$target" 2>/dev/null \
         || realpath "$target" 2>/dev/null \
         || printf '%s' "$target")
@@ -65,24 +80,92 @@ TOTAL_TESTS=0
 DECLARED=0
 SEEN_PATHS=""
 
-run_test_suite() {
-    local suite_name="$1"
-    local suite_script="$2"
+# Suites are started together and collected in manifest order. Serially the
+# run took nine minutes on Windows, nearly all of it waiting on process
+# creation rather than on any check. No suite writes anywhere inside tests/ --
+# the ones that need to write build a sandbox under `mktemp -d` -- so running
+# them at once is safe, and AGENTS.md makes that a rule rather than a habit.
+RUN_DIR=""
+PIDS=()
+BLOCKED=()
 
-    echo "--- $suite_name ---"
+# INT and TERM as well as EXIT. A signal otherwise kills this shell without
+# running the EXIT trap, leaving the temp directory behind and the suites
+# running -- and each of those holds a sandbox of its own. The arrays are
+# initialised above the traps, or a signal arriving in between would find
+# ${#PIDS[@]} unbound under `set -u` and the handler would fail.
+#
+# Killing an already-collected job is the normal case here, so the complaint
+# goes to /dev/null.
+cleanup_run_dir() {
+    # `${PIDS[@]+...}`, not `${PIDS+...}`: PIDS is sparse, because a row that
+    # is missing or resolves outside tests/ is never started. The shorter form
+    # tests index 0 alone, so a first row in that state expanded to nothing
+    # here and no child was signalled.
+    if [ "${#PIDS[@]}" -gt 0 ]; then
+        kill ${PIDS[@]+"${PIDS[@]}"} 2>/dev/null || true
+    fi
+    if [ -n "$RUN_DIR" ] && [ -d "$RUN_DIR" ]; then
+        rm -rf "$RUN_DIR"
+    fi
+    RUN_DIR=""
+}
+trap cleanup_run_dir EXIT
+trap 'cleanup_run_dir; exit 130' INT
+trap 'cleanup_run_dir; exit 143' TERM
+
+# Called once per manifest index, before any index is collected. It either
+# records why the row cannot run or starts it; both are the caller's promise
+# that collect_suite will find one or the other.
+start_suite() {
+    local idx="$1"
+    local suite_name="${SUITE_NAMES[$idx]}"
+    local suite_script="$TESTS_DIR/${SUITE_PATHS[$idx]}"
+
+    BLOCKED[$idx]=""
 
     # A declared suite that is not on disk is a failure, never a skip. The old
     # SKIP path returned 0 and incremented no counter, so a moved entrypoint
-    # left the run in silence.
+    # left the run in silence. The verdict is recorded rather than printed,
+    # because rows print in manifest order once every suite has been started.
     if [ -f "$suite_script" ] && ! resolves_inside_tests "$suite_script"; then
-        echo "FAIL: $suite_name -- resolves outside the tests directory: $suite_script"
-        TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
-        echo ""
+        BLOCKED[$idx]="FAIL: $suite_name -- resolves outside the tests directory: $suite_script"
         return 0
     fi
 
     if [ ! -f "$suite_script" ]; then
-        echo "FAIL: $suite_name -- declared in the manifest but not found at $suite_script"
+        BLOCKED[$idx]="FAIL: $suite_name -- declared in the manifest but not found at $suite_script"
+        return 0
+    fi
+
+    # Backgrounded WITHOUT a wrapping subshell, so $! is the suite itself. With
+    # `( cd ... && bash ... ) &` the recorded pid was the wrapper, so the trap
+    # signalled that and not the suite -- and where killing a wrapper does not
+    # take its child with it, the suite goes on running with its sandbox open.
+    # The caller cds into TESTS_DIR once instead, which is where the subshell
+    # used to go.
+    #
+    # stdin detached and stderr kept out of the stdout file: a suite echoing
+    # "Results: 500 passed" to stderr was credited 500 tests and cleared the
+    # zero-test gate. $VERBOSE is deliberately unquoted so empty passes no
+    # argument.
+    bash "$suite_script" $VERBOSE </dev/null \
+        >"$RUN_DIR/$idx.out" 2>"$RUN_DIR/$idx.err" &
+    PIDS[$idx]=$!
+}
+
+# Exactly once per index, and only after start_suite has run for every index.
+# A second call `wait`s a pid bash has already reaped, which returns 127 and
+# would turn a suite that passed into one that failed. Prints the row and
+# lands it in exactly one counter.
+collect_suite() {
+    local idx="$1"
+    local suite_name="${SUITE_NAMES[$idx]}"
+
+    echo "--- $suite_name ---"
+
+    if [ -n "${BLOCKED[$idx]}" ]; then
+        echo "${BLOCKED[$idx]}"
         TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
         echo ""
         return 0
@@ -90,23 +173,23 @@ run_test_suite() {
 
     local output
     local suite_ok=1
-    # stdin detached, cwd fixed, and stderr kept out of $output: a suite echoing
-    # "Results: 500 passed" to stderr was credited 500 tests and cleared the
-    # zero-test gate. $VERBOSE is deliberately unquoted so empty passes no
-    # argument.
-    local errfile errfd
-    errfile=$(mktemp) || {
-        echo "ERROR: cannot create a temp file for suite stderr" >&2
-        exit 1
-    }
-    output=$( cd "$TESTS_DIR" && bash "$suite_script" $VERBOSE </dev/null \
-        2>"$errfile" ) || suite_ok=0
+    local status=0
+    # A suite whose row comes up while it is still running is waited for here,
+    # so no row is ever decided on a half-written file.
+    wait "${PIDS[$idx]}" || status=$?
+    # Reaped, so no longer this shell's to signal. Dropping it keeps the exit
+    # trap from TERMing a pid the system is free to hand to something else.
+    unset 'PIDS[$idx]'
+    [ "$status" -eq 0 ] || suite_ok=0
+
+    local errfd
+    output=$(<"$RUN_DIR/$idx.out")
     echo "$output"
     # Open the file, then unlink the name: a suite that unlinks its own stderr
     # target would otherwise make the content unreachable and its diagnostics
     # vanish silently.
-    exec {errfd}<"$errfile"
-    rm -f "$errfile"
+    exec {errfd}<"$RUN_DIR/$idx.err"
+    rm -f "$RUN_DIR/$idx.err"
     cat <&"$errfd"
     exec {errfd}<&-
 
@@ -146,6 +229,27 @@ run_test_suite() {
     fi
     echo ""
     return 0
+}
+
+# ASCII-only case fold. Both `${x,,}` and `tr` go through the C library, and
+# under a Turkish locale `I` folds to a dotless `i`, so two rows naming one file
+# on a case-insensitive filesystem stopped comparing equal and the duplicate
+# went undetected. The alphabet is spelled out here so the comparison cannot
+# depend on a locale at all.
+ascii_lower() {
+    local s="$1" ch head i
+    local up=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    local lo=abcdefghijklmnopqrstuvwxyz
+
+    ASCII_LOWER=""
+    for ((i = 0; i < ${#s}; i++)); do
+        ch=${s:i:1}
+        head=${up%%"$ch"*}
+        if [ "${#head}" -lt "${#up}" ]; then
+            ch=${lo:${#head}:1}
+        fi
+        ASCII_LOWER="$ASCII_LOWER$ch"
+    done
 }
 
 SUITE_NAMES=()
@@ -204,7 +308,8 @@ parse_manifest() {
         # Compared case-insensitively: on Windows and macOS "suite.sh" and
         # "SUITE.SH" are one file, and two rows for it ran it twice and
         # double-counted its tests.
-        suite_key=$(printf '%s' "$suite_path" | tr '[:upper:]' '[:lower:]')
+        ascii_lower "$suite_path"
+        suite_key=$ASCII_LOWER
         case "$SEEN_PATHS" in
             *"|$suite_key|"*)
                 echo "ERROR: manifest declares $suite_path more than once" >&2
@@ -228,11 +333,28 @@ if [ "$MODE" = "list" ]; then
 fi
 
 if [ "$MODE" = "run" ]; then
+    RUN_DIR=$(mktemp -d) || {
+        echo "ERROR: cannot create a temp directory for suite output" >&2
+        exit 1
+    }
+
+    # The cwd every suite runs with, set once here rather than in a subshell
+    # around each start -- that subshell is what used to hide the suite from
+    # the pid this script records. Nothing after this point uses a relative
+    # path.
+    cd "$TESTS_DIR" || {
+        echo "ERROR: cannot enter $TESTS_DIR" >&2
+        exit 1
+    }
+
+    for idx in ${SUITE_PATHS+"${!SUITE_PATHS[@]}"}; do
+        start_suite "$idx"
+    done
+
     for idx in ${SUITE_PATHS+"${!SUITE_PATHS[@]}"}; do
         # Fail closed: if the runner itself errors while handling a suite, that
         # suite is counted as failed rather than vanishing from both counters.
-        if ! run_test_suite "${SUITE_NAMES[$idx]}" \
-                "$TESTS_DIR/${SUITE_PATHS[$idx]}"; then
+        if ! collect_suite "$idx"; then
             echo "FAIL: ${SUITE_NAMES[$idx]} -- the runner errored while running this suite"
             TOTAL_SUITES_FAIL=$((TOTAL_SUITES_FAIL + 1))
         fi

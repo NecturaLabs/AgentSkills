@@ -3,8 +3,13 @@
 
 set -euo pipefail
 
-_HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$_HELPERS_DIR/.." && pwd)"
+# On Windows a process spawn costs about two tenths of a second. A full scan of
+# the largest string this suite compares costs about a ten-thousandth of that,
+# and the mutation guards run these scripts scores of times. So: parameter
+# expansion rather than `dirname` in its own subshell, `|| pwd` for a source
+# path with no directory part, and a prefix rather than a second `cd ..`.
+_HELPERS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+PROJECT_ROOT="${_HELPERS_DIR%/*}"
 
 # Colors
 RED='\033[0;31m'
@@ -22,8 +27,11 @@ assert_contains() {
     local expected="$2"
     local test_name="${3:-assertion}"
 
-    # -F: callers pass literal expected text, not patterns
-    if echo "$output" | grep -qF -- "$expected"; then
+    # A literal substring test in the shell, not `echo | grep -qF`: that forked
+    # twice on each of the four dozen assertions a run makes through these two
+    # helpers. Quoting $expected inside the pattern is what keeps the match
+    # literal, which is the job -F did.
+    if [[ $output == *"$expected"* ]]; then
         echo -e "${GREEN}PASS${NC}: $test_name"
         PASS_COUNT=$((PASS_COUNT + 1))
         return 0
@@ -40,8 +48,10 @@ assert_not_contains() {
     local unexpected="$2"
     local test_name="${3:-assertion}"
 
-    # -F: callers pass literal unexpected text, not patterns
-    if echo "$output" | grep -qF -- "$unexpected"; then
+    # Literal, for the reason assert_contains states. The two must decide
+    # containment the same way, or one of them reports on a string the other
+    # never saw.
+    if [[ $output == *"$unexpected"* ]]; then
         echo -e "${RED}FAIL${NC}: $test_name -- should not contain: $unexpected"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         return 1

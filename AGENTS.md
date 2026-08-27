@@ -12,13 +12,18 @@ From PowerShell, call Git Bash by full path — `npm test` shells out to `bash`,
 
 The suite runs entirely offline — every check reads files in this repo. Nothing needs the `claude` CLI, the network, or credentials, and nothing that does may be added.
 
-**Expect roughly 5-7 minutes on Windows/Git Bash**, most of it in the three mutation guards. Each of those runs its validator once per mutation — ~36, ~21 and ~16 times — and a process spawn costs far more than the check itself. That is the price of guards that are proven able to fail; if you need a fast signal while iterating, run the single suite you are changing and the whole set before you push.
+**Expect two to three minutes on an idle Windows/Git Bash box**, down from nine, and longer when the machine is busy. The CPU cost is about three minutes either way; only the wall time moves, because `run-all.sh` starts every suite at once and collects them in manifest order — the run costs a small multiple of its slowest suite rather than the sum, and how close it gets depends on what else is running. Measure on an idle box before quoting a number, and quote a range rather than a point.
+
+The slowest are the guards: each mutation guard runs its validator once per mutation — ~40, ~23 and ~16 times — and `runner-guard.sh` runs the runner and the manifest guard against a fresh fixture per case. On Windows a process spawn costs about two tenths of a second, thousands of times more than the check it wraps, so that is where the time goes. It is the price of guards that are proven able to fail; for a faster signal while iterating, run the single suite you are changing, and the whole set before you push.
+
+Checks that read a file are written in the shell rather than piped through `grep`, `sed`, `awk` or `tr` per line, per phrase or per skill, for the same reason. A pipeline that reads clean and costs one process is fine; one that costs a process per item is not.
 
 ## Boundaries
 - **Always**: Run the suite as documented under Commands; bump the version per Plugin Versioning
 - **Ask first**: Adding or removing a skill, changing `tests/run-all.sh` aggregation, editing the root `CLAUDE.md`
 - **Never**: Write anything under `.claude/worktrees/` — sibling branches live there with their own uncommitted state, and the shell's working directory persists between commands
 - **Never**: Add a test needing the network, credentials, or the `claude` CLI. No API key belongs in this repo or its CI, so such a test can only ever be skipped, and a permanently skipped test reads as coverage while providing none
+- **Never**: Let a suite write inside `tests/` or depend on another suite having run. `run-all.sh` starts them all at once, so anything two suites share is a race, and one suite reading what another wrote would pass or fail on timing. A suite that needs to write builds its own sandbox under `mktemp -d`; the ones that only read the repo write nothing at all
 - **Distribution-sensitive**: The root `CLAUDE.md` ships to users as their global config (see README). Nothing repo-specific goes in it, and a relative `@import` written there resolves against the user's `~/.claude/`, not this repo. Repo-specific wiring belongs in `.claude/CLAUDE.md`.
 
 ## Plugin Versioning
