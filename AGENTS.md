@@ -12,11 +12,21 @@ From PowerShell, call Git Bash by full path — `npm test` shells out to `bash`,
 
 The suite runs entirely offline — every check reads files in this repo. Nothing needs the `claude` CLI, the network, or credentials, and nothing that does may be added.
 
-**Expect two to three minutes on an idle Windows/Git Bash box**, down from nine, and longer when the machine is busy. The CPU cost is about three minutes either way; only the wall time moves, because `run-all.sh` starts every suite at once and collects them in manifest order — the run costs a small multiple of its slowest suite rather than the sum, and how close it gets depends on what else is running. Measure on an idle box before quoting a number, and quote a range rather than a point.
+**Expect fifty seconds to a minute and a half on an idle Windows/Git Bash box**, down from two and a half minutes, and longer when the machine is busy. Measure on an idle box before quoting a number, and quote a range rather than a point.
 
-The slowest are the guards: each mutation guard runs its validator once per mutation — ~40, ~24 and ~16 times — and `runner-guard.sh` runs the runner and the manifest guard against a fresh fixture per case. On Windows a process spawn costs about two tenths of a second, thousands of times more than the check it wraps, so that is where the time goes. It is the price of guards that are proven able to fail; for a faster signal while iterating, run the single suite you are changing, and the whole set before you push.
+**The currency is the number of processes the run creates, not the work they do.** Measured on Windows and Git Bash: a fork alone costs about a sixth of a second, an external binary about a fifth, and `bash script` about a third. Reading a whole file through a redirect costs a fiftieth of that, and a string operation nothing at all. Every check in this suite is cheaper than the process that would carry it out.
 
-Checks that read a file are written in the shell rather than piped through `grep`, `sed`, `awk` or `tr` per line, per phrase or per skill, for the same reason. A pipeline that reads clean and costs one process is fine; one that costs a process per item is not.
+That cost parallelises far short of the core count. `run-all.sh` starts every suite at once, but MSYS process creation is largely serialised: eight validator runs together measured between 1.3x and 2x faster than in sequence on a sixteen-core box -- about a halving at best, and which validator it is matters as much as what else is running. Running a guard's own cases concurrently measured slower still, since each worker pays for a tree of its own. So the way to make this suite faster is to spawn less, never to spread it wider.
+
+What that means in practice:
+- Derive a directory with `cd` and `$PWD`, not `$(cd ... && pwd)`, `dirname` or `basename`.
+- Read a file with `IFS= read -r -d ''`, which keeps it byte for byte; drop the `IFS=` and it strips the surrounding whitespace, while `$(<file)` strips trailing newlines — and the guards write back what they read. Mutate it with the shell's own string operations, not `cp`, `sed -i` and `cmp`.
+- Leave a result in a variable; a caller writing `x=$(helper ...)` forks for it.
+- Where a command's output is captured in a loop, write it to a file and read it back, rather than `$(...)`, which forks before it can exec. A one-off capture does not earn a scratch file, and several here are still `$(...)`.
+- Invoke a script by path. Every suite under `tests/` derives its own root from `BASH_SOURCE`, so a `cd` inside a subshell buys nothing and costs a fork. The two files under `hooks/` derive theirs from `$0`, which arrives backslash-separated on Windows: keep an unfolded split in the chain and fold to `/` as a fallback. Folding with no unfolded attempt mangles a Unix directory name that legitimately contains a backslash; not folding at all leaves the hook silently resolving to the caller's directory on every Windows install.
+- A pipeline that reads clean and costs one process is fine; one that costs a process per line, per phrase or per file is not.
+
+The slowest are still the guards, because each one runs a real validator once per mutation — ~40, ~24 and ~16 times — and `runner-guard.sh` runs the runner and the manifest guard per case. That is the price of guards proven able to fail. For a faster signal while iterating, run the single suite you are changing, and the whole set before you push.
 
 ## Boundaries
 - **Always**: Run the suite as documented under Commands; bump the version per Plugin Versioning
