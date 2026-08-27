@@ -13,6 +13,11 @@
 #
 # The sandbox carries no .git, so the update-check branch is skipped and no
 # `git ls-remote` reaches the network.
+#
+# hooks/run-hook.cmd is covered too. hooks.json invokes the wrapper, not the
+# hook, so the wrapper is the entrypoint every install actually runs, and its
+# bash half is what a CRLF checkout or a missing exec bit breaks. Neither had a
+# test at any level.
 
 set -euo pipefail
 
@@ -113,5 +118,55 @@ assert_exit_status "$MISSING_STATUS" 0 \
     "no skill file -- exits 0 rather than failing the session" || true
 assert_contains "${MISSING_OUT:-empty}" "empty" \
     "no skill file -- emits nothing at all" || true
+
+# hooks.json invokes the wrapper, so the wrapper is the entrypoint every install
+# runs. Its bash half skips the batch half through a `: << 'CMDBLOCK'` heredoc,
+# and a CRLF checkout leaves `CMDBLOCK` plus a CR on disk: the heredoc never
+# closes, `shift` plus a CR is a command rather than a builtin, and SCRIPT_NAME
+# ends in a CR so the hook looks for a file that does not exist.
+reset_hook_sandbox
+cp "$PROJECT_ROOT/hooks/run-hook.cmd" "$SANDBOX/hooks/run-hook.cmd"
+printf 'wrapper reaches the hook\n' > "$SKILL_DIR/SKILL.md"
+WRAPPER_STATUS=0
+WRAPPER_OUT=$( cd "$SANDBOX" && CLAUDE_PLUGIN_ROOT="$SANDBOX" \
+    bash hooks/run-hook.cmd session-start 2>&1 ) || WRAPPER_STATUS=$?
+assert_exit_status "$WRAPPER_STATUS" 0 \
+    "the wrapper -- its bash half runs rather than failing to parse" || true
+assert_contains "$WRAPPER_OUT" 'wrapper reaches the hook' \
+    "the wrapper -- reaches session-start and returns its output" || true
+
+# The case above passes on Windows either way, because MSYS bash tolerates a
+# stray CR where Linux and macOS bash do not. The byte count is what fails on
+# every platform once the LF pin in .gitattributes is lost.
+WRAPPER_CR=$(tr -dc '\r' < "$PROJECT_ROOT/hooks/run-hook.cmd" | wc -c)
+assert_exit_status "$WRAPPER_CR" 0 \
+    "the wrapper -- checked out with no CR bytes" || true
+
+# One line reading exactly CMDBLOCK, or the heredoc hiding the batch half never
+# closes. The opening `: << 'CMDBLOCK'` does not match this pattern.
+WRAPPER_TERMINATORS=$(grep -c '^CMDBLOCK$' "$PROJECT_ROOT/hooks/run-hook.cmd" \
+    || true)
+assert_exit_status "$WRAPPER_TERMINATORS" 1 \
+    "the wrapper -- exactly one bare heredoc terminator" || true
+
+# The index is the authority on the exec bit, not the working tree: Windows
+# checkouts set core.filemode false, and `[ -x ]` is true for everything there.
+# A 100644 wrapper is the `Permission denied` a Unix install hits on its first
+# session. Reading the index is local; nothing here contacts a remote.
+#
+# A tree with no index cannot answer the question, so that is a skip rather than
+# a pass. It is not a permanently skipped test: every checkout and every CI run
+# has an index.
+if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    for hook_path in hooks/run-hook.cmd hooks/session-start; do
+        INDEX_MODE=$(git -C "$PROJECT_ROOT" ls-files -s -- "$hook_path" \
+            | cut -d' ' -f1)
+        assert_contains "$INDEX_MODE" "100755" \
+            "$hook_path -- recorded executable in the index" || true
+    done
+else
+    echo -e "  ${YELLOW}SKIP${NC}: index modes -- this tree has no git index"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
+fi
 
 print_summary
