@@ -16,10 +16,27 @@ on:
 permissions:
   contents: read
 
+# Pull requests share one group per ref, so pushing twice in a minute cancels the run
+# that validated a tree nobody will merge. The suite only reads the checkout, so there
+# is no state to lose.
+#
+# Pushes get a group of their own, keyed by run id, which is not the same thing as
+# `cancel-in-progress: false`. Joining a group cancels an already PENDING run whatever
+# that flag says, so three quick pushes to beta would cancel the middle one and leave
+# that commit permanently unvalidated -- the opposite of what this workflow is for.
+# A group of one can never be superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     name: Validate skills
     runs-on: ubuntu-latest
+    # The suite is minutes, not hours. Without a ceiling a wedged step holds a runner
+    # for the six-hour default, and the failure reads as a queue problem rather than a
+    # hang in the thing that wedged.
+    timeout-minutes: 15
 
     steps:
       # Pinned to a commit, not the mutable `v7` tag: NIST SSDF and OpenSSF
