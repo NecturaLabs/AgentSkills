@@ -20,11 +20,16 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
-# source path with no directory part, and, where a parent is wanted, a prefix
-# of the canonical result rather than a second `cd`. test-helpers.sh states
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed. A parent is
+# a prefix of the result rather than a second `cd`. test-helpers.sh states
 # what one process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+CDPATH=""
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
 PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -52,11 +57,15 @@ cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 # abort this script; the status is captured rather than propagated. It is left
 # in a variable rather than echoed, because `x=$(run_validator)` forks a
 # subshell on top of the one the validator already needs, once per mutation.
+#
+# Invoked by path rather than from a `cd` inside a subshell: the validator
+# derives its own root from BASH_SOURCE, so the two are equivalent and the
+# subshell was a second fork on every case.
 VALIDATOR_STATUS=0
 
 run_validator() {
     VALIDATOR_STATUS=0
-    ( cd "$SANDBOX" && bash tests/validate-house-rules.sh >/dev/null 2>&1 ) \
+    bash "$SANDBOX/tests/validate-house-rules.sh" >/dev/null 2>&1 \
         || VALIDATOR_STATUS=1
 }
 
@@ -78,43 +87,59 @@ else
     exit 1
 fi
 
-# label|sed-expression. `|` is the delimiter, so no pattern may contain one. sed
-# matches within a line, so every anchor must be short enough to sit on one line
-# in every copy -- the rules wrap at different columns, and a phrase spanning a
-# line break silently matches nothing. The cmp check in check_mutation catches
-# an anchor that has gone stale.
+# label|needle|replacement, split at the first two `|`. An empty replacement
+# deletes the phrase. Only the label and the needle are barred from carrying a
+# `|`; the replacement is whatever follows the second one.
+#
+# Matching is literal and every occurrence is replaced, where the `sed s|||`
+# this replaced took the first on each line -- a difference only in the
+# direction of a more thorough mutation. A phrase must still sit unbroken on
+# one line to match, and the rules wrap at different columns, so an anchor
+# spanning a line break silently matches nothing. The REPLACE_COUNT check in
+# check_mutation catches an anchor that has gone stale.
 MUTATIONS=(
-    "rule 1 tail removed|s|wrapper's behavior||"
-    "rule 2 headline removed|s|Never assert on human-readable copy.||"
-    "rule 3 tail removed|s|before it counts as passing.||"
-    "rule 4 inverted, tail kept|s|Never weaken a test to get green.|Weakening a test to get green is fine.|"
-    "rule 5 tail removed|s|A green test that pins a bug in place is worse than no test.||"
-    "rule 6 triage half removed|s|The only question is whether you fix it or report it||"
-    "repair carve-out removed|s|Repairing a test that is itself|Fixing a test that is itself|"
-    "deletion cases removed|s|Deleting a test is legitimate in four cases:|Tests may be deleted freely:|"
+    "rule 1 tail removed|wrapper's behavior|"
+    "rule 2 headline removed|Never assert on human-readable copy.|"
+    "rule 3 tail removed|before it counts as passing.|"
+    "rule 4 inverted, tail kept|Never weaken a test to get green.|Weakening a test to get green is fine."
+    "rule 5 tail removed|A green test that pins a bug in place is worse than no test.|"
+    "rule 6 triage half removed|The only question is whether you fix it or report it|"
+    "repair carve-out removed|Repairing a test that is itself|Fixing a test that is itself"
+    "deletion cases removed|Deleting a test is legitimate in four cases:|Tests may be deleted freely:"
 )
 
 # One from the rule phrases, one from the matrix phrases: the validator checks
 # those on separate passes, and a canary from only one leaves the other pass
 # unproven for this file.
 CANARIES=(
-    "rule 2 headline removed|s|Never assert on human-readable copy.||"
-    "deletion cases removed|s|Deleting a test is legitimate in four cases:|Tests may be deleted freely:|"
+    "rule 2 headline removed|Never assert on human-readable copy.|"
+    "deletion cases removed|Deleting a test is legitimate in four cases:|Tests may be deleted freely:"
 )
 
+# The pristine text is the repo's own file: `cp -r` copies byte for byte, so
+# the sandbox copy and the original are the same bytes. Mutating and restoring
+# in the shell costs nothing, where `cp`, `sed -i` and `cmp` cost a process
+# each once per case -- which on Windows was most of this suite's runtime.
+#
+# A zero REPLACE_COUNT is the stale-anchor check `cmp` used to make. The result
+# is compared as well, since a replacement equal to its needle would move the
+# count without changing the file.
 check_mutation() {
-    local label="$1" target="$2" pristine="$3" expression="$4"
+    local label="$1" rel="$2" needle="$3" replacement="$4"
+    local target="$SANDBOX/$rel" pristine
 
-    cp "$pristine" "$target"
-    sed -i "$expression" "$target"
+    read_file "$PROJECT_ROOT/$rel"
+    pristine="$READ_RESULT"
+    replace_all "$pristine" "$needle" "$replacement"
 
-    if cmp -s "$pristine" "$target"; then
+    if [ "$REPLACE_COUNT" -eq 0 ] || [ "$REPLACE_RESULT" = "$pristine" ]; then
         echo -e "  ${RED}FAIL${NC}: $label -- mutation changed nothing; the anchor no longer matches"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        cp "$pristine" "$target"
+        write_file "$target" "$pristine"
         return
     fi
 
+    write_file "$target" "$REPLACE_RESULT"
     run_validator
     if [ "$VALIDATOR_STATUS" = "1" ]; then
         echo -e "  ${GREEN}PASS${NC}: $label -- detected"
@@ -124,15 +149,15 @@ check_mutation() {
         FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 
-    cp "$pristine" "$target"
+    write_file "$target" "$pristine"
 }
 
 first=1
-for skill_dir in "$SANDBOX"/skills/*test-manager/; do
-    skill=$(basename "$skill_dir")
-    target="$skill_dir/SKILL.md"
-    pristine="$SANDBOX/pristine-$skill.md"
-    cp "$target" "$pristine"
+for skill_dir in "$PROJECT_ROOT"/skills/*test-manager/; do
+    # Parameter expansion, not `basename`: the reason validate-house-rules.sh
+    # states, in a loop this file also runs.
+    skill="${skill_dir%/}"
+    skill="${skill##*/}"
 
     if [ "$first" = "1" ]; then
         cases=("${MUTATIONS[@]}")
@@ -142,17 +167,15 @@ for skill_dir in "$SANDBOX"/skills/*test-manager/; do
     fi
 
     for entry in "${cases[@]}"; do
-        check_mutation "$skill / ${entry%%|*}" "$target" "$pristine" \
-            "${entry#*|}"
+        rest="${entry#*|}"
+        check_mutation "$skill / ${entry%%|*}" "skills/$skill/SKILL.md" \
+            "${rest%%|*}" "${rest#*|}"
     done
 done
 
 # The canonical copy is validated by its own call, on the rule phrases only.
-canonical="$SANDBOX/skills/test-manager/references/house-rules.md"
-canonical_pristine="$SANDBOX/pristine-house-rules.md"
-cp "$canonical" "$canonical_pristine"
 check_mutation "house-rules.md / rule 5 tail removed" \
-    "$canonical" "$canonical_pristine" \
-    "s|A green test that pins a bug in place is worse than no test.||"
+    "skills/test-manager/references/house-rules.md" \
+    "A green test that pins a bug in place is worse than no test." ""
 
 print_summary

@@ -20,11 +20,16 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
-# source path with no directory part, and, where a parent is wanted, a prefix
-# of the canonical result rather than a second `cd`. test-helpers.sh states
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed. A parent is
+# a prefix of the result rather than a second `cd`. test-helpers.sh states
 # what one process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+CDPATH=""
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
 PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -53,11 +58,15 @@ cp -r "$PROJECT_ROOT/tests" "$SANDBOX/tests"
 # abort this script; the status is captured rather than propagated. It is left
 # in a variable rather than echoed, because `x=$(run_validator)` forks a
 # subshell on top of the one the validator already needs, once per mutation.
+#
+# Invoked by path rather than from a `cd` inside a subshell: the validator
+# derives its own root from BASH_SOURCE, so the two are equivalent and the
+# subshell was a second fork on every case.
 VALIDATOR_STATUS=0
 
 run_validator() {
     VALIDATOR_STATUS=0
-    ( cd "$SANDBOX" && bash tests/validate-comment-rules.sh >/dev/null 2>&1 ) \
+    bash "$SANDBOX/tests/validate-comment-rules.sh" >/dev/null 2>&1 \
         || VALIDATOR_STATUS=1
 }
 
@@ -78,70 +87,75 @@ else
     exit 1
 fi
 
-# label|sed-expression, split at the FIRST `|`, so only the label is barred from
-# containing one; the expression may, provided sed's own delimiter differs. sed
-# matches within a line, so every anchor must sit unbroken on one line in every
-# copy -- a phrase spanning a line break silently matches nothing. Markdown
-# emphasis must be escaped (\*\*), since sed reads a bare * as a quantifier. The
-# cmp check in check_mutation catches an anchor gone stale.
+# A newline inside a case, where the `sed` expressions these replaced wrote
+# `\n`. Two cases insert one.
+NL=$'\n'
+
+# label|needle|replacement, split at the FIRST two `|`, so only the label and
+# the needle are barred from containing one; the replacement is whatever
+# follows the second and may contain any. An empty replacement deletes the
+# phrase.
 #
-# `sed -i` with no backup suffix is GNU syntax, so this suite targets Linux and
-# Windows/Git Bash only. On BSD sed (macOS) the expression is consumed as the
-# backup suffix and the script aborts under `set -e` -- loud, not a silent pass,
-# which is why it is a stated constraint rather than a hidden failure mode.
+# Matching is literal, so markdown emphasis is written plainly -- `sed` needed
+# `\*\*` because it read a bare `*` as a quantifier. Every occurrence is
+# replaced, where `sed s|||` took the first on each line, which differs only
+# in the direction of a more thorough mutation. A phrase must still sit
+# unbroken on one line in every copy, since a phrase spanning a line break
+# matches nothing; the REPLACE_COUNT check in check_mutation catches an anchor
+# gone stale.
 #
 # Headline and tail alternate across the seven rules on purpose: guarding both
 # halves is the whole point of the duplication check, and a matrix that only
 # ever mutated headlines would not prove the tails are checked at all.
 MUTATIONS=(
-    "rule 1 headline removed|s|A comment carries what the code cannot.||"
-    "rule 2 tail removed|s|All three gates, in order, or no comment.||"
-    "rule 3 tail removed|s|Implementation detail in an interface comment is a finding.||"
-    "rule 4 tail inverted|s|Never inherit it from the language it resembles.|Inherit it from the language it resembles.|"
-    "rule 5 headline inverted|s|Never write a rationale you have not verified.|Write whichever rationale seems plausible.|"
-    "rule 6 tail removed|s|Editing code means you own every comment on it.||"
-    "rule 7 tail removed|s|It never instructs its reader, human or agent.||"
-    "block ceiling widened|s|one paragraph, at most 7 lines|one paragraph, at most 70 lines|"
-    "canon strength distinction removed|s|Never report a recommendation as a violated rule.||"
-    "eighth rule not propagated|s|## The Admission Test|**8. Every rule reaches the review copy.**\nAdding one here requires adding it there.\n\n## The Admission Test|"
-    "caller-obligation carve-out removed|s|A caller obligation is a fact about the contract, not an instruction to the reader.||"
+    "rule 1 headline removed|A comment carries what the code cannot.|"
+    "rule 2 tail removed|All three gates, in order, or no comment.|"
+    "rule 3 tail removed|Implementation detail in an interface comment is a finding.|"
+    "rule 4 tail inverted|Never inherit it from the language it resembles.|Inherit it from the language it resembles."
+    "rule 5 headline inverted|Never write a rationale you have not verified.|Write whichever rationale seems plausible."
+    "rule 6 tail removed|Editing code means you own every comment on it.|"
+    "rule 7 tail removed|It never instructs its reader, human or agent.|"
+    "block ceiling widened|one paragraph, at most 7 lines|one paragraph, at most 70 lines"
+    "canon strength distinction removed|Never report a recommendation as a violated rule.|"
+    "eighth rule not propagated|## The Admission Test|**8. Every rule reaches the review copy.**${NL}Adding one here requires adding it there.${NL}${NL}## The Admission Test"
+    "caller-obligation carve-out removed|A caller obligation is a fact about the contract, not an instruction to the reader.|"
 )
 
 # One rule phrase, one size limit: the validator checks this file on its own
 # pass, and a canary from only one category leaves the other unproven for this
 # copy.
 CANARIES=(
-    "width strength distinction removed|s|Never report a recommendation as a violated rule.||"
-    "rule 1 tail removed|s|Restating the code is a defect, not documentation.||"
-    "doc summary limit removed|s|exactly one sentence on one physical line||"
-    "severity ladder row removed|s|Internal hostname, internal path, infrastructure detail or PII in a comment||"
-    "doc-required surface softened|s|Every exported (capitalized) name|Exported things|"
-    "step 3 prose severity reverted|s|or PII in a comment is HIGH.|or PII in a comment is CRITICAL.|"
-    "rotate-before-delete prose removed|s|Never accept a diff that presents deleting the line as the remediation.||"
-    "GDScript spot check inverted|s|\`##\` above the member|a docstring inside the body|"
-    "sentinel dropped from the ladder|s|thread-safety or sentinel contract|thread-safety contract|"
-    "width ceiling widened|s|Python is 72 even where code is allowed 99|Python is 99 like its code|"
-    "Kotlin and C sharp fallbacks dropped|s|120 and 100 respectively|whatever the project prefers|"
+    "width strength distinction removed|Never report a recommendation as a violated rule.|"
+    "rule 1 tail removed|Restating the code is a defect, not documentation.|"
+    "doc summary limit removed|exactly one sentence on one physical line|"
+    "severity ladder row removed|Internal hostname, internal path, infrastructure detail or PII in a comment|"
+    "doc-required surface softened|Every exported (capitalized) name|Exported things"
+    "step 3 prose severity reverted|or PII in a comment is HIGH.|or PII in a comment is CRITICAL."
+    "rotate-before-delete prose removed|Never accept a diff that presents deleting the line as the remediation.|"
+    "GDScript spot check inverted|\`##\` above the member|a docstring inside the body"
+    "sentinel dropped from the ladder|thread-safety or sentinel contract|thread-safety contract"
+    "width ceiling widened|Python is 72 even where code is allowed 99|Python is 99 like its code"
+    "Kotlin and C sharp fallbacks dropped|120 and 100 respectively|whatever the project prefers"
 )
 
 # review-checklist.md is the first path the dispatched reviewer is handed, and
 # it was the copy left at the wrong severity by an earlier remediation, so its
 # own pass gets a canary too.
 REVIEW_CHECKLIST_CASES=(
-    "rotate-and-scrub row removed|s|A leaked secret is rotated and its history scrubbed, not merely deleted||"
+    "rotate-and-scrub row removed|A leaked secret is rotated and its history scrubbed, not merely deleted|"
 )
 
 # The matrix is checked by a third call with its own phrase list, so it needs
 # its own case.
 MATRIX_CASES=(
-    "trap table heading removed|s|Derived-Language Traps|Language Notes|"
-    "doc-required table heading removed|s|Doc Comment Required On|Documentation Notes|"
-    "matrix doc surface softened|s|All top-level exports|Whatever seems useful|"
-    "GDScript trap row inverted|s|\`##\` doc comments \*\*above\*\* the member|a docstring inside the body|"
-    "unlisted-language doc branch removed|s|surface was \*\*derived, not looked up\*\*||"
-    "matrix Rust width widened|s|80 (\`comment_width\`) while code is 100|100, same as its code|"
-    "new trap row with no worked pair|s@^## Unlisted Languages@| **Zig** | C | a wrong instinct | what it specifies |\n\n## Unlisted Languages@"
-    "nil doc-obligation rule removed|s|That is a nil obligation, not a missing row|Their absence is simply an oversight|"
+    "trap table heading removed|Derived-Language Traps|Language Notes"
+    "doc-required table heading removed|Doc Comment Required On|Documentation Notes"
+    "matrix doc surface softened|All top-level exports|Whatever seems useful"
+    "GDScript trap row inverted|\`##\` doc comments **above** the member|a docstring inside the body"
+    "unlisted-language doc branch removed|surface was **derived, not looked up**|"
+    "matrix Rust width widened|80 (\`comment_width\`) while code is 100|100, same as its code"
+    "new trap row with no worked pair|## Unlisted Languages|| **Zig** | C | a wrong instinct | what it specifies |${NL}${NL}## Unlisted Languages"
+    "nil doc-obligation rule removed|That is a nil obligation, not a missing row|Their absence is simply an oversight"
 )
 
 # The matrix promises a worked pair per trap row, so a dropped section is a
@@ -151,8 +165,8 @@ MATRIX_CASES=(
 # "## Rust " inside it and the phrase check goes on matching, so the heading is
 # renamed without a space instead.
 TRAP_EXAMPLE_CASES=(
-    "Rust pair removed|s|## Rust |## RustNotes |"
-    "JSON pair removed|s|## JSON |## JSONNotes |"
+    "Rust pair removed|## Rust |## RustNotes "
+    "JSON pair removed|## JSON |## JSONNotes "
 )
 
 # The secret-handling gate is duplicated across SKILL.md, comment-rules.md and
@@ -160,24 +174,35 @@ TRAP_EXAMPLE_CASES=(
 # rotate-first instruction turns Fix mode into a tool that deletes a live key
 # and reports clean, so every copy that carries it gets a mutation case.
 SKILL_CASES=(
-    "secret gate headline removed|s|A secret in a comment is never fixed by deleting it.||"
-    "rotate-first instruction removed|s|never present that removal as the remediation||"
-    "CRITICAL severity row downgraded|s|credential, key, token, connection string or private key in a comment|assorted sensitive values in a comment|"
+    "secret gate headline removed|A secret in a comment is never fixed by deleting it.|"
+    "rotate-first instruction removed|never present that removal as the remediation|"
+    "CRITICAL severity row downgraded|credential, key, token, connection string or private key in a comment|assorted sensitive values in a comment"
 )
 
+# The pristine text is the repo's own file: `cp -r` copies byte for byte, so
+# the sandbox copy and the original are the same bytes. Mutating and restoring
+# in the shell costs nothing, where `cp`, `sed -i` and `cmp` cost a process
+# each once per case -- which on Windows was most of this suite's runtime.
+#
+# A zero REPLACE_COUNT is the stale-anchor check `cmp` used to make. The result
+# is compared as well, since a replacement equal to its needle would move the
+# count without changing the file.
 check_mutation() {
-    local label="$1" target="$2" pristine="$3" expression="$4"
+    local label="$1" rel="$2" needle="$3" replacement="$4"
+    local target="$SANDBOX/$rel" pristine
 
-    cp "$pristine" "$target"
-    sed -i "$expression" "$target"
+    read_file "$PROJECT_ROOT/$rel"
+    pristine="$READ_RESULT"
+    replace_all "$pristine" "$needle" "$replacement"
 
-    if cmp -s "$pristine" "$target"; then
+    if [ "$REPLACE_COUNT" -eq 0 ] || [ "$REPLACE_RESULT" = "$pristine" ]; then
         echo -e "  ${RED}FAIL${NC}: $label -- mutation changed nothing; the anchor no longer matches"
         FAIL_COUNT=$((FAIL_COUNT + 1))
-        cp "$pristine" "$target"
+        write_file "$target" "$pristine"
         return
     fi
 
+    write_file "$target" "$REPLACE_RESULT"
     run_validator
     if [ "$VALIDATOR_STATUS" = "1" ]; then
         echo -e "  ${GREEN}PASS${NC}: $label -- detected"
@@ -187,71 +212,68 @@ check_mutation() {
         FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 
-    cp "$pristine" "$target"
+    write_file "$target" "$pristine"
 }
 
 run_cases() {
-    local file_label="$1" target="$2" pristine="$3"
-    shift 3
-    local cases=("$@")
+    local file_label="$1" rel="$2"
+    shift 2
+    local entry rest
 
-    cp "$target" "$pristine"
-    for entry in "${cases[@]}"; do
-        check_mutation "$file_label / ${entry%%|*}" "$target" "$pristine" \
-            "${entry#*|}"
+    for entry in "$@"; do
+        rest="${entry#*|}"
+        check_mutation "$file_label / ${entry%%|*}" "$rel" \
+            "${rest%%|*}" "${rest#*|}"
     done
 }
 
 run_cases "comment-rules.md" \
-    "$SANDBOX/skills/comment-manager/references/comment-rules.md" \
-    "$SANDBOX/pristine-comment-rules.md" \
+    "skills/comment-manager/references/comment-rules.md" \
     "${MUTATIONS[@]}"
 
 run_cases "comment-checklist.md" \
-    "$SANDBOX/skills/iterative-code-review/references/comment-checklist.md" \
-    "$SANDBOX/pristine-comment-checklist.md" \
+    "skills/iterative-code-review/references/comment-checklist.md" \
     "${CANARIES[@]}"
 
 run_cases "language-matrix.md" \
-    "$SANDBOX/skills/comment-manager/references/language-matrix.md" \
-    "$SANDBOX/pristine-language-matrix.md" \
+    "skills/comment-manager/references/language-matrix.md" \
     "${MATRIX_CASES[@]}"
 
 run_cases "comment-manager SKILL.md" \
-    "$SANDBOX/skills/comment-manager/SKILL.md" \
-    "$SANDBOX/pristine-skill.md" \
+    "skills/comment-manager/SKILL.md" \
     "${SKILL_CASES[@]}"
 
 run_cases "review-checklist.md" \
-    "$SANDBOX/skills/iterative-code-review/references/review-checklist.md" \
-    "$SANDBOX/pristine-review-checklist.md" \
+    "skills/iterative-code-review/references/review-checklist.md" \
     "${REVIEW_CHECKLIST_CASES[@]}"
 
 run_cases "trap-examples.md" \
-    "$SANDBOX/skills/comment-manager/references/trap-examples.md" \
-    "$SANDBOX/pristine-trap-examples.md" \
+    "skills/comment-manager/references/trap-examples.md" \
     "${TRAP_EXAMPLE_CASES[@]}"
 
-# Every case above mutates with `sed -i`, so a file that disappears entirely
-# was never exercised. That is how the extractors came to initialise their
-# result array only after the early return: a missing file left the array
-# unset, `set -u` aborted before print_summary, and the floor message each
-# check was built around never printed. These assert that message, not just a
-# non-zero exit, because an abort exits non-zero too.
+# Every case above rewrites a file in place, so a file that disappears
+# entirely was never exercised. That is how the extractors came to initialise
+# their result array only after the early return: a missing file left the
+# array unset, `set -u` aborted before print_summary, and the floor message
+# each check was built around never printed. These assert that message, not
+# just a non-zero exit, because an abort exits non-zero too.
 #
 # The matrix case is the odd one: its call site expands the array with
 # `${TRAP_LANGUAGES+...}`, so it survives an unset array either way. What it
 # pins is the floor itself, and it goes red when that floor is removed.
 validator_output() {
-    ( cd "$SANDBOX" && bash tests/validate-comment-rules.sh 2>&1 ) || true
+    VALIDATOR_OUTPUT=$(bash "$SANDBOX/tests/validate-comment-rules.sh" 2>&1 \
+        || true)
 }
 
 check_deleted() {
     local label="$1" rel="$2" anchor="$3"
 
+    read_file "$PROJECT_ROOT/$rel"
     rm -f "$SANDBOX/$rel"
-    assert_contains "$(validator_output)" "$anchor" "$label" || true
-    cp "$PROJECT_ROOT/$rel" "$SANDBOX/$rel"
+    validator_output
+    assert_contains "$VALIDATOR_OUTPUT" "$anchor" "$label" || true
+    write_file "$SANDBOX/$rel" "$READ_RESULT"
 }
 
 check_deleted "comment-rules.md deleted -- the rule floor reports it" \

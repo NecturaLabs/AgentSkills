@@ -22,11 +22,23 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
-# source path with no directory part, and, where a parent is wanted, a prefix
-# of the canonical result rather than a second `cd`. test-helpers.sh states
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed. A parent is
+# a prefix of the result rather than a second `cd`. test-helpers.sh states
 # what one process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+#
+# `set +f` for the same reason: bash imports SHELLOPTS from its environment,
+# and an inherited `noglob` leaves the `**` sweep below matching nothing --
+# every file under tests/ then goes comment-unchecked while this run reports
+# green on the one file left. The `find` that sweep replaced could not be
+# switched off that way.
+CDPATH=""
+set +f
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
 PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -113,13 +125,22 @@ done
 # below could not match, and every file then reported clean.
 BANNED_LIST=$(printf '%s\n' "${BANNED_WORDS[@]}")
 
-# `find`, not a glob: validate-suite-manifest.sh sweeps tests/** for exactly
-# this reason, and runner-guard.sh covers a suite living in a subdirectory. A
-# glob forces tests/sub/foo.sh into the manifest yet never comment-checks it.
+# Every shell file under tests/, not a top-level glob:
+# validate-suite-manifest.sh sweeps tests/** for exactly this reason, and
+# runner-guard.sh covers a suite living in a subdirectory. A shallow glob
+# forces tests/sub/foo.sh into the manifest yet never comment-checks it.
+#
+# `**` with globstar reaches those at no process, where `find | sort` cost
+# two and a fork, once per run -- and comment-compliance-guard.sh runs this
+# script once per case. `dotglob` is what makes that true of a dot-named file
+# and of anything under a dot-directory, which the glob skips without it. All
+# three settings are dropped again so no later glob inherits them.
 FILES=()
-while IFS= read -r f; do
-    [ -n "$f" ] && FILES+=("$f")
-done < <(find "$TESTS_DIR" -type f -name '*.sh' | sort)
+shopt -s globstar nullglob dotglob
+for f in "$TESTS_DIR"/**/*.sh; do
+    [ -f "$f" ] && FILES+=("$f")
+done
+shopt -u globstar nullglob dotglob
 FILES+=("$PROJECT_ROOT/hooks/session-start")
 
 # The width the whole suite measures against. Absent, this file has no rule to

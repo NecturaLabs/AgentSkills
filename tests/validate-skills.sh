@@ -3,11 +3,16 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
-# source path with no directory part, and, where a parent is wanted, a prefix
-# of the canonical result rather than a second `cd`. test-helpers.sh states
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed. A parent is
+# a prefix of the result rather than a second `cd`. test-helpers.sh states
 # what one process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+CDPATH=""
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
 PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -32,15 +37,22 @@ VERB_RE='^(use |must |create |update )'
 # another skill's reference; an announced-base path crossing skills resolves
 # against the wrong directory and is reported as missing.
 #
-# Echoes the paths that do not resolve, space-separated, and nothing when they
-# all do. Matching is in-process: `grep -oE | sort -u` cost three processes per
-# skill, which on Windows outweighs the whole scan. Each path is reported once,
-# in the order the file names it, rather than sorted.
+# Leaves the paths that do not resolve in MISSING_REFS, space-separated, and
+# the empty string when they all do. Matching is in-process: `grep -oE | sort
+# -u` cost three processes per skill, which on Windows outweighs the whole
+# scan. Each path is reported once, in the order the file names it, rather
+# than sorted.
+#
+# The result is left in a variable rather than echoed for the reason the
+# matching is in-process at all: `x=$(missing_references_for ...)` forks once
+# per skill, and there are more skills here than there are checks in this
+# function.
 missing_references_for() {
-    local dir="$1" file="$2" line rest ref missing=""
+    local dir="$1" file="$2" line rest ref
     local ref_re='(\.\./[A-Za-z0-9_-]+/)?references/[A-Za-z0-9_.-]+\.md'
     local -A seen=()
 
+    MISSING_REFS=""
     while IFS= read -r line || [ -n "$line" ]; do
         rest="$line"
         while [[ $rest =~ $ref_re ]]; do
@@ -48,12 +60,10 @@ missing_references_for() {
             rest="${rest#*"$ref"}"
             if [ -z "${seen[$ref]+set}" ]; then
                 seen[$ref]=1
-                [ -f "$dir/$ref" ] || missing="$missing $ref"
+                [ -f "$dir/$ref" ] || MISSING_REFS="$MISSING_REFS $ref"
             fi
         done
     done < "$file"
-
-    printf '%s' "$missing"
 }
 
 echo "Validating skill structure..."
@@ -164,9 +174,9 @@ for skill_dir in "$PROJECT_ROOT"/skills/*/; do
         continue
     fi
 
-    missing_refs=$(missing_references_for "$skill_dir" "$skill_file")
-    if [ -n "$missing_refs" ]; then
-        echo -e "${RED}FAIL${NC}: $skill_name -- SKILL.md names reference file(s) that do not exist:$missing_refs"
+    missing_references_for "$skill_dir" "$skill_file"
+    if [ -n "$MISSING_REFS" ]; then
+        echo -e "${RED}FAIL${NC}: $skill_name -- SKILL.md names reference file(s) that do not exist:$MISSING_REFS"
         FAIL_COUNT=$((FAIL_COUNT + 1))
         continue
     fi
@@ -198,15 +208,19 @@ trap cleanup_sandbox EXIT
 
 SANDBOX=$(mktemp -d)
 
-mkdir -p "$SANDBOX/absent-ref"
-cat > "$SANDBOX/absent-ref/SKILL.md" <<'ABSENT_REF'
----
-description: Use as the red case for missing_references_for.
----
-Read `references/absent.md` before starting.
-ABSENT_REF
+# One `mkdir` for both cases, and a `printf` heredoc rather than `cat`:
+# `printf` is a builtin where `cat` is a process, and `mkdir` is one either
+# way.
+mkdir -p "$SANDBOX/absent-ref" "$SANDBOX/present-ref/references"
+printf '%s\n' \
+    '---' \
+    'description: Use as the red case for missing_references_for.' \
+    '---' \
+    'Read `references/absent.md` before starting.' \
+    > "$SANDBOX/absent-ref/SKILL.md"
 
-if [ -n "$(missing_references_for "$SANDBOX/absent-ref" "$SANDBOX/absent-ref/SKILL.md")" ]; then
+missing_references_for "$SANDBOX/absent-ref" "$SANDBOX/absent-ref/SKILL.md"
+if [ -n "$MISSING_REFS" ]; then
     echo -e "${GREEN}PASS${NC}: a SKILL.md naming an absent reference -- reported as missing"
     PASS_COUNT=$((PASS_COUNT + 1))
 else
@@ -214,16 +228,16 @@ else
     FAIL_COUNT=$((FAIL_COUNT + 1))
 fi
 
-mkdir -p "$SANDBOX/present-ref/references"
 printf 'present\n' > "$SANDBOX/present-ref/references/present.md"
-cat > "$SANDBOX/present-ref/SKILL.md" <<'PRESENT_REF'
----
-description: Use as the green case for missing_references_for.
----
-Read `references/present.md` before starting.
-PRESENT_REF
+printf '%s\n' \
+    '---' \
+    'description: Use as the green case for missing_references_for.' \
+    '---' \
+    'Read `references/present.md` before starting.' \
+    > "$SANDBOX/present-ref/SKILL.md"
 
-if [ -z "$(missing_references_for "$SANDBOX/present-ref" "$SANDBOX/present-ref/SKILL.md")" ]; then
+missing_references_for "$SANDBOX/present-ref" "$SANDBOX/present-ref/SKILL.md"
+if [ -z "$MISSING_REFS" ]; then
     echo -e "${GREEN}PASS${NC}: a SKILL.md whose reference resolves -- reported nothing"
     PASS_COUNT=$((PASS_COUNT + 1))
 else

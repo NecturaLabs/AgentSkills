@@ -21,11 +21,16 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, `|| pwd` for a
-# source path with no directory part, and, where a parent is wanted, a prefix
-# of the canonical result rather than a second `cd`. test-helpers.sh states
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed. A parent is
+# a prefix of the result rather than a second `cd`. test-helpers.sh states
 # what one process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
+CDPATH=""
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
 PROJECT_ROOT="${TESTS_DIR%/*}"
 source "$TESTS_DIR/test-helpers.sh"
 
@@ -37,7 +42,12 @@ echo "Validating house-rule consistency..."
 SKILLS=()
 for skill_dir in "$PROJECT_ROOT"/skills/*test-manager/; do
     [ -d "$skill_dir" ] || continue
-    SKILLS+=("$(basename "$skill_dir")")
+    # Parameter expansion, not `basename`: that forked and exec'd once per
+    # skill, and house-rules-guard.sh pays for the whole set once per
+    # mutation. Stripping the glob's trailing slash first is what leaves a
+    # name here rather than an empty string.
+    skill_dir="${skill_dir%/}"
+    SKILLS+=("${skill_dir##*/}")
 done
 
 if [ "${#SKILLS[@]}" -lt 4 ]; then

@@ -22,11 +22,18 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, and `|| pwd`
-# for a source path with no directory part. test-helpers.sh states what one
-# process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
-TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed.
+# test-helpers.sh states what one process costs in this suite.
+CDPATH=""
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
+cd -P "$TESTS_DIR"
+TESTS_REAL=$PWD
+cd "$_PREV_PWD"
 MANIFEST="$TESTS_DIR/required-suites.txt"
 
 # The literal-path check below rejects "/" and "..", but `[ -f ]` follows
@@ -154,6 +161,51 @@ start_suite() {
     PIDS[$idx]=$!
 }
 
+# Leaves the last "<digits> passed" of the last Results: line in LAST_PASSED,
+# and the empty string when there is none. Digits are the run immediately
+# before a " passed", which is what `grep -oE '[0-9]+ passed'` matched; every
+# such match on every Results: line is scanned and the last one wins, which is
+# what `tail -1` chose. Defined here rather than sourced, because run-all.sh
+# is copied into runner-guard.sh's fixtures on its own.
+LAST_PASSED=""
+
+read_last_passed() {
+    local text="$1" line rest head digits ch
+
+    LAST_PASSED=""
+    while [ -n "$text" ]; do
+        line="${text%%$'\n'*}"
+        if [ "$line" = "$text" ]; then
+            text=""
+        else
+            text="${text#*$'\n'}"
+        fi
+
+        case "$line" in
+            'Results:'*) ;;
+            *) continue ;;
+        esac
+
+        rest="$line"
+        while [[ $rest == *' passed'* ]]; do
+            head="${rest%%' passed'*}"
+            rest="${rest#*' passed'}"
+
+            digits=""
+            while [ -n "$head" ]; do
+                ch="${head: -1}"
+                case "$ch" in
+                    [0-9]) digits="$ch$digits"; head="${head%?}" ;;
+                    *) break ;;
+                esac
+            done
+            if [ -n "$digits" ]; then
+                LAST_PASSED="$digits"
+            fi
+        done
+    done
+}
+
 # Exactly once per index, and only after start_suite has run for every index.
 # A second call `wait`s a pid bash has already reaped, which returns 127 and
 # would turn a suite that passed into one that failed. Prints the row and
@@ -190,15 +242,28 @@ collect_suite() {
     # vanish silently.
     exec {errfd}<"$RUN_DIR/$idx.err"
     rm -f "$RUN_DIR/$idx.err"
-    cat <&"$errfd"
+    # `read` rather than `cat`, for the reason read_last_passed replaced its
+    # grep pipeline: this runs once per suite, and stderr here is a handful of
+    # lines.
+    #
+    # Looped, because `-d ''` stops at a NUL and reports it exactly as it
+    # reports EOF. Read once, a suite emitting a single NUL byte would have
+    # hidden every diagnostic after it -- output a suite controls silencing
+    # part of the report is the failure this aggregator exists to prevent.
+    local errtext="" errchunk=""
+    while IFS= read -r -d '' errchunk; do
+        errtext="$errtext$errchunk"
+    done <&"$errfd"
+    printf '%s' "$errtext$errchunk"
     exec {errfd}<&-
 
-    # `pipefail` is what keeps this numeric when grep matches nothing: its
-    # status propagates through the pipe, `|| echo "0"` fires, and suite_tests
-    # stays a digit string. `tail -1` keeps a multi-match result single-valued.
-    local suite_tests
-    suite_tests=$(printf '%s\n' "$output" | grep '^Results:' \
-        | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || echo "0")
+    # The count, read in the shell. `printf | grep | grep -oE | grep -oE |
+    # tail` cost five processes and a fork on every suite of every run, to
+    # pull one number out of one line. The reading is unchanged: only lines
+    # beginning "Results:" are considered, the digits immediately before each
+    # " passed" are candidates, and the last candidate wins.
+    local suite_tests=0
+    read_last_passed "$output"
 
     # Force base 10, and treat anything non-numeric as zero. "08" is a valid
     # match but an invalid octal literal, and the arithmetic error it caused
@@ -207,10 +272,9 @@ collect_suite() {
     # rejected rather than converted: $(( )) wraps silently, and
     # "9223372036854775808 passed" produced a negative grand total on an exit-0
     # run.
-    if ! printf '%s' "$suite_tests" | grep -qE '^[0-9]{1,9}$'; then
-        suite_tests=0
+    if [ -n "$LAST_PASSED" ] && [ "${#LAST_PASSED}" -le 9 ]; then
+        suite_tests=$((10#$LAST_PASSED))
     fi
-    suite_tests=$((10#$suite_tests))
     TOTAL_TESTS=$((TOTAL_TESTS + suite_tests))
 
     # A suite that exits cleanly while reporting no tests is indistinguishable

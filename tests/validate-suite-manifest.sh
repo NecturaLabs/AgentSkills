@@ -20,11 +20,24 @@
 
 set -euo pipefail
 
-# Parameter expansion instead of `dirname` in its own subshell, and `|| pwd`
-# for a source path with no directory part. test-helpers.sh states what one
-# process costs in this suite.
-TESTS_DIR="$(cd "${BASH_SOURCE[0]%/*}" 2>/dev/null && pwd || pwd)"
-TESTS_REAL="$(cd "$TESTS_DIR" && pwd -P)"
+# `cd` and $PWD are builtins, so this derives an absolute path without the
+# fork a `$(cd ... && pwd)` substitution costs, and CDPATH is cleared because
+# a set one sends `cd` somewhere else and echoes where it landed.
+# test-helpers.sh states what one process costs in this suite.
+#
+# `set +f` for the same reason: bash imports SHELLOPTS from its environment,
+# and an inherited `noglob` leaves the `**` sweep below matching nothing --
+# an undeclared suite invisible with this check still reporting green. The
+# `find` that sweep replaced could not be switched off that way.
+CDPATH=""
+set +f
+_PREV_PWD=$PWD
+cd "${BASH_SOURCE[0]%/*}" 2>/dev/null || cd "$_PREV_PWD"
+TESTS_DIR=$PWD
+cd "$_PREV_PWD"
+cd -P "$TESTS_DIR"
+TESTS_REAL=$PWD
+cd "$_PREV_PWD"
 source "$TESTS_DIR/test-helpers.sh"
 
 echo "Validating test suite manifest..."
@@ -241,21 +254,54 @@ for suite in "${REQUIRED_SUITES[@]}"; do
     fi
 done
 
-# The runner must execute exactly what this manifest declares. Comparing the two
-# sorted lists catches a runner reading a different manifest, a row it skips,
-# and a row it invents.
-DECLARED_SORTED=$(printf '%s\n' ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"} \
-    | sed '/^$/d' | sort)
-LISTED_SORTED=$(printf '%s\n' "$RUNNER_LISTED" | sed '/^$/d' | sort)
+# The runner must execute exactly what this manifest declares.
+#
+# Compared as sets in the shell, not by sorting both lists: `printf | sed |
+# sort` twice cost six processes to order ten rows, and runner-guard.sh runs
+# this script once per case. Membership each way plus a length check catches
+# what ordering caught -- a row the runner skips, one it invents, a manifest
+# it is not reading, and a row it would run twice.
+LISTED_PATHS=()
+listed_remaining="$RUNNER_LISTED"
+while [ -n "$listed_remaining" ]; do
+    listed_line="${listed_remaining%%$'\n'*}"
+    if [ "$listed_line" = "$listed_remaining" ]; then
+        listed_remaining=""
+    else
+        listed_remaining="${listed_remaining#*$'\n'}"
+    fi
+    if [ -n "$listed_line" ]; then
+        LISTED_PATHS+=("$listed_line")
+    fi
+done
 
-if [ -z "$LISTED_SORTED" ]; then
+listed_contains() {
+    local needle="$1" entry
+    for entry in ${LISTED_PATHS+"${LISTED_PATHS[@]}"}; do
+        [ "$entry" = "$needle" ] && return 0
+    done
+    return 1
+}
+
+LIST_MISMATCH=0
+for entry in ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"}; do
+    listed_contains "$entry" || LIST_MISMATCH=1
+done
+for entry in ${LISTED_PATHS+"${LISTED_PATHS[@]}"}; do
+    declared_contains "$entry" || LIST_MISMATCH=1
+done
+if [ "${#LISTED_PATHS[@]}" -ne "${#DECLARED_PATHS[@]}" ]; then
+    LIST_MISMATCH=1
+fi
+
+if [ "${#LISTED_PATHS[@]}" -eq 0 ]; then
     fail "run-all.sh --list-suites produced nothing -- the runner is not reading this manifest"
-elif [ "$DECLARED_SORTED" != "$LISTED_SORTED" ]; then
+elif [ "$LIST_MISMATCH" = "1" ]; then
     fail "run-all.sh executes a different set of suites than this manifest declares"
     echo "    manifest declares:"
-    printf '      %s\n' $DECLARED_SORTED
+    printf '      %s\n' ${DECLARED_PATHS+"${DECLARED_PATHS[@]}"}
     echo "    runner would execute:"
-    printf '      %s\n' $LISTED_SORTED
+    printf '      %s\n' ${LISTED_PATHS+"${LISTED_PATHS[@]}"}
 else
     pass "run-all.sh executes exactly the declared suites"
 fi
@@ -269,7 +315,19 @@ NON_SUITE_FILES=(
     "test-helpers.sh"
 )
 
-while IFS= read -r candidate; do
+# `**` with globstar reaches the same files `find` did, at no process. It
+# matches a nested path and a top-level one alike, and it matches by name, so
+# a symlink -- which `find -type f` misses and a declared row can still be --
+# is still offered here.
+#
+# `dotglob` is not optional: without it neither a dot-named `.evil.sh` nor
+# anything under a dot-directory is swept, and an undeclared suite hidden
+# either way ran with this check still green. `nullglob` stops an empty tests/
+# iterating the pattern itself. All three are dropped again below so no later
+# glob in this file inherits them.
+shopt -s globstar nullglob dotglob
+for candidate in "$TESTS_DIR"/**/*.sh; do
+    [ -f "$candidate" ] || [ -L "$candidate" ] || continue
     rel=${candidate#"$TESTS_DIR/"}
 
     skip=0
@@ -286,6 +344,7 @@ while IFS= read -r candidate; do
     fi
 
     fail "$rel -- a shell script under tests/ that no manifest row declares"
-done < <(find "$TESTS_DIR" \( -type f -o -type l \) -name '*.sh' | sort)
+done
+shopt -u globstar nullglob dotglob
 
 print_summary
