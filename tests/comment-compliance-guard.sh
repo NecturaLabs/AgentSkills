@@ -164,6 +164,17 @@ assert_contains "$(compliance_output)" "declares no [*.sh] max_line_length" \
     "a missing width declaration -- detected" \
     || true
 
+# A CRLF .editorconfig. No glob in .gitattributes reaches a dotfile with no
+# extension, so `* text=auto` decides it and a Windows checkout with
+# core.autocrlf=true gets CRLF. `read` leaves that CR on the value, so the
+# section header stops matching and the width reads as absent -- a hard failure
+# of the whole suite on the default Git for Windows setting.
+reset_sandbox
+sed -i 's/$/\r/' "$SANDBOX/.editorconfig"
+assert_contains "$(compliance_output)" "declares [*.sh] width 80" \
+    "a CRLF .editorconfig -- the width is still read" \
+    || true
+
 # A checked file that disappears must fail rather than shrink the run silently,
 # the way a dropped suite once did in the aggregator.
 reset_sandbox

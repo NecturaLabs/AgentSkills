@@ -130,6 +130,12 @@ read_width() {
 
     WIDTH=""
     while IFS= read -r line || [ -n "$line" ]; do
+        # `read` leaves the CR of a CRLF line on the value, so `[*.sh]` and
+        # `[*.sh]` plus a CR are different strings and the section never opens.
+        # The awk pass this replaced never saw one, because gawk on Windows
+        # strips it on input. run-all.sh and validate-suite-manifest.sh already
+        # strip it for the same reason.
+        line=${line%$'\r'}
         case "$line" in
             '['*)
                 if [ "$line" = "[*.sh]" ]; then

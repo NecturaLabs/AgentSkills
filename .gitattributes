@@ -21,6 +21,12 @@ hooks/run-hook.cmd text eol=lf
 # Text data files
 *.txt text eol=lf
 
+# tests/comment-compliance.sh parses this for the width it enforces, and its
+# parser reads lines in the shell, where a CR survives. No glob above reaches a
+# dotfile with no extension, so `* text=auto` decided it, and a Windows
+# checkout with core.autocrlf=true got CRLF.
+.editorconfig text eol=lf
+
 # JSON/YAML
 *.json text eol=lf
 *.yaml text eol=lf
