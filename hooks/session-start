@@ -3,8 +3,28 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# `cd` and $PWD are builtins, so the plugin root costs no process here, where
+# `$(cd "$(dirname "$0")" && pwd)` and a second substitution for the parent
+# cost two forks and a `dirname`. CDPATH is cleared because a set one sends
+# `cd` somewhere else and echoes where it landed.
+#
+# run-hook.cmd's batch half invokes this with `%HOOK_DIR%%~1`, and `%~dp0` is
+# always backslash-separated, so on Windows $0 arrives as
+# C:\...\hooks\session-start. Splitting that on `/` alone finds no separator,
+# the `cd` falls back to the caller's directory, and the hook exits 0 having
+# injected nothing -- on every install. `dirname` absorbed this; parameter
+# expansion has to be told.
+#
+# The unfolded split is tried first, so a Unix path whose directory name
+# genuinely contains a backslash still resolves as it did under `dirname`.
+# Folding is the fallback, for the shape only Windows produces.
+CDPATH=""
+PREV_PWD=$PWD
+HOOK_SELF=${0//\\//}
+cd "${0%/*}" 2>/dev/null || cd "${HOOK_SELF%/*}" 2>/dev/null || cd "$PREV_PWD"
+SCRIPT_DIR=$PWD
+cd "$PREV_PWD"
+PLUGIN_ROOT="${SCRIPT_DIR%/*}"
 SKILL_FILE="$PLUGIN_ROOT/skills/using-necturalabs/SKILL.md"
 
 if [ ! -f "$SKILL_FILE" ]; then
@@ -26,13 +46,32 @@ if command -v git &>/dev/null && [ -d "$PLUGIN_ROOT/.git" ]; then
     fi
 fi
 
-# 2>/dev/null, not 2>&1: cat's error text carries the absolute plugin path, and
-# merging it here injects that path into the agent session. The `||` branch
-# still reports the failure without disclosing where the file lives.
-SKILL_CONTENT=$(cat "$SKILL_FILE" 2>/dev/null \
-    || echo "Error reading using-necturalabs skill")
+# `cat`'s error text names the absolute plugin path, so it is discarded
+# rather than written to this hook's stderr. It is not about the capture: the
+# fallback below is assigned OUTSIDE the substitution, so a message captured
+# by `2>&1` would be overwritten before anything read it. The `||` branch
+# still reports the failure without saying where the file lives.
+#
+# `cat` and the fork around it are kept, where the rest of this file dropped
+# both. The `$(<file)` family cannot carry the failure everywhere: on bash
+# 5.2 and earlier a redirection failing inside a substitution exits under
+# `set -e` before the `||` can assign the fallback, so an unreadable skill
+# file emits no JSON at all. Bash 5.3 runs the `||`; this ships to both.
+#
+# A `read -r -d ''` group cannot carry it either: both forms return 1 at
+# EOF, so a bare `|| fallback` fires on every readable file, and telling
+# readable from unreadable apart needs a group, an emptiness test, and the
+# `2>/dev/null` ahead of the input redirect or the path leaks anyway. `IFS=`
+# decides only whether the surrounding whitespace survives. One process per
+# session does not earn that machinery.
+SKILL_CONTENT=$(cat "$SKILL_FILE" 2>/dev/null) \
+    || SKILL_CONTENT="Error reading using-necturalabs skill"
 
-# JSON-escape the content using bash parameter substitution
+# JSON-escape the content using bash parameter substitution.
+#
+# The result is left in ESCAPE_RESULT rather than echoed: a caller writing
+# `x=$(escape_for_json ...)` forks, and this is called twice for work that is
+# pure string substitution.
 escape_for_json() {
     local s="$1"
     # RFC 8259 requires every U+0000-U+001F be escaped. The five below cover
@@ -45,12 +84,13 @@ escape_for_json() {
     s="${s//$'\n'/\\n}"
     s="${s//$'\r'/\\r}"
     s="${s//$'\t'/\\t}"
-    printf '%s' "$s"
+    ESCAPE_RESULT="$s"
 }
 
-ESCAPED=$(escape_for_json "$SKILL_CONTENT")
-UPDATE_ESCAPED=$(escape_for_json "$UPDATE_MSG")
-SESSION_CONTEXT="${ESCAPED}${UPDATE_ESCAPED}"
+escape_for_json "$SKILL_CONTENT"
+ESCAPED="$ESCAPE_RESULT"
+escape_for_json "$UPDATE_MSG"
+SESSION_CONTEXT="${ESCAPED}${ESCAPE_RESULT}"
 
 # Output context injection as JSON. Cursor expects additional_context; Claude
 # Code expects hookSpecificOutput.additionalContext. Only the field for the
