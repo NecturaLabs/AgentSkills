@@ -149,10 +149,12 @@ own test suite, not in a one-off session.
 ## Orchestration
 
 The main session is the manager. It owns the backlog, decomposition, topology, allocation,
-integration, final verification and all communication with me. It delegates substantive
-investigation, implementation, test authoring, research and review, and handles only trivial work,
-glue edits and conflict resolution itself. The backlog is the control plane; the execution graph is
-the execution plane.
+integration, final verification and all communication with me. Delegation is a tool, not a
+default: a node has to buy parallelism, independent judgment, specialization or context
+isolation, and where it buys none of those the manager does the work itself. Substantial is not
+a reason to delegate — a single-threaded task handed to one subagent is the manager's own work
+plus a briefing, a handoff and a validation. The backlog is the control plane; the execution
+graph is the execution plane.
 
 - Derive the topology from real data dependencies, never from the order things were mentioned in.
   Pick the smallest shape that expresses them:
@@ -167,8 +169,9 @@ the execution plane.
   dependency. A barrier is justified only when the next stage truly needs the whole upstream set —
   a barrier placed out of habit converts a pipeline into dead wall-clock.
 - A node is bounded work with an explicit input and an explicit output.
-- Parallelism must buy latency, context isolation, coverage or verification independence. If it
-  buys none, use one node. Trivial or well-understood work gets no topology and no ceremony.
+- Width answers to the same test: fan out only where the branches are genuinely independent and
+  the latency or coverage is worth the extra context. If one node would do, use one. Trivial or
+  well-understood work gets no topology and no ceremony.
 - A cycle declares its convergence condition and hard bound before it starts, and deduplicates
   candidates against everything already seen, accepted and rejected alike. On hitting the bound,
   stop and report what is unresolved.
@@ -186,9 +189,11 @@ the execution plane.
 - Deterministic plumbing — flattening, filtering, deduplication, sorting, routing on known fields,
   counters, retry and round bookkeeping — belongs in the script, or in the manager under ordinary
   dispatch. Never spend a model call on it.
-- Run a heartbeat every 5 minutes while ordinary subagents are active: progress, blockers, scope
-  adherence, duplicated effort, stale work — then nudge, redirect, cancel or reassign. No tighter
-  polling of anything; completion notifications arrive on their own.
+- Completion notifications arrive on their own, so never poll for them. Check in on an event: a
+  handoff lands, a node escalates, or a long-running node has been quiet long enough that
+  stalling or drift is the likelier explanation than progress. Then weigh progress, blockers,
+  scope adherence, duplicated effort and stale work, and nudge, redirect, cancel or reassign.
+  Anything that finishes in a few minutes reports before a check would have told you anything.
 
 ### Context
 
@@ -224,9 +229,8 @@ whose job is to judge the work independently, and widen context only on demand.
   point. A reviewer, an adjudicator and a competing approach each need the evidence and none of
   the verdict.
 - Reuse an existing agent when independence is unnecessary and it already holds the right context:
-  a follow-up beats an agent that must rebuild what the first one already knows. A fresh agent has
-  to earn its startup cost through parallelism, specialization, context isolation or independent
-  judgment — if it buys none of those, send the follow-up.
+  a follow-up beats an agent that must rebuild what the first one already knows. A fresh agent
+  earns its startup cost on the same test as any other node.
 - A handoff reports outcome, files touched, findings, the verification run with its output,
   blockers and remaining work, and separately what is new: facts learned, assumptions changed,
   dependencies discovered, uncertainty left. Under ordinary dispatch the manager validates each
