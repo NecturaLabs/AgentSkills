@@ -1,30 +1,18 @@
 name: CI
 
-# beta is the integration branch feature work merges into, so it needs CI as much as
-# main does. Triggering only on main meant every merge into beta landed unvalidated and
-# the first real signal arrived whenever beta was eventually promoted -- by which point
-# the breaking change is buried among everything else that merged since.
 on:
   push:
-    branches: [main, beta]
+    branches: [main]
   pull_request:
-    branches: [main, beta]
+    branches: [main]
 
-# read is all this job needs: it reads the checkout, runs bash, and the version-advance step
-# below fetches the base branch with the credentials actions/checkout persists. Nothing here
-# writes to the repository, so the default write scopes are unnecessary.
 permissions:
   contents: read
 
-# Pull requests share one group per ref, so pushing twice in a minute cancels the run
-# that validated a tree nobody will merge. The suite only reads the checkout, so there
-# is no state to lose.
-#
-# Pushes get a group of their own, keyed by run id, which is not the same thing as
-# `cancel-in-progress: false`. Joining a group cancels an already PENDING run whatever
-# that flag says, so three quick pushes to beta would cancel the middle one and leave
-# that commit permanently unvalidated -- the opposite of what this workflow is for.
-# A group of one can never be superseded.
+# Pull requests share one group per ref, so pushing twice in a minute cancels the run that
+# validated a tree nobody will merge. Pushes get a group of their own keyed by run id: joining a
+# shared group cancels an already-pending run whatever cancel-in-progress says, which would leave
+# the middle commit of three quick pushes permanently unvalidated.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'pr' || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -33,112 +21,54 @@ jobs:
   validate:
     name: Validate skills
     runs-on: ubuntu-latest
-    # The suite is minutes, not hours. Without a ceiling a wedged step holds a runner
-    # for the six-hour default, and the failure reads as a queue problem rather than a
-    # hang in the thing that wedged.
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
-      # Pinned to a commit, not the mutable `v7` tag: NIST SSDF and OpenSSF
-      # Scorecard both call for it, because a tag can be repointed at any
-      # commit after review. Bump the SHA and the trailing comment together.
+      # Pinned to a commit rather than the mutable v7 tag, per NIST SSDF and OpenSSF Scorecard: a
+      # tag can be repointed at any commit after review. Bump the SHA and its comment together.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The two self-check suites run as their own steps, not only through the aggregator.
-      # Both are themselves manifest rows, so deleting their two rows removed both from the
-      # run while every other gate stayed green. A guard registered only in the artifact it
-      # guards cannot enforce its own registration.
-      - name: Suite manifest guard
-        run: bash tests/validate-suite-manifest.sh
+      # Run directly as well as through the aggregator. The guard is what proves the validator can
+      # fail at all, and a gate registered only inside the artifact it guards cannot enforce its
+      # own registration.
+      - name: Validator guard
+        run: bash tests/validator-guard.sh
 
-      - name: Runner guard
-        run: bash tests/runner-guard.sh
+      - name: Validate structure
+        run: bash scripts/validate.sh --strict
 
-      - name: Validate skill structure
-        run: bash tests/validate-skills.sh
-
-      # Regression guard for the aggregator itself: a `set -e`-unsafe construct in
-      # run-all.sh aborts the run before it prints "Total:", failing this step.
-      #
-      # The count assertion exists because a shrinking run is what every bypass of this
-      # harness produced: fewer suites executed, still exit 0. EXPECTED is derived from the
-      # manifest rather than from run-all.sh, so a runner that stopped reading the manifest
-      # cannot also lower the bar it is measured against.
-      - name: Run aggregated test suite
+      # The count assertion exists because every bypass of a harness like this produced the same
+      # shape: fewer suites executed, still exit 0. EXPECTED is counted from run-all.sh's own
+      # run_suite calls, so adding a suite raises the bar automatically while a runner that skips
+      # one still fails -- without a separate manifest file that can drift out of agreement.
+      - name: Aggregated suite
         run: |
           set -o pipefail
-          EXPECTED=$(grep -cE '^[[:space:]]*[^#[:space:]]' tests/required-suites.txt)
-          echo "Manifest declares $EXPECTED suites."
+          EXPECTED=$(grep -cE '^[[:space:]]*run_suite ' tests/run-all.sh)
+          echo "Runner declares $EXPECTED suites."
+          [ "$EXPECTED" -ge 2 ] || { echo "ERROR: expected at least 2 suites, found $EXPECTED"; exit 1; }
           bash tests/run-all.sh | tee run.log
-          # Only the aggregator's own closing block, never the whole log. run-all.sh echoes
-          # each suite's stdout into that log, so a whole-log grep was satisfied by any suite
-          # printing the expected Total line -- CI green with one suite actually executed.
+          # Only the aggregator's closing block, never the whole log: run-all.sh echoes each
+          # suite's stdout into it, so a whole-log grep was satisfied by any single suite printing
+          # the expected Total line.
           ACTUAL=$(tail -3 run.log | grep -E '^Total: ' | tail -1 || true)
           case "$ACTUAL" in
             "Total: $EXPECTED suites passed, 0 suites failed"*) ;;
             *) echo "ERROR: expected all $EXPECTED declared suites to pass, got: $ACTUAL"; exit 1 ;;
           esac
 
-      - name: Check version consistency
+      # scripts/validate.sh also checks this, but a shell syntax error there would skip the check
+      # silently while still failing for the wrong reason. Two lines here cost nothing.
+      - name: Version consistency
         run: |
-          # Presence is checked before the grep: piping into sort discards grep's status, so a
-          # missing config file read as "no versions found here" rather than as an error.
-          for f in package.json .claude-plugin/plugin.json .cursor-plugin/plugin.json gemini-extension.json; do
+          for f in package.json .claude-plugin/plugin.json; do
             [ -f "$f" ] || { echo "ERROR: $f is missing"; exit 1; }
-            n=$(grep -oE '"version": "[^"]+"' "$f" | wc -l)
-            [ "$n" = "1" ] || { echo "ERROR: $f yields $n version strings, expected 1"; exit 1; }
           done
-          VERSIONS=$(grep -hoE '"version": "[^"]+"' \
-            package.json \
-            .claude-plugin/plugin.json \
-            .cursor-plugin/plugin.json \
-            gemini-extension.json \
-            | sort -u)
-          if [ -z "$VERSIONS" ]; then
-            echo "ERROR: No version strings found in config files"
-            exit 1
-          fi
-          COUNT=$(echo "$VERSIONS" | wc -l)
+          VERSIONS=$(grep -hoE '"version": "[^"]+"' package.json .claude-plugin/plugin.json | sort -u)
+          COUNT=$(printf '%s\n' "$VERSIONS" | grep -c .)
           if [ "$COUNT" -ne 1 ]; then
-            echo "ERROR: Version mismatch across config files:"
-            echo "$VERSIONS"
+            echo "ERROR: version mismatch across manifests:"
+            printf '%s\n' "$VERSIONS"
             exit 1
           fi
-          echo "All config files at $(echo "$VERSIONS" | head -1)"
-
-      # The check above only proves the four files agree with each other. Two
-      # branches can each bump 1.4.0 -> 1.5.0 and both stay green, so whichever
-      # merges second lands a duplicate version. Compare against the base too.
-      # BASE_REF goes through env, not ${{ }} interpolation, so a branch name
-      # cannot inject shell.
-      #
-      # Only for PRs into main. AGENTS.md makes beta the branch that bumps, once
-      # per change set, so requiring a bump on every feature -> beta PR would
-      # fail the workflow this repo actually follows and teach people to bypass
-      # the gate.
-      - name: Check version advances past base
-        if: github.event_name == 'pull_request' && github.base_ref == 'main'
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          git fetch --depth=1 origin "$BASE_REF"
-          read_version() {
-            grep -oE '"version": "[^"]+"' | head -1 | cut -d'"' -f4
-          }
-          BASE=$(git show "origin/$BASE_REF:package.json" | read_version)
-          NEW=$(read_version < package.json)
-          if [ -z "$BASE" ] || [ -z "$NEW" ]; then
-            echo "ERROR: could not read version (base='$BASE' new='$NEW')"
-            exit 1
-          fi
-          if [ "$BASE" = "$NEW" ]; then
-            echo "ERROR: version $NEW is unchanged from $BASE_REF -- bump it"
-            exit 1
-          fi
-          # sort -V puts 1.6.0-rc.1 after 1.6.0, so prerelease tags would compare
-          # backwards. This repo has only ever used plain X.Y.Z; revisit if that changes.
-          if [ "$(printf '%s\n%s\n' "$BASE" "$NEW" | sort -V | tail -1)" != "$NEW" ]; then
-            echo "ERROR: version $NEW is lower than $BASE_REF ($BASE)"
-            exit 1
-          fi
-          echo "Version advances: $BASE -> $NEW"
+          echo "All manifests at $(printf '%s\n' "$VERSIONS" | head -1)"

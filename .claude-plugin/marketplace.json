@@ -1,6 +1,6 @@
 {
   "name": "necturalabs",
-  "description": "NecturaLabs AI agent skills marketplace",
+  "description": "NecturaLabs Agent Skills",
   "owner": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"
@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "necturalabs",
-      "description": "Industry-standard code review, security auditing, test management, and project management skills for AI coding agents. Complementary to superpowers.",
+      "description": "Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security review, test engineering, and project documentation.",
       "source": "./"
     }
   ]

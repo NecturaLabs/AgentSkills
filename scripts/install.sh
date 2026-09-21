@@ -1,0 +1,673 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+V2_SKILLS=(agent-instructions change-review security-review testing project-docs)
+
+usage() {
+  cat <<'USAGE'
+Usage: install.sh [--force] [--dry-run] [--prefix <dir>]
+                  [--global-agents [<file>]] [--replace-global]
+
+Links this checkout's v2 skills into the Claude Code and Codex skill roots.
+Installing skills and installing a global operating policy are separate
+operations: without --global-agents this script touches no instruction file.
+
+  --force       Replace a skill link that points into a different AgentSkills
+                checkout. Never replaces a real directory, and never replaces a
+                link whose target lies outside an AgentSkills checkout.
+  --dry-run     Print every action; change nothing.
+  --prefix DIR  Use DIR instead of $HOME as the base holding .claude, .agents
+                and .codex.
+
+  --global-agents [FILE]
+                Additionally bootstrap the canonical global instruction file at
+                <prefix>/.agents/AGENTS.md from FILE, defaulting to this
+                checkout's examples/global-agents.md. The policy lives in
+                neither harness's directory; each gets an adapter instead:
+                <prefix>/.claude/CLAUDE.md holding only '@~/.agents/AGENTS.md',
+                and <codex home>/AGENTS.md symlinked to the canonical file, so
+                there is never a second independently maintained copy. Anything
+                already present that would conflict is left untouched and
+                reported.
+  --replace-global
+                Only with --global-agents. Replace a conflicting file after
+                backing it up alongside itself, and migrate the pre-release
+                layout: a policy still at <prefix>/.claude/AGENTS.md becomes
+                the source when no FILE was named, so it moves to the neutral
+                path rather than being overwritten by the example, and the
+                original is backed up rather than deleted. Never implicit.
+USAGE
+}
+
+die() { printf 'install: %s\n' "$*" >&2; exit 2; }
+
+FORCE=0
+DRY_RUN=0
+PREFIX=${HOME:-}
+PREFIX_GIVEN=0
+GLOBAL_AGENTS=0
+REPLACE_GLOBAL=0
+GLOBAL_SRC=''
+
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --force) FORCE=1 ;;
+    --dry-run|-n) DRY_RUN=1 ;;
+    --prefix) [ "$#" -ge 2 ] || die "--prefix needs a directory"; PREFIX=$2; PREFIX_GIVEN=1; shift ;;
+    --prefix=*) PREFIX=${1#--prefix=}; PREFIX_GIVEN=1 ;;
+    --global-agents)
+      GLOBAL_AGENTS=1
+      # The optional value must not swallow the next flag.
+      case ${2:-} in
+        ''|-*) ;;
+        *) GLOBAL_SRC=$2; shift ;;
+      esac
+      ;;
+    --global-agents=*) GLOBAL_AGENTS=1; GLOBAL_SRC=${1#--global-agents=} ;;
+    --replace-global) REPLACE_GLOBAL=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) usage >&2; die "unknown option: $1" ;;
+  esac
+  shift
+done
+
+if [ "$REPLACE_GLOBAL" -eq 1 ] && [ "$GLOBAL_AGENTS" -eq 0 ]; then
+  die "--replace-global only means something with --global-agents"
+fi
+
+[ -n "$PREFIX" ] || die "no HOME set; pass --prefix <dir>"
+[ -d "$PREFIX" ] || die "prefix is not a directory: $PREFIX"
+PREFIX=$(cd -- "$PREFIX" && pwd -P)
+
+SCRIPT_DIR=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+REPO_ROOT=${SCRIPT_DIR%/*}
+[ -d "$REPO_ROOT/skills" ] || die "no skills/ directory in $REPO_ROOT; not an AgentSkills checkout"
+
+PLUGIN_MANIFEST=$REPO_ROOT/.claude-plugin/plugin.json
+
+# First "name" key in a plugin manifest; the top-level name precedes author.name.
+plugin_name_in() {
+  local line rest
+  while IFS= read -r line || [ -n "$line" ]; do
+    case $line in
+      *'"name"'*)
+        rest=${line#*'"name"'}
+        rest=${rest#*:}
+        case $rest in
+          *'"'*) ;;
+          *) continue ;;
+        esac
+        rest=${rest#*'"'}
+        printf '%s' "${rest%%'"'*}"
+        return 0
+        ;;
+    esac
+  done < "$1"
+  return 1
+}
+
+PLUGIN_NAME=''
+if [ -f "$PLUGIN_MANIFEST" ]; then
+  PLUGIN_NAME=$(plugin_name_in "$PLUGIN_MANIFEST" || true)
+fi
+
+# Walks up from a resolved path to the checkout that owns it. Only a directory
+# holding skills/ and a plugin manifest naming this same plugin counts, so a
+# link into an unrelated tree can never be mistaken for ours.
+checkout_root_of() {
+  local d=$1 name
+  [ -n "$PLUGIN_NAME" ] || return 1
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    if [ -d "$d/skills" ] && [ -f "$d/.claude-plugin/plugin.json" ]; then
+      name=$(plugin_name_in "$d/.claude-plugin/plugin.json" || true)
+      if [ "$name" = "$PLUGIN_NAME" ]; then
+        printf '%s' "$d"
+        return 0
+      fi
+    fi
+    d=${d%/*}
+  done
+  return 1
+}
+
+CREATED=()
+CORRECT=()
+UPDATED=()
+SKIPPED=()
+FAILED=()
+
+record() {
+  case $1 in
+    created) CREATED+=("$2") ;;
+    correct) CORRECT+=("$2") ;;
+    updated) UPDATED+=("$2") ;;
+    skipped) SKIPPED+=("$2") ;;
+    failed)  FAILED+=("$2") ;;
+  esac
+}
+
+link_into_place() {
+  local src=$1 dst=$2 root=$3 verb=$4
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ "$verb" = updated ]; then
+      record updated "$dst -> $src (would replace existing AgentSkills link)"
+    else
+      record created "$dst -> $src (would create)"
+    fi
+    return 0
+  fi
+  mkdir -p -- "$root"
+  if [ "$verb" = updated ]; then
+    # Re-check immediately before the delete: only ever unlink a symlink.
+    if [ ! -L "$dst" ]; then
+      record failed "$dst (vanished or changed type before replacement; left alone)"
+      return 1
+    fi
+    rm -- "$dst" || { record failed "$dst (could not be unlinked; left alone)"; return 1; }
+  fi
+  ln -s -- "$src" "$dst"
+  record "$verb" "$dst -> $src"
+}
+
+install_one() {
+  local root=$1 name=$2
+  local src=$REPO_ROOT/skills/$name
+  local dst=$root/$name
+  local cur other
+
+  if [ ! -d "$src" ]; then
+    record failed "$dst (no source skill at $src)"
+    return 1
+  fi
+
+  if [ -L "$dst" ]; then
+    cur=$(readlink -f -- "$dst" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ "$cur" = "$src" ]; then
+      record correct "$dst -> $src"
+      return 0
+    fi
+    other=''
+    if [ -n "$cur" ]; then
+      other=$(checkout_root_of "$cur" || true)
+    fi
+    if [ -n "$other" ]; then
+      if [ "$FORCE" -eq 1 ]; then
+        link_into_place "$src" "$dst" "$root" updated
+        return $?
+      fi
+      if [ "$other" = "$REPO_ROOT" ]; then
+        record skipped "$dst (symlink to $cur in this checkout, but not to $src; rerun with --force to repoint)"
+      else
+        record skipped "$dst (symlink into another AgentSkills checkout: $cur; rerun with --force to repoint)"
+      fi
+      return 1
+    fi
+    if [ -z "$cur" ]; then
+      # A dangling link has no target to protect, and it shadows the real skill for as long as it
+      # survives -- which is what moving or renaming a checkout leaves behind. --force repairs it;
+      # without --force say so, because nothing else in this script can.
+      if [ "$FORCE" -eq 1 ]; then
+        link_into_place "$src" "$dst" "$root" updated
+        return $?
+      fi
+      record skipped "$dst (dangling symlink -> $(readlink -- "$dst" 2>/dev/null || printf '?'); rerun with --force to repair)"
+      return 1
+    fi
+    record skipped "$dst (symlink to $cur, outside any AgentSkills checkout; never replaced)"
+    return 1
+  fi
+
+  if [ -e "$dst" ]; then
+    if [ -d "$dst" ]; then
+      record skipped "$dst (a real directory, not a link; never replaced)"
+    else
+      record skipped "$dst (an existing file, not a link; never replaced)"
+    fi
+    return 1
+  fi
+
+  link_into_place "$src" "$dst" "$root" created
+}
+
+CLAUDE_ROOT=$PREFIX/.claude/skills
+AGENTS_ROOT=$PREFIX/.agents/skills
+# $CODEX_HOME relocates Codex's whole config root, skills included, but only the report-only
+# CODEX_ROOT below follows it; AGENTS_ROOT is always $PREFIX/.agents/skills. Honoured only when
+# --prefix was not given, so a sandboxed run stays inside its prefix; doctor.sh applies the same rule.
+CODEX_HOME_DIR=$PREFIX/.codex
+if [ "$PREFIX_GIVEN" -eq 0 ] && [ -n "${CODEX_HOME:-}" ]; then
+  CODEX_HOME_DIR=$CODEX_HOME
+fi
+CODEX_ROOT=$CODEX_HOME_DIR/skills
+
+claude_present=0
+codex_present=0
+[ -d "$PREFIX/.claude" ] && claude_present=1
+command -v claude >/dev/null 2>&1 && claude_present=1
+{ [ -d "$PREFIX/.codex" ] || [ -d "$PREFIX/.agents" ]; } && codex_present=1
+command -v codex >/dev/null 2>&1 && codex_present=1
+
+printf 'AgentSkills install\n'
+printf '  checkout : %s\n' "$REPO_ROOT"
+printf '  plugin   : %s\n' "${PLUGIN_NAME:-<unreadable manifest>}"
+printf '  base     : %s\n' "$PREFIX"
+[ "$DRY_RUN" -eq 1 ] && printf '  mode     : dry run (nothing will be changed)\n'
+[ "$FORCE" -eq 1 ] && printf '  mode     : --force (may repoint links owned by another AgentSkills checkout)\n'
+if [ "$FORCE" -eq 1 ] && [ -z "$PLUGIN_NAME" ]; then
+  printf '  note     : plugin manifest unreadable, so no foreign link can be recognised; --force has no effect\n'
+fi
+
+if [ "$claude_present" -eq 1 ]; then
+  printf '  found    : Claude Code -> %s\n' "$CLAUDE_ROOT"
+else
+  printf '  skipped  : Claude Code not found (no %s/.claude and no claude on PATH)\n' "$PREFIX"
+fi
+if [ "$codex_present" -eq 1 ]; then
+  printf '  found    : Codex -> %s\n' "$AGENTS_ROOT"
+else
+  printf '  skipped  : Codex not found (no %s/.codex, no %s/.agents and no codex on PATH)\n' "$PREFIX" "$PREFIX"
+fi
+if [ -d "$CODEX_ROOT" ]; then
+  printf '  detected : %s exists; only links already owned by an AgentSkills checkout are refreshed there\n' "$CODEX_ROOT"
+fi
+printf '\n'
+
+status=0
+for name in "${V2_SKILLS[@]}"; do
+  if [ "$claude_present" -eq 1 ]; then
+    install_one "$CLAUDE_ROOT" "$name" || status=1
+  fi
+  if [ "$codex_present" -eq 1 ]; then
+    install_one "$AGENTS_ROOT" "$name" || status=1
+  fi
+  # Codex 0.155.1 scans both $CODEX_HOME/skills and $HOME/.agents/skills. .agents/skills is
+  # HOME-derived (never relocated by $CODEX_HOME) and is the portable spec root, so it is the
+  # install target above. $CODEX_HOME/skills is kept as a report-only compatibility root,
+  # refreshed solely when it already carries one of our links and leaving it stale would shadow
+  # the real install.
+  if [ -L "$CODEX_ROOT/$name" ]; then
+    cur=$(readlink -f -- "$CODEX_ROOT/$name" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ -n "$(checkout_root_of "$cur" || true)" ]; then
+      install_one "$CODEX_ROOT" "$name" || status=1
+    fi
+  fi
+done
+
+# --- global policy bootstrap -------------------------------------------------
+# Runs only under --global-agents. Installing skills and installing an operating policy are
+# different operations, and the second one overwrites how every future session behaves, so it is
+# never implied by the first. The layout it produces keeps exactly one canonical file:
+#
+#   <prefix>/.agents/AGENTS.md   the policy itself, a regular file the user owns and edits
+#   <prefix>/.claude/CLAUDE.md   '@~/.agents/AGENTS.md' -- the adapter Claude Code needs, because
+#                                its AGENTS.md discovery walks the working directory's ancestors
+#                                and so never reaches the home directory
+#   <codex home>/AGENTS.md       a symlink to the canonical file, so Codex reads the same bytes
+#                                rather than a second copy that drifts
+#
+# The policy lives in neither harness's directory. Both harnesses are peer consumers of it and
+# each gets an adapter; adding a third harness later means adding a third adapter, not moving the
+# policy. The canonical file is a copy of the source, never a link into this checkout: a link
+# would make `git pull` silently rewrite the user's own policy.
+#
+# <prefix>/.claude/AGENTS.md is the pre-release layout's canonical path. It is never written here
+# and never read as policy; it is reported, and migrated only under --replace-global.
+GLOBAL_ACTIONS=()
+g_note() { GLOBAL_ACTIONS+=("$1"); }
+
+# One timestamp for the whole run. Every backup is named from it, so each backup path a run will
+# need is knowable during preflight and can be checked for collisions before the first write.
+TX_STAMP=''
+backup_path_of() { printf '%s.backup-%s' "$1" "$TX_STAMP"; }
+
+# Only a regular file or a symlink may be moved aside. A directory or any other special object is
+# never moved or replaced, with --replace-global or without: renaming one is not the same
+# operation as replacing a file, and nothing here knows what it holds.
+is_replaceable_entry() {
+  [ -L "$1" ] && return 0
+  [ -f "$1" ] && return 0
+  return 1
+}
+
+# The import line the Claude adapter must carry. `~` is what a real install writes, because the
+# adapter has to be portable across machines; a --prefix sandbox gets the absolute path instead,
+# so the adapter it writes actually points inside that sandbox rather than at the real home.
+# Claude Code resolves both forms -- verified on 2.1.278 against a file only reachable through
+# the import.
+adapter_import_line() {
+  if [ "$PREFIX" = "${HOME:-}" ]; then
+    printf '@~/.agents/AGENTS.md'
+  else
+    printf '@%s/.agents/AGENTS.md' "$PREFIX"
+  fi
+}
+
+# A shim carries exactly one non-blank line, and that line is the import in $2. Blank lines are
+# fine; nothing else is. CLAUDE.md is Markdown, so it has no comment syntax -- a `# note` line is
+# an H1 heading the model reads, and a second import pulls in policy this bootstrap does not
+# control. Either one is content of its own, so the file is a conflict, not a shim to leave alone.
+is_import_only_shim() {
+  local body want=$2
+  # -f follows symlinks, so the link test has to come first: the adapter must be a regular file.
+  [ ! -L "$1" ] || return 1
+  [ -f "$1" ] || return 1
+  body=$(grep -vE '^[[:space:]]*$' "$1" 2>/dev/null || true)
+  [ "$(printf '%s\n' "$body" | grep -c .)" -eq 1 ] || return 1
+  # Exact match on the import, not a pattern: the path contains characters a regex would treat
+  # as wildcards, and "close enough" here means Claude loads something other than our policy.
+  body=${body#"${body%%[![:space:]]*}"}
+  body=${body%"${body##*[![:space:]]}"}
+  [ "$body" = "$want" ]
+}
+
+# Each destination is classified before anything is written: "create" (nothing there), "ok"
+# (already exactly what we would write) or "conflict" with a reason. A --global-agents run is
+# all-or-nothing with respect to conflicts, because the three destinations are one mechanism:
+# writing the adapters while refusing the canonical file would point both harnesses at a policy
+# this run explicitly declined to install.
+classify_canonical() {
+  local src=$1 dst=$2
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
+  # A symlink is a conflict even when its bytes match today. The canonical policy is copied, not
+  # linked, precisely so that nothing outside the user's own file can change their live
+  # instructions later -- a link into a checkout is rewritten by the next pull.
+  if [ -L "$dst" ]; then
+    printf 'conflict|%s is a symlink -> %s; the canonical policy must be a regular file, or updating the link target silently rewrites your global instructions' \
+      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')"
+    return 0
+  fi
+  if [ -f "$dst" ] && cmp -s -- "$src" "$dst"; then printf 'ok'; return 0; fi
+  printf 'conflict|%s already exists and differs from %s' "$dst" "$src"
+}
+
+classify_claude_adapter() {
+  local dst=$1 want=$2
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
+  if [ -L "$dst" ]; then
+    printf 'conflict|%s is a symlink -> %s; the Claude adapter must be a regular file holding only %s' \
+      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')" "$want"
+    return 0
+  fi
+  if is_import_only_shim "$dst" "$want"; then printf 'ok'; return 0; fi
+  # The pre-release adapter imported @AGENTS.md, which points back into Claude's own directory.
+  if is_import_only_shim "$dst" '@AGENTS.md'; then
+    printf 'conflict|%s is the pre-release adapter importing @AGENTS.md, which points back into Claude'"'"'s own directory; it must import %s' "$dst" "$want"
+    return 0
+  fi
+  printf 'conflict|%s does not hold exactly %s' "$dst" "$want"
+}
+
+classify_codex_adapter() {
+  local dst=$1 canonical=$2 cur
+  if [ -L "$dst" ]; then
+    cur=$(readlink -f -- "$dst" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ "$cur" = "$canonical" ]; then printf 'ok'; return 0; fi
+    printf 'conflict|%s is a symlink that does not point at %s' "$dst" "$canonical"
+    return 0
+  fi
+  if [ ! -e "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
+  printf 'conflict|%s already exists and is not a link to %s' "$dst" "$canonical"
+}
+
+# The pre-release layout kept the policy at <prefix>/.claude/AGENTS.md. Leaving it in place beside
+# a neutral canonical would mean two files claiming to be the policy, so its presence is a
+# conflict that --replace-global resolves by migrating: the file becomes the bootstrap source
+# when none was named, and the original is moved to a backup rather than deleted.
+classify_legacy_canonical() {
+  local legacy=$1
+  if [ ! -e "$legacy" ] && [ ! -L "$legacy" ]; then printf 'absent'; return 0; fi
+  if ! is_replaceable_entry "$legacy"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$legacy"
+    return 0
+  fi
+  printf 'conflict|%s is the pre-release canonical policy; the canonical policy now lives at %s/.agents/AGENTS.md and this file must be migrated' \
+    "$legacy" "$PREFIX"
+}
+
+apply_canonical() {
+  local src=$1 dst=$2 action=$3 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then write it from $src"
+    else g_note "would create $dst from $src"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  cp -- "$src" "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and wrote it from $src"
+  else g_note "created $dst from $src"; fi
+}
+
+apply_claude_adapter() {
+  local dst=$1 want=$2 action=$3 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then replace it with '$want'"
+    else g_note "would create $dst containing '$want'"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  printf '%s\n' "$want" > "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and replaced it with '$want'"
+  else g_note "created $dst containing '$want'"; fi
+}
+
+# Retires the pre-release canonical file by moving it to a backup. Its bytes have already been
+# used as the bootstrap source when no other was named, so the policy survives in both places.
+apply_legacy_retire() {
+  local legacy=$1 backup
+  backup=$(backup_path_of "$legacy")
+  if [ "$DRY_RUN" -eq 1 ]; then
+    g_note "would move the pre-release policy $legacy to $backup"
+    return 0
+  fi
+  mv -- "$legacy" "$backup" || { g_note "FAILED to move $legacy aside; left untouched"; return 1; }
+  g_note "moved the pre-release policy $legacy to $backup"
+}
+
+apply_codex_adapter() {
+  local dst=$1 canonical=$2 action=$3 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then link it -> $canonical"
+    else g_note "would link $dst -> $canonical"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst${backup:+ (previous entry is at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and linked it -> $canonical"
+  else g_note "linked $dst -> $canonical"; fi
+}
+
+bootstrap_global_agents() {
+  local src=$GLOBAL_SRC
+  local canonical=$PREFIX/.agents/AGENTS.md
+  local claude_adapter=$PREFIX/.claude/CLAUDE.md
+  local codex_adapter=$CODEX_HOME_DIR/AGENTS.md
+  local legacy_canonical=$PREFIX/.claude/AGENTS.md
+  local want migrating=0
+  local rc=0 c_can c_cla c_cod c_leg conflicts=() blockers=()
+
+  # Fixed before anything is inspected, so every backup path this run could need is decided up
+  # front rather than at the moment each write happens.
+  TX_STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+  want=$(adapter_import_line)
+  c_leg=$(classify_legacy_canonical "$legacy_canonical")
+
+  # Migrating the pre-release layout means moving the user's existing policy to the neutral path,
+  # not overwriting it with the shipped example. So when a pre-release policy is present and no
+  # source was named, that file is the source. Naming a source explicitly still wins.
+  if [ -z "$src" ] && [ "$c_leg" != absent ] && [ -f "$legacy_canonical" ] && [ ! -L "$legacy_canonical" ]; then
+    src=$legacy_canonical
+    migrating=1
+  fi
+  [ -n "$src" ] || src=$REPO_ROOT/examples/global-agents.md
+  case $src in
+    /*) ;;
+    *) src=$PWD/$src ;;
+  esac
+  [ -f "$src" ] || die "global agents source is not a readable file: $src"
+  [ -s "$src" ] || die "global agents source is empty: $src"
+  src=$(cd -- "${src%/*}" && printf '%s/%s' "$(pwd -P)" "${src##*/}")
+
+  printf 'Global policy\n'
+  printf '  source    : %s%s\n' "$src" "$([ "$migrating" -eq 1 ] && printf ' (the pre-release policy, carried over)')"
+  printf '  canonical : %s\n' "$canonical"
+  printf '  adapters  : %s -> %s, %s -> symlink\n' "$claude_adapter" "$want" "$codex_adapter"
+  [ "$REPLACE_GLOBAL" -eq 1 ] && printf '  mode      : --replace-global (conflicts are backed up, then replaced)\n'
+  [ "$DRY_RUN" -eq 1 ] && printf '  mode      : dry run (nothing will be changed)\n'
+
+  c_can=$(classify_canonical "$src" "$canonical")
+  c_cla=$(classify_claude_adapter "$claude_adapter" "$want")
+  c_cod=$(classify_codex_adapter "$codex_adapter" "$canonical")
+
+  local entry path bk
+  local -a replacing=()
+  # Classification and destination are passed as separate arguments rather than packed into one
+  # string: a reason is free prose and must never have to avoid a separator character.
+  record_dest() {
+    case $1 in
+      blocked\|*) blockers+=("${1#blocked|}") ;;
+      conflict\|*) conflicts+=("${1#conflict|}"); replacing+=("$2") ;;
+    esac
+  }
+  record_dest "$c_can" "$canonical"
+  record_dest "$c_cla" "$claude_adapter"
+  record_dest "$c_cod" "$codex_adapter"
+  record_dest "$c_leg" "$legacy_canonical"
+
+  # A directory or special object at a destination is never replaced, so --replace-global cannot
+  # clear it. Reported first, because no amount of re-running will make it proceed.
+  if [ "${#blockers[@]}" -gt 0 ]; then
+    for entry in "${blockers[@]}"; do g_note "$entry"; done
+    for entry in ${conflicts[@]+"${conflicts[@]}"}; do g_note "$entry"; done
+    g_note "nothing was written: --replace-global cannot resolve the entries above, so every destination is left untouched"
+    printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+    printf '\n'
+    return 1
+  fi
+
+  if [ "${#conflicts[@]}" -gt 0 ] && [ "$REPLACE_GLOBAL" -eq 0 ]; then
+    for entry in "${conflicts[@]}"; do
+      g_note "$entry"
+    done
+    g_note "nothing was written: a --global-agents run is all-or-nothing, so one conflict leaves every destination untouched (rerun with --replace-global to replace the conflicting entries, which backs each one up first)"
+    printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+    printf '\n'
+    return 1
+  fi
+
+  # Every backup this run needs, checked before the first write. Discovering a taken backup path
+  # halfway through would leave the policy half-migrated: canonical replaced, adapter not.
+  if [ "${#replacing[@]}" -gt 0 ]; then
+    local -a taken=()
+    for path in "${replacing[@]}"; do
+      bk=$(backup_path_of "$path")
+      if [ -e "$bk" ] || [ -L "$bk" ]; then
+        taken+=("$bk already exists, so $path cannot be backed up under this run's timestamp")
+      fi
+    done
+    if [ "${#taken[@]}" -gt 0 ]; then
+      for entry in "${taken[@]}"; do g_note "$entry"; done
+      g_note "nothing was written: every backup a run needs is checked before the first write, so a taken backup path leaves every destination untouched (rerun in the next second, or move the existing backup aside)"
+      printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+      printf '\n'
+      return 1
+    fi
+  fi
+
+  # Codex prefers an override file, so it would shadow the canonical policy. Reported, never removed.
+  if [ -e "${codex_adapter%/*}/AGENTS.override.md" ]; then
+    g_note "${codex_adapter%/*}/AGENTS.override.md takes precedence over $codex_adapter for Codex; left untouched, but it shadows the canonical policy"
+  fi
+
+  # Order matters: the canonical file is written from the pre-release policy before that policy is
+  # moved aside, so the bytes are never in flight with nowhere to land.
+  case $c_can in
+    create) apply_canonical "$src" "$canonical" create || rc=1 ;;
+    ok) g_note "$canonical already matches $src; left alone" ;;
+    conflict\|*) apply_canonical "$src" "$canonical" replace || rc=1 ;;
+  esac
+  case $c_cla in
+    create) apply_claude_adapter "$claude_adapter" "$want" create || rc=1 ;;
+    ok) g_note "$claude_adapter already imports $want; left alone" ;;
+    conflict\|*) apply_claude_adapter "$claude_adapter" "$want" replace || rc=1 ;;
+  esac
+  case $c_cod in
+    create) apply_codex_adapter "$codex_adapter" "$canonical" create || rc=1 ;;
+    ok) g_note "$codex_adapter already points at $canonical; left alone" ;;
+    conflict\|*) apply_codex_adapter "$codex_adapter" "$canonical" replace || rc=1 ;;
+  esac
+  case $c_leg in
+    absent) ;;
+    *) apply_legacy_retire "$legacy_canonical" || rc=1 ;;
+  esac
+
+  printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+  printf '\n'
+  return "$rc"
+}
+
+print_group() {
+  local label=$1
+  shift
+  [ "$#" -gt 0 ] || return 0
+  printf '%s\n' "$label"
+  printf '  %s\n' "$@"
+}
+
+printf 'Summary\n'
+print_group "created:" ${CREATED[@]+"${CREATED[@]}"}
+print_group "already correct:" ${CORRECT[@]+"${CORRECT[@]}"}
+print_group "replaced:" ${UPDATED[@]+"${UPDATED[@]}"}
+print_group "skipped:" ${SKIPPED[@]+"${SKIPPED[@]}"}
+print_group "failed:" ${FAILED[@]+"${FAILED[@]}"}
+if [ "${#CREATED[@]}" -eq 0 ] && [ "${#CORRECT[@]}" -eq 0 ] && [ "${#UPDATED[@]}" -eq 0 ] \
+   && [ "${#SKIPPED[@]}" -eq 0 ] && [ "${#FAILED[@]}" -eq 0 ]; then
+  printf '  nothing to do\n'
+fi
+printf '\n'
+
+if [ "$GLOBAL_AGENTS" -eq 1 ]; then
+  bootstrap_global_agents || status=1
+else
+  printf 'Global policy\n'
+  printf '  not requested; no instruction file was read or written (pass --global-agents to bootstrap one)\n\n'
+fi
+
+if [ -x "$SCRIPT_DIR/doctor.sh" ]; then
+  printf 'Running doctor\n'
+  "$SCRIPT_DIR/doctor.sh" --prefix "$PREFIX" || true
+elif [ -f "$SCRIPT_DIR/doctor.sh" ]; then
+  printf 'Running doctor\n'
+  bash "$SCRIPT_DIR/doctor.sh" --prefix "$PREFIX" || true
+fi
+
+exit "$status"

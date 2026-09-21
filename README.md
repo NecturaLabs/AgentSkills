@@ -1,220 +1,186 @@
 # AgentSkills
 
-A curated collection of AI agent skills for Claude Code. Layers on top of [superpowers](https://github.com/obra/superpowers) to add industry-standard code review, security auditing, test management, and project management.
+Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security
+review, test engineering, and project documentation.
 
-## Prerequisites
+They follow the open [Agent Skills specification](https://agentskills.io/specification), so one
+checkout serves every conforming harness. Claude Code and OpenAI Codex are the two that are tested.
 
-- [superpowers](https://github.com/obra/superpowers) plugin installed (core dependency — all NecturaLabs skills require it)
+## Architecture
 
-## Installation
+Four layers, each holding one kind of knowledge:
 
-### Add Marketplace
+```
+AGENTS.md              persistent policy and routing   — paid for on every task
+skills/*/SKILL.md      conditional procedure           — paid for when the trigger matches
+   references/         detail                          — paid for when the mode needs it
+docs/, code, config    project truth                   — read when relevant
+scripts/, tests/, CI   deterministic enforcement       — no model call at all
+```
+
+The point is that strong behavior should be cheap. A rule that must be in context on every task is
+expensive and has to earn it; a procedure that matters on one task in twenty belongs in a skill that
+loads on demand; anything a script can decide should never reach a model at all.
+
+`AGENTS.md` is the only maintained policy source — no competing CLAUDE policy layer, no context
+loader, no session-start hook that reinjects text. A second always-loaded file doesn't add guidance,
+it adds a copy that drifts. A repository `CLAUDE.md` is forbidden here and the validator fails the
+build if one reappears; the one verified exception is a user-scope shim outside this repo, covered
+in [docs/installation.md](docs/installation.md).
+
+See [docs/architecture.md](docs/architecture.md) for the full reasoning and
+[docs/skill-design.md](docs/skill-design.md) for how to decide where a given piece of knowledge
+belongs.
+
+## Skills
+
+| Skill | Use when |
+|---|---|
+| **`agent-instructions`** | Writing a repository's `AGENTS.md`, auditing one for stale or oversized guidance, or deciding what belongs in persistent instructions versus a skill, a document or a lint rule |
+| **`change-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it |
+| **`security-review`** | A change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies |
+| **`testing`** | Adding coverage for new behavior, writing a regression test for a defect, fixing a failing or flaky test, choosing the right test level, or auditing a suite |
+| **`project-docs`** | Recording a consequential decision and its rationale, documenting how a system is structured, or auditing docs that have drifted from the code |
+
+Each description states what the skill is *not* for as well, because that clause is what keeps
+neighbouring skills from firing on each other's work.
+
+## Examples
+
+Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
+
+| Example | Scope |
+|---|---|
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement: scope boundaries, orchestration and context discipline, standard of done, review, security, git and communication. Generalized from a working agreement used in production — every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
+| [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
+| [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
+
+The root [`AGENTS.md`](AGENTS.md) governs work on AgentSkills itself. Files under `examples/` are
+reference examples for users creating their own global, project or nested instruction files; they
+are deliberately not named `AGENTS.md`, so an agent working under `examples/` never picks one up as
+scoped instructions. The validator enforces that.
+
+The `agent-instructions` skill explains how to decide what goes in one; these are what the result
+looks like.
+
+## Install
+
+Linking the checkout is the recommended setup: it keeps one editable canonical source, and both
+harnesses follow symlinked skill directories.
+
+```bash
+git clone https://github.com/NecturaLabs/AgentSkills.git
+cd AgentSkills
+bash scripts/install.sh --dry-run    # preview every action
+bash scripts/install.sh
+```
+
+This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.agents/skills/`
+(Codex), for whichever harnesses are present. `$CODEX_HOME/skills` (default `~/.codex/skills`) is an
+older, still-supported Codex root that install no longer writes to; `doctor.sh` checks it so a
+shadowing duplicate is visible. Install refuses to overwrite anything it doesn't recognise: a real
+directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
+replaced, `--force` included.
+
+### Optional: bootstrap a global working agreement
+
+Installing skills and installing an operating policy are separate operations, so the command above
+touches no instruction file. To also adopt the global example as your own policy:
+
+```bash
+bash scripts/install.sh --global-agents --dry-run   # show every policy action first
+bash scripts/install.sh --global-agents
+```
+
+That produces one canonical policy and one adapter per harness:
+
+```
+~/.agents/AGENTS.md    the policy — a regular file you own and edit
+~/.claude/CLAUDE.md    "@~/.agents/AGENTS.md" — the adapter Claude Code needs, because its
+                       AGENTS.md discovery walks the working directory's ancestors, never $HOME
+~/.codex/AGENTS.md  →  ~/.agents/AGENTS.md — a symlink, so Codex reads the same bytes
+```
+
+The policy lives in neither harness's directory. Claude Code and Codex are peer consumers of it,
+each reached through its own adapter, so adding a third harness later means adding a third
+adapter rather than moving the policy.
+
+The canonical file is a copy, not a link into the checkout: a link would let `git pull` silently
+rewrite your policy. The Codex adapter is the only symlink in the layout — a symlink at
+`~/.agents/AGENTS.md` or `~/.claude/CLAUDE.md` is a conflict even if its contents currently
+match. The run is all-or-nothing: every destination is checked before anything is written, and if
+any one conflicts — including a `CLAUDE.md` that carries real content rather than just the
+import — all conflicts are reported and nothing is written anywhere. Replacing a conflict needs
+`--replace-global`, which backs the old entry up beside itself first, symlinks included. Pass
+your own file to install that instead of the example:
+
+```bash
+bash scripts/install.sh --global-agents ~/my-agents.md --replace-global
+```
+
+`doctor.sh` reports whether the canonical policy and both adapters are healthy — including a Codex
+file that has become a second, independently maintained copy — and never changes any of them.
+
+Claude Code users who prefer the plugin mechanism can install from the marketplace instead:
+
 ```
 /plugin marketplace add NecturaLabs/AgentSkills
-```
-
-### Install Skills
-```
 /plugin install necturalabs@necturalabs
 ```
 
-After installation, skills are available as `necturalabs:<skill-name>`. Slash commands (e.g., `/necturalabs:code-review`) appear in auto-complete.
-
-## Update
-
-```
-/plugin marketplace update necturalabs
-```
-
-## Uninstall
-
-### Remove the Plugin
-```
-/plugin uninstall necturalabs@necturalabs
-```
-
-### Remove the Marketplace (optional)
-```
-/plugin marketplace remove necturalabs
-```
-
-## Available Skills
-
-| Skill | When to invoke |
-|-------|----------------|
-| **`using-necturalabs`** — Initializes all skills, verifies dependencies, sets up review triggers | Conversation start, agent handoffs |
-| **`iterative-code-review`** — Code review (Google, Clean Code, SOLID, Fowler) until clean pass | After any code changes, before commit/merge |
-| **`iterative-security-audit`** — Security audit (OWASP, CWE, NIST, CERT) until clean, then code review | When changes touch security-sensitive code |
-| **`agent-context-loader`** — Loads global CLAUDE.md and project AGENTS.md into context | On init, after context switches |
-| **`agents-md-manager`** — Creates or updates project AGENTS.md from codebase analysis | Manual (`/agents-md-manager`) or after plan execution |
-| **`git-workflow`** — Conventional Commits format and git worktree isolation | When committing or starting multi-commit work |
-| **`update-plugins`** — Concurrently updates plugin marketplaces and installed plugins | Manual (`/update-plugins`) or when user asks to update |
-| **`docs-manager`** — Creates and maintains project docs/ with ADRs, design docs, guides | Manual (`/docs-manager`) or when user asks to document |
-| **`test-manager`** — Classifies and triages a project's tests, routes work to the level specialists | Test work with no obvious level, spanning levels, or suite-wide |
-| **`comment-manager`** — Comment and doc-comment rules across languages, with a per-language matrix and a worked example per derived-language trap | Writing or changing code that carries comments |
-| **`unit-test-manager`** — Unit tests: one unit, one process, no I/O | Writing or fixing unit tests |
-| **`integration-test-manager`** — Tests across a process boundary: DB, HTTP, queue, filesystem | Writing or fixing integration tests |
-| **`e2e-test-manager`** — End-to-end and browser tests of critical user journeys | Writing or fixing E2E/browser tests |
-
-## How It Works
-
-1. **`using-necturalabs`** runs at conversation start — checks superpowers dependency, loads context, sets up mandatory review triggers
-2. **Code review** must run after every code change, before committing or claiming work is done
-3. **Security audit** must run when changes touch security-related code (auth, crypto, input validation, etc.)
-4. When both apply: **security audit first → code review second → combined summary**
-5. Both produce a **score (1-100)** with positives, negatives, and informational findings
-
-### Documentation (`docs-manager`)
-
-The `docs-manager` skill creates and maintains a `docs/` folder following industry standards:
-
-- **ADRs** (Architecture Decision Records, MADR 4.0) — append-only records of significant technical decisions with context, alternatives, and rationale
-- **Design docs** (Google-style) — living documents for designs with goals, non-goals, alternatives, and cross-cutting concerns
-- **How-to guides** — task-oriented step-by-step procedures (deployment, onboarding, debugging)
-- **Reference material** — research, specs, and data models that informed decisions
-
-Structure is scale-adaptive — directories are created only when the first document of that type is written. Every document has YAML frontmatter with status and `last-reviewed` date for staleness tracking. Invoke with `/docs-manager` or ask Claude to document a decision or design.
-
-### Testing (`test-manager` and the level specialists)
-
-Test work is split across four skills so each stays expert in its own level:
-
-- **`test-manager`** — classifies every test in a project, routes work to the right specialist, triages defects (flaky, skipped, duplicated, obsolete, assertion-free, change-detector, copy-asserting), and runs the full suite before the work is called done. Fans out to per-level subagents only when the work spans levels or covers the whole suite.
-- **`unit-test-manager`** — one unit, one process, no I/O.
-- **`integration-test-manager`** — our code against a real database, HTTP server, queue, or filesystem.
-- **`e2e-test-manager`** — critical user journeys through the assembled system.
-
-All four enforce the same six house rules, duplicated in each skill so every one is usable standalone — verbatim apart from clauses a level adds for its own failure modes: never test a library or framework; never assert on human-readable copy; observe every new test failing before trusting it; never weaken a test to get green; never encode a known bug as expected behavior; and own every test defect your own run surfaces — fix it, or report it with file:line, never silently leave it. The add/update/leave decision follows Google's "strive for unchanging tests" rule — refactorings and new features never edit existing tests; only a deliberate behavior change does, or repairing a test that is itself defective.
-
-Rules are sourced from Google's *Software Engineering at Google* and Testing Blog, Martin Fowler, Microsoft Learn, Kent Beck's Test Desiderata, Khorikov's four pillars, and the official docs of pytest, JUnit 5, Jest/Vitest, Go, Playwright, Cypress, Testcontainers, and MSW.
-
-## New to AI Agent Tooling?
-
-See **[CONCEPTS.md](CONCEPTS.md)** for a guide on Skills, MCP, LSP, and RAG — what they are, when to use each, and how they work together.
-
-## Recommended: LSP Setup
-
-LSP gives Claude Code IDE-level code intelligence — semantic navigation instead of text-based grep. Highly recommended for code review and security audit accuracy.
-
-### 1. Enable the LSP Tool
-
-Add to `~/.claude/settings.json`:
-```json
-{
-  "env": {
-    "ENABLE_LSP_TOOL": "1"
-  }
-}
-```
-
-Also add to your shell profile (`.bashrc` / `.zshrc` / PowerShell `$PROFILE`) as a fallback:
-```bash
-export ENABLE_LSP_TOOL=1
-```
-
-### 2. Install Language Server Binaries
-
-| Language | Install |
-|----------|---------|
-| **TypeScript/JS** | `npm i -g typescript-language-server typescript` |
-| **Python** | `npm i -g pyright` or `pip install pyright` |
-| **Go** | `go install golang.org/x/tools/gopls@latest` |
-| **Rust** | `rustup component add rust-analyzer` |
-| **C#** | `dotnet tool install -g csharp-ls` |
-| **C/C++** | Install `clangd` via LLVM (`brew install llvm` / `choco install llvm` / `apt install clangd`) |
-| **Lua** | `brew install lua-language-server` or download from GitHub releases |
-
-### 3. Install and Enable Plugins
+### Update, check, remove
 
 ```bash
-claude plugin marketplace update claude-plugins-official
-claude plugin install typescript-lsp@claude-plugins-official
-claude plugin install pyright-lsp@claude-plugins-official
-# ... repeat for each language you need
+git pull                                 # the links follow the checkout
+bash scripts/doctor.sh                   # what is installed, what is broken, what conflicts
+bash scripts/uninstall.sh                # removes only links this project created
+bash scripts/uninstall.sh --include-legacy   # also removes v1 skill links
 ```
 
-Verify they're enabled:
+`doctor.sh` also reports instruction-file health — whether a `CLAUDE.md` is suppressing native
+`AGENTS.md` loading, and how your project instruction files measure against Codex's
+`project_doc_max_bytes` budget (32 KiB by default). That budget covers the project-level documents
+Codex finds walking up from the working directory; a document exceeding the running total is
+truncated **silently**, which is indistinguishable from a rule the agent chose to ignore. The global
+`~/.codex/AGENTS.md` loads separately and does not consume it.
+
+## Validate
+
 ```bash
-claude plugin list
+npm test                          # the full offline suite
+bash scripts/validate.sh --strict # structure validation only
 ```
 
-If any show `Status: disabled`:
+The suite is entirely offline — every check reads files in this repository. Nothing needs the
+network, credentials, or the `claude` CLI, and nothing that does may be added: no API key belongs in
+this repo or its CI, so such a check could only ever be skipped, and a permanently skipped check
+reads as coverage while providing none.
+
+Two official tools complement it, for humans rather than CI:
+
 ```bash
-claude plugin enable <plugin-name>
+claude plugin validate . --strict   # Anthropic's manifest and frontmatter validator
+claude plugin eval .                # routing evals — spends tokens, needs credentials
 ```
 
-### 4. Restart Claude Code
+Each skill ships five routing eval cases under `evals/`: explicit, implicit, contextual, negative and
+ambiguous. The negative cases are the valuable ones — they catch a description broad enough to fire
+on a neighbour's work. CI validates that the case files exist and parse; it never executes them.
 
-Restart for changes to take effect. Verify in debug logs at `~/.claude/debug/latest` — look for `Total LSP servers loaded: N`.
+## Compatibility
 
-### Troubleshooting
+`SKILL.md` frontmatter carries only the six keys the spec defines — `name`, `description`, `license`,
+`compatibility`, `metadata`, `allowed-tools`. Claude-Code-only keys such as `when_to_use`, `model` or
+`context` are rejected outright by the Skills API and undocumented for Codex, so the validator fails
+on them. Skill bodies are written harness-neutral: they name capabilities, not one product's tool
+names.
 
-| Problem | Fix |
-|---------|-----|
-| **LSP tool not available** | Ensure `ENABLE_LSP_TOOL=1` in settings.json, restart |
-| **Plugin not found** | Run `claude plugin marketplace update claude-plugins-official` |
-| **Plugin disabled** | Run `claude plugin enable <name>`, restart |
-| **Binary not found** | Verify with `which <binary>`, ensure it's in PATH |
+Semver across `package.json` and `.claude-plugin/plugin.json`: patch for fixes, minor for new skills
+or features, major for removed skills or a restructured layout.
 
-### LSP Capabilities
-
-Once configured, Claude Code gains these tools:
-- `goToDefinition` / `goToImplementation` — jump to source
-- `findReferences` — all usages across the codebase
-- `workspaceSymbol` — find any symbol by name
-- `documentSymbol` — list all symbols in a file
-- `hover` — type info without reading the file
-- `incomingCalls` / `outgoingCalls` — call hierarchy
-
-## Recommended CLAUDE.md
-
-This repo includes a recommended global `CLAUDE.md`. Copy it to your global Claude config:
-
-```
-~/.claude/CLAUDE.md
-```
-
-On Windows: `C:\Users\<YourUsername>\.claude\CLAUDE.md`
-
-It is a **global** file — keep it free of anything specific to one repository. It follows you across every project, and a relative `@import` written there resolves against `~/.claude/`, not against whatever repo you happen to be in. (Working in this repo, Claude Code also loads it as the project's instructions, since it sits at the root. That's why repo-specific wiring lives in `.claude/CLAUDE.md` instead.)
-
-## CLAUDE.md vs AGENTS.md
-
-Two files, two different jobs. The split is **scope**, not who wrote them.
-
-| | `~/.claude/CLAUDE.md` | `AGENTS.md` |
-|---|---|---|
-| **Answers** | How *you* want an agent to work | What is true of *this codebase* |
-| **Travels with** | You, across every project | The repo, to every contributor |
-| **Contains** | Standards of care, review gates, commit conventions, shell and OS rules, model choices | Build/test/lint commands, project structure, code conventions, boundaries |
-| **Read by** | Claude Code | Codex, Cursor, Copilot and 20+ other tools — [and Claude Code only via an import](#making-agentsmd-load-in-claude-code) |
-| **Checked in** | No — it's yours | Yes |
-
-Two questions settle almost every case:
-
-- *Would this still be true if I switched to a different project?* → global `CLAUDE.md`
-- *Would this still be true if I switched to a different agent?* → `AGENTS.md`
-- *Neither — specific to this repo **and** only meaningful to Claude Code?* → the project's `.claude/CLAUDE.md`, below the import
-
-So "always run the review skill before committing" is global CLAUDE.md — it's how you work. "Run the suite from Git Bash, not PowerShell" is AGENTS.md — it's a fact about this repo, and a Codex or Cursor user needs it just as much as you do.
-
-Never duplicate between them. Anything written twice goes stale in one place first, and a contradiction between two loaded instruction files gets resolved arbitrarily.
-
-### Making AGENTS.md load in Claude Code
-
-Claude Code reads `CLAUDE.md`, not `AGENTS.md`. To have both load without duplicating content, add a one-line import. Claude Code loads `./CLAUDE.md` and `./.claude/CLAUDE.md` both, so either works — but **the path is relative to the file holding it**, and getting it wrong loads nothing and reports nothing:
-
-| Import lives in | Write |
-|---|---|
-| `./CLAUDE.md` | `@AGENTS.md` |
-| `./.claude/CLAUDE.md` | `@../AGENTS.md` |
-
-Use `.claude/CLAUDE.md` when the root `CLAUDE.md` is one you distribute — as this repo's is. Repo-specific wiring stays in `.claude/` and the portable file stays portable.
-
-Then confirm it worked: run `/context` in a fresh session and check that both files appear under **Memory files**, and that something only `AGENTS.md` says is actually in context. A broken import looks identical to a working one until you check.
-
-Run `/agents-md-manager` to have this set up for you, including the equivalent adapter for Gemini CLI.
+Upgrading from v1? See [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md). Thirteen skills
+became five, the session-start hook is gone, and the external plugin dependency is gone.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).

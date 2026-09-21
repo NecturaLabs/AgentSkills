@@ -1,7 +1,7 @@
 {
   "name": "necturalabs-agent-skills",
-  "version": "1.8.1",
-  "description": "Industry-standard code review, security auditing, test management, and project management skills for AI coding agents. Complementary to superpowers.",
+  "version": "2.0.0",
+  "description": "Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security review, test engineering, and project documentation.",
   "license": "MIT",
   "author": {
     "name": "NecturaLabs",
@@ -13,16 +13,16 @@
   },
   "homepage": "https://github.com/NecturaLabs/AgentSkills",
   "keywords": [
-    "claude-code",
     "agent-skills",
+    "agents-md",
+    "claude-code",
+    "codex",
     "code-review",
-    "security-audit",
-    "owasp",
-    "clean-code"
+    "security-review"
   ],
   "scripts": {
     "test": "bash tests/run-all.sh",
-    "test:runner-guard": "bash tests/runner-guard.sh",
-    "test:verbose": "bash tests/run-all.sh --verbose"
+    "validate": "bash scripts/validate.sh --strict",
+    "doctor": "bash scripts/doctor.sh"
   }
 }
