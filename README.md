@@ -102,8 +102,9 @@ That produces one canonical file and two adapters pointing at it:
 ```
 
 The canonical file is a copy, not a link into the checkout: a link would let `git pull` silently
-rewrite your policy. Anything already in place that would conflict is left untouched and reported,
-including a `CLAUDE.md` that carries real policy rather than just the import. Replacing a conflict
+rewrite your policy. The run is all-or-nothing — every destination is checked before anything is
+written, and if any one conflicts (including a `CLAUDE.md` that carries real policy rather than
+just the import) all conflicts are reported and nothing is written anywhere. Replacing a conflict
 needs `--replace-global`, which backs the old file up beside itself first. Pass your own file to
 install that instead of the example:
 

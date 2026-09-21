@@ -326,122 +326,98 @@ backup_path_for() {
   printf '%s' "$candidate"
 }
 
-install_canonical_policy() {
-  local src=$1 dst=$2 backup
-
-  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then
-    if [ "$DRY_RUN" -eq 1 ]; then
-      g_note "would create $dst from $src"
-      return 0
-    fi
-    mkdir -p -- "${dst%/*}"
-    cp -- "$src" "$dst" || { g_note "FAILED to write $dst"; return 1; }
-    g_note "created $dst from $src"
-    return 0
-  fi
-
-  if [ -f "$dst" ] && cmp -s -- "$src" "$dst"; then
-    g_note "$dst already matches $src; left alone"
-    return 0
-  fi
-
-  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
-    g_note "$dst already exists and differs from $src; left untouched (rerun with --replace-global to replace it, which backs it up first)"
-    return 1
-  fi
-
-  backup=$(backup_path_for "$dst") || {
-    g_note "$dst not replaced: a backup from this second already exists; left untouched"
-    return 1
-  }
-  if [ "$DRY_RUN" -eq 1 ]; then
-    g_note "would back up $dst to $backup, then rewrite it from $src"
-    return 0
-  fi
-  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
-  cp -- "$src" "$dst" || { g_note "FAILED to write $dst (previous contents are at $backup)"; return 1; }
-  g_note "backed up $dst to $backup and rewrote it from $src"
+# Each destination is classified before anything is written: "create" (nothing there), "ok"
+# (already exactly what we would write) or "conflict" with a reason. A --global-agents run is
+# all-or-nothing with respect to conflicts, because the three destinations are one mechanism:
+# writing the adapters while refusing the canonical file would point both harnesses at a policy
+# this run explicitly declined to install.
+classify_canonical() {
+  local src=$1 dst=$2
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if [ -f "$dst" ] && cmp -s -- "$src" "$dst"; then printf 'ok'; return 0; fi
+  printf 'conflict|%s already exists and differs from %s' "$dst" "$src"
 }
 
-install_claude_adapter() {
-  local dst=$1 backup
-
-  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then
-    if [ "$DRY_RUN" -eq 1 ]; then
-      g_note "would create $dst containing '@AGENTS.md'"
-      return 0
-    fi
-    mkdir -p -- "${dst%/*}"
-    printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst"; return 1; }
-    g_note "created $dst containing '@AGENTS.md'"
-    return 0
-  fi
-
-  if is_import_only_shim "$dst"; then
-    g_note "$dst is already an import-only shim; left alone"
-    return 0
-  fi
-
-  # A CLAUDE.md carrying its own policy is the user's real instruction file. Rewriting it would
-  # silently delete policy that is in force on every session, so it needs the explicit flag.
-  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
-    g_note "$dst carries its own content, not just the import; left untouched (rerun with --replace-global to replace it, which backs it up first)"
-    return 1
-  fi
-
-  backup=$(backup_path_for "$dst") || {
-    g_note "$dst not replaced: a backup from this second already exists; left untouched"
-    return 1
-  }
-  if [ "$DRY_RUN" -eq 1 ]; then
-    g_note "would back up $dst to $backup, then replace it with '@AGENTS.md'"
-    return 0
-  fi
-  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
-  printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst (previous contents are at $backup)"; return 1; }
-  g_note "backed up $dst to $backup and replaced it with '@AGENTS.md'"
+classify_claude_adapter() {
+  local dst=$1
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if is_import_only_shim "$dst"; then printf 'ok'; return 0; fi
+  printf 'conflict|%s carries its own content, not just the import' "$dst"
 }
 
-install_codex_adapter() {
-  local dst=$1 canonical=$2 cur backup
-
-  if [ -e "${dst%/*}/AGENTS.override.md" ]; then
-    g_note "${dst%/*}/AGENTS.override.md exists and takes precedence over $dst for Codex; left untouched, but it shadows the canonical policy"
-  fi
-
+classify_codex_adapter() {
+  local dst=$1 canonical=$2 cur
   if [ -L "$dst" ]; then
     cur=$(readlink -f -- "$dst" 2>/dev/null || true)
-    if [ -n "$cur" ] && [ "$cur" = "$canonical" ]; then
-      g_note "$dst already points at $canonical; left alone"
-      return 0
-    fi
-  elif [ ! -e "$dst" ]; then
-    if [ "$DRY_RUN" -eq 1 ]; then
-      g_note "would link $dst -> $canonical"
-      return 0
-    fi
-    mkdir -p -- "${dst%/*}"
-    ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst"; return 1; }
-    g_note "linked $dst -> $canonical"
+    if [ -n "$cur" ] && [ "$cur" = "$canonical" ]; then printf 'ok'; return 0; fi
+    printf 'conflict|%s is a symlink that does not point at %s' "$dst" "$canonical"
     return 0
   fi
+  if [ ! -e "$dst" ]; then printf 'create'; return 0; fi
+  printf 'conflict|%s already exists and is not a link to %s' "$dst" "$canonical"
+}
 
-  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
-    g_note "$dst already exists and does not point at $canonical; left untouched (rerun with --replace-global to replace it, which backs it up first)"
-    return 1
-  fi
-
+# Moves a conflicting entry aside. Only ever called under --replace-global.
+move_aside() {
+  local dst=$1 backup
   backup=$(backup_path_for "$dst") || {
     g_note "$dst not replaced: a backup from this second already exists; left untouched"
     return 1
   }
   if [ "$DRY_RUN" -eq 1 ]; then
-    g_note "would back up $dst to $backup, then link it to $canonical"
+    printf '%s' "$backup"
     return 0
   fi
   mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
-  ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst (previous entry is at $backup)"; return 1; }
-  g_note "backed up $dst to $backup and linked it -> $canonical"
+  printf '%s' "$backup"
+}
+
+apply_canonical() {
+  local src=$1 dst=$2 action=$3 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(move_aside "$dst") || return 1
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then write it from $src"
+    else g_note "would create $dst from $src"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  cp -- "$src" "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and wrote it from $src"
+  else g_note "created $dst from $src"; fi
+}
+
+apply_claude_adapter() {
+  local dst=$1 action=$2 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(move_aside "$dst") || return 1
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then replace it with '@AGENTS.md'"
+    else g_note "would create $dst containing '@AGENTS.md'"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and replaced it with '@AGENTS.md'"
+  else g_note "created $dst containing '@AGENTS.md'"; fi
+}
+
+apply_codex_adapter() {
+  local dst=$1 canonical=$2 action=$3 backup=''
+  if [ "$action" = replace ]; then
+    backup=$(move_aside "$dst") || return 1
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then link it -> $canonical"
+    else g_note "would link $dst -> $canonical"; fi
+    return 0
+  fi
+  mkdir -p -- "${dst%/*}"
+  ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst${backup:+ (previous entry is at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and linked it -> $canonical"
+  else g_note "linked $dst -> $canonical"; fi
 }
 
 bootstrap_global_agents() {
@@ -449,7 +425,7 @@ bootstrap_global_agents() {
   local canonical=$PREFIX/.claude/AGENTS.md
   local claude_adapter=$PREFIX/.claude/CLAUDE.md
   local codex_adapter=$CODEX_HOME_DIR/AGENTS.md
-  local rc=0
+  local rc=0 c_can c_cla c_cod conflicts=()
 
   [ -n "$src" ] || src=$REPO_ROOT/examples/global-agents.md
   case $src in
@@ -466,10 +442,45 @@ bootstrap_global_agents() {
   [ "$REPLACE_GLOBAL" -eq 1 ] && printf '  mode      : --replace-global (conflicts are backed up, then replaced)\n'
   [ "$DRY_RUN" -eq 1 ] && printf '  mode      : dry run (nothing will be changed)\n'
 
-  install_canonical_policy "$src" "$canonical" || rc=1
-  # The adapters only make sense once a canonical file exists or would exist.
-  install_claude_adapter "$claude_adapter" || rc=1
-  install_codex_adapter "$codex_adapter" "$canonical" || rc=1
+  c_can=$(classify_canonical "$src" "$canonical")
+  c_cla=$(classify_claude_adapter "$claude_adapter")
+  c_cod=$(classify_codex_adapter "$codex_adapter" "$canonical")
+
+  local entry
+  for entry in "$c_can" "$c_cla" "$c_cod"; do
+    case $entry in conflict\|*) conflicts+=("${entry#conflict|}") ;; esac
+  done
+
+  if [ "${#conflicts[@]}" -gt 0 ] && [ "$REPLACE_GLOBAL" -eq 0 ]; then
+    for entry in "${conflicts[@]}"; do
+      g_note "$entry"
+    done
+    g_note "nothing was written: a --global-agents run is all-or-nothing, so one conflict leaves every destination untouched (rerun with --replace-global to replace the conflicting entries, which backs each one up first)"
+    printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+    printf '\n'
+    return 1
+  fi
+
+  # Codex prefers an override file, so it would shadow the canonical policy. Reported, never removed.
+  if [ -e "${codex_adapter%/*}/AGENTS.override.md" ]; then
+    g_note "${codex_adapter%/*}/AGENTS.override.md takes precedence over $codex_adapter for Codex; left untouched, but it shadows the canonical policy"
+  fi
+
+  case $c_can in
+    create) apply_canonical "$src" "$canonical" create || rc=1 ;;
+    ok) g_note "$canonical already matches $src; left alone" ;;
+    conflict\|*) apply_canonical "$src" "$canonical" replace || rc=1 ;;
+  esac
+  case $c_cla in
+    create) apply_claude_adapter "$claude_adapter" create || rc=1 ;;
+    ok) g_note "$claude_adapter is already an import-only shim; left alone" ;;
+    conflict\|*) apply_claude_adapter "$claude_adapter" replace || rc=1 ;;
+  esac
+  case $c_cod in
+    create) apply_codex_adapter "$codex_adapter" "$canonical" create || rc=1 ;;
+    ok) g_note "$codex_adapter already points at $canonical; left alone" ;;
+    conflict\|*) apply_codex_adapter "$codex_adapter" "$canonical" replace || rc=1 ;;
+  esac
 
   printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
   printf '\n'

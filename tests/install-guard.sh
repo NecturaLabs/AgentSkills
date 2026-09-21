@@ -254,5 +254,60 @@ rm -f "$H/.codex/skills/testing"
 doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
 check "doctor-no-false-shadow" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'no skill name resolves to conflicting targets' || true)"
 
+# 22. a refused --global-agents run is all-or-nothing. The three destinations are one mechanism:
+#      writing the adapters while refusing the canonical file would point both harnesses at a
+#      policy the run explicitly declined to install. Each case below puts a conflict at exactly
+#      one destination and leaves the other two absent, so a partial write cannot hide.
+assert_nothing_written() {
+  local label=$1 H=$2
+  check "allornothing-$label-nothing-written" "$3" "$(policy_snapshot "$H")"
+  check "allornothing-$label-no-backups" "0" "$(backup_count "$H")"
+}
+
+# 22a. conflict at the canonical file only
+H=$(new_home)
+printf 'THE USERS OWN PRIVATE POLICY\n' > "$H/.claude/AGENTS.md"
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "allornothing-canonical-exit" "1" "$?"
+assert_nothing_written "canonical" "$H" "$snap"
+check "allornothing-canonical-no-claude-adapter" "no" "$([ -e "$H/.claude/CLAUDE.md" ] && echo yes || echo no)"
+check "allornothing-canonical-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
+
+# 22b. conflict at the Claude adapter only
+H=$(new_home)
+printf 'MY REAL GLOBAL POLICY\n' > "$H/.claude/CLAUDE.md"
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "allornothing-claude-exit" "1" "$?"
+assert_nothing_written "claude" "$H" "$snap"
+check "allornothing-claude-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "allornothing-claude-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
+
+# 22c. conflict at the Codex adapter only
+H=$(new_home)
+printf 'MY EXISTING CODEX DOC\n' > "$H/.codex/AGENTS.md"
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "allornothing-codex-exit" "1" "$?"
+assert_nothing_written "codex" "$H" "$snap"
+check "allornothing-codex-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "allornothing-codex-no-claude-adapter" "no" "$([ -e "$H/.claude/CLAUDE.md" ] && echo yes || echo no)"
+
+# 22d. conflicts at all three: every one is reported, and still nothing is written
+H=$(new_home)
+printf 'A\n' > "$H/.claude/AGENTS.md"
+printf 'B\n' > "$H/.claude/CLAUDE.md"
+printf 'C\n' > "$H/.codex/AGENTS.md"
+snap=$(policy_snapshot "$H")
+out=$(bash "$INSTALL" --prefix "$H" --global-agents 2>&1)
+assert_nothing_written "multi" "$H" "$snap"
+check "allornothing-multi-reports-all-three" "3" "$(printf '%s\n' "$out" | grep -c 'already exists and differs\|carries its own content\|is not a link to')"
+
+# 22e. the same conflicts under --replace-global are all applied, so the gate is not just refusing
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "allornothing-replace-applies-all" "3" "$(backup_count "$H")"
+check "allornothing-replace-canonical" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
