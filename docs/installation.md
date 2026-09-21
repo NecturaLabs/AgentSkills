@@ -20,12 +20,26 @@ copy step and nothing to keep in sync. `git pull` is the whole update procedure.
 | Harness | Skill directory | Evidence |
 |---|---|---|
 | Claude Code | `~/.claude/skills/<name>/` | Documented; symlinked entries are followed and the skill is loaded once even when several locations point at the same target. Confirmed in a live session. |
-| Codex | `~/.codex/skills/<name>/` (`$CODEX_HOME/skills`) | Codex's own bundled skills live in `~/.codex/skills/.system/`, and its `skill-installer` skill documents installing into `$CODEX_HOME/skills`. |
+| Codex | `~/.agents/skills/<name>/` | Verified on Codex CLI 0.155.1: `codex debug prompt-input`'s model-visible "### Skill roots" table lists `$HOME/.agents/skills` as a root, derived from `$HOME` and not relocated by a `CODEX_HOME` override; skills placed there, including as symlinks, are followed and appear under "Available skills". |
 
-**`~/.agents/skills` is not a scan path.** It appears in both products only as an import/migration
-source — Claude Code's `claude import` and Codex's `external-agent-migration`. A skill linked only
-there is loaded by neither. `doctor.sh` reports anything found there so an older install is visible,
-and never requires it.
+**`~/.agents/skills` is an active Codex user scan root, not merely an import/migration path.**
+Verified on Codex CLI 0.155.1 with `codex debug prompt-input`: with `HOME=$SB` and no `CODEX_HOME`
+override, skills in both `$SB/.codex/skills` and `$SB/.agents/skills` were both listed under
+"Available skills"; with `HOME=$SB2` and `CODEX_HOME` pointed at an unrelated directory, the printed
+root became `$SB2/.agents/skills` — so the root tracks `$HOME`, independent of `CODEX_HOME`. A
+skill placed as a symlink inside `.agents/skills` was discovered and listed, and a repository-scoped
+`<repo>/.agents/skills` is also an active root. (An empty root is simply omitted from the table.)
+`$CODEX_HOME/skills` (default `~/.codex/skills`) remains a currently supported, older user root:
+Codex's own bundled skills still live under `~/.codex/skills/.system/`, and its `skill-installer`
+skill still documents only that path — the older convention lagging the newer public one, not
+evidence the newer root is inactive. `install.sh` no longer writes to `$CODEX_HOME/skills`;
+`doctor.sh` inspects it so a duplicate or shadowing skill name between the two roots is visible.
+Nothing is ever deleted from either root that this project did not create. Claude Code's user skill
+root is unaffected by any of this — it stays `~/.claude/skills`. Verified on Claude Code 2.1.278:
+`~/.agents/skills` and `.agents/skills` appear in the binary only inside its cross-agent import
+scanner, alongside `~/.cursor/skills` and `.cursorrules`, so Claude Code treats that root as an
+import source and never scans it for skills. The two harnesses therefore read disjoint roots and
+one skill is never loaded twice.
 
 ### Safety
 

@@ -34,13 +34,17 @@ exists to avoid.
 - `docs/`, code, config — authoritative project truth, read when relevant.
 - `scripts/`, `tests/`, CI — deterministic enforcement, never a model call.
 
-**AGENTS.md is the only persistent instruction system here.** No `CLAUDE.md`, `GEMINI.md`, context
-loader, or session-start hook that reinjects instruction text. `scripts/validate.sh` fails the build
-if one reappears.
+
+**AGENTS.md is the only maintained policy source here.** No competing CLAUDE policy layer, no
+`GEMINI.md`, context loader, or session-start hook that reinjects instruction text. A repository
+`CLAUDE.md` is forbidden and `scripts/validate.sh` fails the build if one reappears; the one
+verified exception is a user-scope shim outside this repo, covered in `docs/installation.md`.
 
 The checkout is the single canonical source for skill content. `scripts/install.sh` symlinks each
-skill into `~/.claude/skills/` and `~/.codex/skills/`; both harnesses follow symlinked skill
-directories. `~/.agents/skills` is an import source in both, never a scan path. Never maintain a copied per-harness skill body.
+skill into `~/.claude/skills/` and `~/.agents/skills/`; both harnesses follow symlinked skill
+directories. `$CODEX_HOME/skills` (default `~/.codex/skills`) is a supported older Codex root that
+install no longer writes to; `doctor.sh` checks it for a shadowing duplicate. Never maintain a
+copied per-harness skill body.
 
 ## Skill authoring
 

@@ -22,9 +22,11 @@ The point is that strong behavior should be cheap. A rule that must be in contex
 expensive and has to earn it; a procedure that matters on one task in twenty belongs in a skill that
 loads on demand; anything a script can decide should never reach a model at all.
 
-`AGENTS.md` is the only persistent instruction layer — no `CLAUDE.md`, no context loader, no
-session-start hook that reinjects text. A second always-loaded file doesn't add guidance, it adds a
-copy that drifts. The validator fails the build if one reappears.
+`AGENTS.md` is the only maintained policy source — no competing CLAUDE policy layer, no context
+loader, no session-start hook that reinjects text. A second always-loaded file doesn't add guidance,
+it adds a copy that drifts. A repository `CLAUDE.md` is forbidden here and the validator fails the
+build if one reappears; the one verified exception is a user-scope shim outside this repo, covered
+in [docs/installation.md](docs/installation.md).
 
 See [docs/architecture.md](docs/architecture.md) for the full reasoning and
 [docs/skill-design.md](docs/skill-design.md) for how to decide where a given piece of knowledge
@@ -55,9 +57,11 @@ bash scripts/install.sh --dry-run    # preview every action
 bash scripts/install.sh
 ```
 
-This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.codex/skills/`
-(Codex), for whichever harnesses are present. It refuses to overwrite anything it doesn't recognise:
-a real directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
+This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.agents/skills/`
+(Codex), for whichever harnesses are present. `$CODEX_HOME/skills` (default `~/.codex/skills`) is an
+older, still-supported Codex root that install no longer writes to; `doctor.sh` checks it so a
+shadowing duplicate is visible. Install refuses to overwrite anything it doesn't recognise: a real
+directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
 replaced, `--force` included.
 
 Claude Code users who prefer the plugin mechanism can install from the marketplace instead:

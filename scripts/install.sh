@@ -193,8 +193,9 @@ install_one() {
 
 CLAUDE_ROOT=$PREFIX/.claude/skills
 AGENTS_ROOT=$PREFIX/.agents/skills
-# $CODEX_HOME relocates Codex's whole config root, skills included. Honoured only when --prefix was
-# not given, so a sandboxed run stays inside its prefix; doctor.sh applies the same rule.
+# $CODEX_HOME relocates Codex's whole config root, skills included, but only the report-only
+# CODEX_ROOT below follows it; AGENTS_ROOT is always $PREFIX/.agents/skills. Honoured only when
+# --prefix was not given, so a sandboxed run stays inside its prefix; doctor.sh applies the same rule.
 CODEX_HOME_DIR=$PREFIX/.codex
 if [ "$PREFIX_GIVEN" -eq 0 ] && [ -n "${CODEX_HOME:-}" ]; then
   CODEX_HOME_DIR=$CODEX_HOME
@@ -224,12 +225,12 @@ else
   printf '  skipped  : Claude Code not found (no %s/.claude and no claude on PATH)\n' "$PREFIX"
 fi
 if [ "$codex_present" -eq 1 ]; then
-  printf '  found    : Codex -> %s\n' "$CODEX_ROOT"
+  printf '  found    : Codex -> %s\n' "$AGENTS_ROOT"
 else
   printf '  skipped  : Codex not found (no %s/.codex, no %s/.agents and no codex on PATH)\n' "$PREFIX" "$PREFIX"
 fi
-if [ -d "$AGENTS_ROOT" ]; then
-  printf '  detected : %s exists; only links already owned by an AgentSkills checkout are refreshed there\n' "$AGENTS_ROOT"
+if [ -d "$CODEX_ROOT" ]; then
+  printf '  detected : %s exists; only links already owned by an AgentSkills checkout are refreshed there\n' "$CODEX_ROOT"
 fi
 printf '\n'
 
@@ -239,18 +240,17 @@ for name in "${V2_SKILLS[@]}"; do
     install_one "$CLAUDE_ROOT" "$name" || status=1
   fi
   if [ "$codex_present" -eq 1 ]; then
-    install_one "$CODEX_ROOT" "$name" || status=1
+    install_one "$AGENTS_ROOT" "$name" || status=1
   fi
-  # Codex scans $CODEX_HOME/skills, which is why the loop above writes there: its
-  # own bundled skills live in .codex/skills/.system and its skill-installer
-  # documents that target. ~/.agents/skills appears in the binary only under
-  # external-agent-migration -- an import source, not a scan path -- so it is
-  # report-only here, refreshed solely when it already carries one of our links
-  # and leaving it stale would shadow the real install.
-  if [ -L "$AGENTS_ROOT/$name" ]; then
-    cur=$(readlink -f -- "$AGENTS_ROOT/$name" 2>/dev/null || true)
+  # Codex 0.155.1 scans both $CODEX_HOME/skills and $HOME/.agents/skills. .agents/skills is
+  # HOME-derived (never relocated by $CODEX_HOME) and is the portable spec root, so it is the
+  # install target above. $CODEX_HOME/skills is kept as a report-only compatibility root,
+  # refreshed solely when it already carries one of our links and leaving it stale would shadow
+  # the real install.
+  if [ -L "$CODEX_ROOT/$name" ]; then
+    cur=$(readlink -f -- "$CODEX_ROOT/$name" 2>/dev/null || true)
     if [ -n "$cur" ] && [ -n "$(checkout_root_of "$cur" || true)" ]; then
-      install_one "$AGENTS_ROOT" "$name" || status=1
+      install_one "$CODEX_ROOT" "$name" || status=1
     fi
   fi
 done

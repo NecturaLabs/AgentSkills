@@ -233,16 +233,16 @@ else
   printf '\n'
 fi
 if [ "$codex_active" -eq 1 ]; then
-  check_root "$CODEX_ROOT" "Codex (user scope)" 1
+  check_root "$AGENTS_ROOT" "Codex (user scope)" 1
 else
-  printf 'Codex (%s)\n' "$CODEX_ROOT"
+  printf 'Codex (user scope) (%s)\n' "$AGENTS_ROOT"
   info "harness not present; skipped"
   printf '\n'
 fi
-# Not a Codex scan path: the binary references ~/.agents/skills only under
-# external-agent-migration, as an import source. Reported so a link left there by
-# an older install is visible, never required.
-check_root "$AGENTS_ROOT" "portable skills root (not scanned by either harness)" 0
+# Codex 0.155.1 scans both $CODEX_HOME/skills and $HOME/.agents/skills; .agents/skills is
+# HOME-derived and is the required install root checked above. $CODEX_HOME/skills is kept as a
+# report-only compatibility/older root: still checked, but never required.
+check_root "$CODEX_ROOT" "Codex (compatibility root, \$CODEX_HOME)" 0
 
 printf 'v1 artifacts\n'
 legacy_found=0

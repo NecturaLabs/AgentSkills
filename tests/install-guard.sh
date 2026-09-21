@@ -39,7 +39,7 @@ check() {
 new_home() {
   local h
   h=$(mktemp -d "$SANDBOX/home.XXXXXX")
-  mkdir -p "$h/.claude" "$h/.codex"
+  mkdir -p "$h/.claude" "$h/.agents" "$h/.codex"
   printf '%s' "$h"
 }
 
@@ -57,7 +57,7 @@ bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 check "clean-install-link-count" "10" "$(link_count "$H")"
 missing=''
 for s in "${SKILLS[@]}"; do
-  for root in .claude .codex; do
+  for root in .claude .agents; do
     [ -L "$H/$root/skills/$s" ] || missing="$missing $root/$s"
     [ "$(readlink -f -- "$H/$root/skills/$s" 2>/dev/null)" = "$REPO_ROOT/skills/$s" ] || missing="$missing $root/$s(target)"
   done
@@ -130,6 +130,32 @@ check "doctor-sees-install" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'is not
 
 # 9. no recursive delete may ever appear in the three scripts
 check "no-recursive-rm" "0" "$(grep -cE '\brm\b[^|]*-[a-zA-Z]*[rR]' "$INSTALL" "$UNINSTALL" "$DOCTOR" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')"
+
+# 10. a clean install never creates or populates the compatibility root ($CODEX_HOME/skills):
+#     it is report-only and is not written to on a fresh install.
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "clean-install-no-codex-skills-dir" "no" "$([ -d "$H/.codex/skills" ] && echo yes || echo no)"
+check "clean-install-no-codex-links" "0" "$(link_count "$H/.codex")"
+
+# 11. a stale AgentSkills-owned link already sitting in the compatibility root and pointing at a
+#     DIFFERENT AgentSkills checkout is refreshed to this checkout only with --force; an unrelated
+#     foreign link sitting in that same root is left alone either way.
+OTHER_PLUGIN_NAME=$(grep -m1 '"name"' "$REPO_ROOT/.claude-plugin/plugin.json" | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
+mkdir -p "$SANDBOX/other-checkout/skills/testing" "$SANDBOX/other-checkout/.claude-plugin"
+printf 'other checkout skill\n' > "$SANDBOX/other-checkout/skills/testing/SKILL.md"
+printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$SANDBOX/other-checkout/.claude-plugin/plugin.json"
+
+H=$(new_home)
+mkdir -p "$H/.codex/skills"
+ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.codex/skills/testing"
+ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/security-review"
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "codex-other-checkout-untouched-without-force" "$SANDBOX/other-checkout/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
+check "codex-foreign-untouched-without-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/security-review")"
+bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
+check "codex-other-checkout-refreshed-with-force" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
+check "codex-foreign-survives-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/security-review")"
 
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

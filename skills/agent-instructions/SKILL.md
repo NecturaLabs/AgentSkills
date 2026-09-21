@@ -57,12 +57,13 @@ These hold across all four modes.
 2. **A stale command or path is a defect, not cosmetic.** The file is obeyed with full confidence,
    so wrong is worse than missing. Fix it in the same change that touches the section, or report it
    with file and line if fixing it is out of scope for the current task.
-3. **Distinguish portable practice from a fact about this project.** A rule that would still be
-   true in a different project belongs in a skill, not copied into this file. A rule that would
-   stop being true under a different agent is specific to this repo and belongs here. Where a rule
-   fails both tests — true only of this repo *and* only for one agent or harness — it belongs in
-   that harness's own narrower file (`references/harness-loading.md` covers where each harness
-   looks), never duplicated into the shared root file.
+3. **Distinguish portable practice from a fact about this project.** Test project specificity
+   against a different *project*, not a different agent: a rule that would still be true in a
+   different project belongs in a skill, not copied into this file; a rule that would stop being
+   true there is specific to this project and belongs here. Harness specificity is a separate axis
+   — a rule true of only one harness belongs in that harness's own narrower file
+   (`references/harness-loading.md` covers where each harness looks), never duplicated into the
+   shared root file, whether or not it is also project-specific.
 4. **The root file must be true for its entire scope.** Nothing in it may hold for one subproject
    and not another; move what doesn't generalize into a nested file for the subtree it actually
    describes.
@@ -85,10 +86,11 @@ failure modes are silent: a file in the wrong location never loads, and a file p
 byte budget gets truncated with no error the user sees. `references/harness-loading.md` has the
 verified facts for the two harnesses this repository targets, marked clearly where something is
 confirmed versus inferred — read it before creating an adapter, sizing a global file, or explaining
-why a rule isn't being followed. The one fact to carry into every mode without opening the
-reference: keep a file that is read at the global or user scope especially small, because
-project-level files can share a budget that truncates silently, and silent truncation is
-indistinguishable from a rule the agent chose to ignore.
+why a rule isn't being followed. Two facts to carry into every mode without opening the reference:
+keep a **global or user-scope** file small because it is paid for on every task, and keep a
+**project or nested** chain small because its cumulative size is subject to a budget (Codex's
+`project_doc_max_bytes`) that truncates silently past it — indistinguishable, from the agent's
+behavior, from a rule it chose to ignore.
 
 ## Output contract
 
@@ -114,4 +116,5 @@ Whichever mode ran, report:
 - `references/audit.md` — what to measure, how to detect staleness, and how to shrink a file that
   has grown past what it should carry.
 - `references/patterns.md` — what a good instruction file contains, section by section, the
-  anti-patterns that inflate one, and how to write a nested file that survives on its own.
+  anti-patterns that inflate one, how to write a nested file that survives on its own, and worked
+  global, project and nested examples to calibrate scope and size against.

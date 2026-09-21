@@ -30,9 +30,11 @@ orchestration principles, essential security boundaries, and routing to everythi
 wrong home for review methodology, testing doctrine, security checklists, per-language examples, and
 anything derivable from the code or the tooling.
 
-It is also the **only** persistent instruction layer. A second always-loaded file — `CLAUDE.md`, a
-context-loader skill, a session-start hook that reinjects text — does not add guidance, it adds a
-copy that drifts. `scripts/validate.sh` fails the build if one reappears.
+It is also the only maintained policy source: no competing CLAUDE policy layer, no context-loader
+skill, no session-start hook that reinjects text. A repository `CLAUDE.md` is forbidden here — a
+second always-loaded file doesn't add guidance, it adds a copy that drifts — and
+`scripts/validate.sh` fails the build if one reappears. The one verified exception is a user-scope
+shim outside this repo entirely, covered in `docs/installation.md`.
 
 **Skills are loaded conditionally**, so their cost is the startup metadata plus the activation. A
 skill earns its place when the job recurs across projects, needs a substantial checklist or
@@ -70,12 +72,13 @@ per skill into each harness's personal skill directory:
 <checkout>/skills/testing
         |                \
         |                 ~/.claude/skills/testing        (Claude Code)
-        \________________ ~/.codex/skills/testing         (Codex)
+        \________________ ~/.agents/skills/testing        (Codex)
 ```
 
 Both products document following symlinked skill directories, and both read `SKILL.md` from the
 target. Editing the checkout changes what both harnesses load, with no copy step and nothing to
-drift.
+drift. `$CODEX_HOME/skills` (default `~/.codex/skills`) remains a supported, older Codex root that
+install no longer writes to; see `docs/installation.md` for the verified skill-root facts.
 
 To stay loadable by both, `SKILL.md` frontmatter carries only the six keys the open Agent Skills
 specification defines: `name`, `description`, `license`, `compatibility`, `metadata`,
