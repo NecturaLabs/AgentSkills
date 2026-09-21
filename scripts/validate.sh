@@ -9,6 +9,10 @@ DEFAULT_REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 PERMITTED_KEYS=" name description license compatibility metadata allowed-tools "
 EVAL_SUFFIXES=(explicit implicit contextual negative ambiguous)
 LEGACY_FILES=(CLAUDE.md CLAUDE.local.md GEMINI.md gemini-extension.json)
+EXAMPLE_FILES=(global-agents.md project-agents.md nested-agents.md)
+# Names a harness discovers as instruction files. Under examples/ any of these would stop being an
+# example and start being scoped instructions for an agent whose working directory is in there.
+EXAMPLE_FORBIDDEN_NAMES=(AGENTS.md AGENTS.override.md .cursorrules)
 LEGACY_DIRS=(hooks .cursor-plugin .opencode .codex)
 LEGACY_SKILL_NAMES=(using-necturalabs agent-context-loader iterative-code-review
   iterative-security-audit test-manager unit-test-manager integration-test-manager
@@ -454,6 +458,38 @@ check_legacy_artifacts() {
   done < <(find "$repo_root" "${prune[@]}" -type f -print0)
 }
 
+# examples/ ships finished instruction files for users to copy. Two properties matter: they exist
+# (a broken example is worse than none, since the README points at them), and they stay inert.
+# Harnesses discover instruction files by name, so an example named AGENTS.md would be loaded as
+# real policy by any agent working under examples/ -- which is exactly what the naming avoids.
+check_examples() {
+  local dir="$repo_root/examples" name f rel base
+
+  if [[ ! -d "$dir" ]]; then
+    record FAIL "example-missing" "examples/ directory not found" "examples"
+    return
+  fi
+
+  for name in "${EXAMPLE_FILES[@]}"; do
+    if [[ ! -f "$dir/$name" ]]; then
+      record FAIL "example-missing" "required example not found" "examples/$name"
+    elif [[ ! -s "$dir/$name" ]]; then
+      record FAIL "example-missing" "example file is empty" "examples/$name"
+    fi
+  done
+
+  while IFS= read -r -d '' f; do
+    base="${f##*/}"
+    rel="$(rel_path "$f")"
+    for name in "${EXAMPLE_FORBIDDEN_NAMES[@]}"; do
+      if [[ "$base" == "$name" ]]; then
+        record FAIL "example-not-inert" \
+          "'$name' under examples/ would load as scoped instructions, not as an example" "$rel"
+      fi
+    done
+  done < <(find "$dir" -type f -print0 2>/dev/null)
+}
+
 check_shell_syntax() {
   local f err
   while IFS= read -r -d '' f; do
@@ -516,6 +552,7 @@ main() {
   check_shell_syntax
   check_version_consistency
   check_legacy_artifacts
+  check_examples
   check_skills_and_evals
 
   if [[ $QUIET -eq 0 ]]; then

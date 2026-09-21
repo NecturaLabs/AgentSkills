@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Proves scripts/validate.sh can actually fail: copies this repo's skills/,
-# evals/, package.json and .claude-plugin/ into a sandbox, then applies one
-# minimal mutation per check and asserts validate.sh reports it.
+# evals/, examples/, package.json and .claude-plugin/ into a sandbox, then
+# applies one minimal mutation per check and asserts validate.sh reports it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,7 +14,7 @@ trap 'rm -rf "$SANDBOX_ROOT"' EXIT
 
 BASELINE="$SANDBOX_ROOT/baseline"
 mkdir -p "$BASELINE"
-for item in skills evals package.json .claude-plugin; do
+for item in skills evals examples package.json .claude-plugin; do
   if [[ -e "$REPO_ROOT/$item" ]]; then
     cp -r "$REPO_ROOT/$item" "$BASELINE/$item"
   fi
@@ -216,6 +216,20 @@ mutate_shell_syntax() {
   printf '#!/usr/bin/env bash\nif [ true; then\n' > "$wd/scripts/__broken.sh"
 }
 
+mutate_example_missing() {
+  local wd="$1"
+  [[ -f "$wd/examples/nested-agents.md" ]] || return 1
+  rm -f "$wd/examples/nested-agents.md"
+}
+
+# An example named like a real instruction file stops being an example: a harness working under
+# examples/ would discover it and load it as scoped policy.
+mutate_example_not_inert() {
+  local wd="$1"
+  [[ -d "$wd/examples" ]] || return 1
+  printf '# not an example any more\n' > "$wd/examples/AGENTS.md"
+}
+
 assert_check_fails() {
   local name="$1" check_id="$2" mutate_fn="$3"
   local wd
@@ -264,6 +278,8 @@ assert_check_fails "eval-frontmatter"       "eval-frontmatter"       mutate_eval
 assert_check_fails "version-mismatch"       "version-mismatch"       mutate_version_mismatch
 assert_check_fails "legacy-artifact"        "legacy-artifact"        mutate_legacy_artifact
 assert_check_fails "shell-syntax"           "shell-syntax"           mutate_shell_syntax
+assert_check_fails "example-missing"        "example-missing"        mutate_example_missing
+assert_check_fails "example-not-inert"      "example-not-inert"      mutate_example_not_inert
 
 printf '\nGuard summary: %d passed, %d failed, %d skipped\n' "$PASS_COUNT" "$FAIL_COUNT" "$SKIP_COUNT"
 if [[ $FAIL_COUNT -eq 0 ]]; then

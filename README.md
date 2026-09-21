@@ -45,6 +45,24 @@ belongs.
 Each description states what the skill is *not* for as well, because that clause is what keeps
 neighbouring skills from firing on each other's work.
 
+## Examples
+
+Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
+
+| Example | Scope |
+|---|---|
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement: scope boundaries, orchestration and context discipline, standard of done, review, security, git and communication. Generalized from a working agreement used in production — every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
+| [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
+| [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
+
+The root [`AGENTS.md`](AGENTS.md) governs work on AgentSkills itself. Files under `examples/` are
+reference examples for users creating their own global, project or nested instruction files; they
+are deliberately not named `AGENTS.md`, so an agent working under `examples/` never picks one up as
+scoped instructions. The validator enforces that.
+
+The `agent-instructions` skill explains how to decide what goes in one; these are what the result
+looks like.
+
 ## Install
 
 Linking the checkout is the recommended setup: it keeps one editable canonical source, and both

@@ -34,6 +34,11 @@ exists to avoid.
 - `docs/`, code, config — authoritative project truth, read when relevant.
 - `scripts/`, `tests/`, CI — deterministic enforcement, never a model call.
 
+`examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not
+instructions for work on this repo. They are named `*-agents.md` so an agent working under
+`examples/` never loads one as scoped instructions, and `scripts/validate.sh` fails the build if a
+file named `AGENTS.md`, `AGENTS.override.md` or `.cursorrules` appears there, or if a required
+example goes missing. The root `AGENTS.md` — this file — governs work on AgentSkills itself.
 
 **AGENTS.md is the only maintained policy source here.** No competing CLAUDE policy layer, no
 `GEMINI.md`, context loader, or session-start hook that reinjects instruction text. A repository

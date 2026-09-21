@@ -148,3 +148,25 @@ Nested files are not free to add without limit. At least one harness this reposi
 the whole concatenated chain at a fixed byte budget and drops whatever doesn't fit — typically the
 deepest, most specific file — without an error, so keep every file in a chain short, not only the
 root.
+
+## Worked examples
+
+The sections above are the reasoning; these are finished files that apply it. Read one when you
+want to see how much detail a real file carries at a given scope, then write for your own
+repository rather than adapting theirs.
+
+- [`examples/global-agents.md`](../../../examples/global-agents.md)
+  — user-scope working agreement. Note how every machine-, harness- and vendor-specific rule is
+  parameterized rather than stated literally, and how model selection is expressed as tiers,
+  because vendor model names change faster than an instruction file should.
+- [`examples/project-agents.md`](../../../examples/project-agents.md)
+  — repository-level file. Note what it leaves out: no generic engineering doctrine, no framework
+  conventions, no file-by-file tour. It is roughly a fifth the size of the global file, and links
+  out to the architecture docs instead of summarizing them.
+- [`examples/nested-agents.md`](../../../examples/nested-agents.md)
+  — subtree file for a directory whose toolchain, command set and safety boundary genuinely
+  differ. The test it passes: every rule in it would be false or harmful if applied to the
+  repository root, which is what separates a warranted nested file from pagination.
+
+They are named `*-agents.md`, not `AGENTS.md`, so that an agent working in that directory does not
+load an example as its own scoped instructions.
