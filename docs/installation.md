@@ -79,9 +79,11 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 - **A run is all-or-nothing with respect to conflicts.** The three destinations are one
   mechanism, so every one is classified before anything is written. A canonical file that exists
   and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, and a Codex
-  `AGENTS.md` that is not already the link. "Just the import" is exact: one substantive line,
-  and that line is `@AGENTS.md`. Blank lines and comments are fine; a second import such as
-  `@OTHER.md` is a conflict, because it pulls in policy the canonical file does not control.
+  `AGENTS.md` that is not already the link. "Just the import" is exact: one non-blank line, and
+  that line is `@AGENTS.md`. Blank lines are fine; no other content is. `CLAUDE.md` is Markdown
+  and has no comment syntax, so a `# note` line is a heading the model reads, and a second
+  import such as `@OTHER.md` pulls in policy the canonical file does not control — either one
+  makes the file a conflict.
   If any destination conflicts and `--replace-global` is absent, all conflicts are reported,
   **nothing is written anywhere**, and the run exits non-zero. Writing the adapters while
   refusing the canonical file would point both harnesses at a policy the run had just declined

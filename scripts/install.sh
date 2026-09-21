@@ -307,15 +307,16 @@ g_note() { GLOBAL_ACTIONS+=("$1"); }
 
 timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
 
-# A shim carries exactly one substantive line, and that line is the @AGENTS.md import. Blank
-# lines and comments are still a shim. A second import is not: `@AGENTS.md` plus `@OTHER.md`
-# pulls in policy this bootstrap does not control, so it is a conflict, not a shim to leave alone.
+# A shim carries exactly one non-blank line, and that line is the @AGENTS.md import. Blank lines
+# are fine; nothing else is. CLAUDE.md is Markdown, so it has no comment syntax -- a `# note`
+# line is an H1 heading the model reads, and `@OTHER.md` pulls in policy this bootstrap does not
+# control. Either one is content of its own, so the file is a conflict, not a shim to leave alone.
 is_import_only_shim() {
-  local substantive
+  local body
   [ -f "$1" ] || return 1
-  substantive=$(grep -vE '^[[:space:]]*(#.*)?$' "$1" 2>/dev/null || true)
-  [ "$(printf '%s\n' "$substantive" | grep -c .)" -eq 1 ] || return 1
-  printf '%s\n' "$substantive" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'
+  body=$(grep -vE '^[[:space:]]*$' "$1" 2>/dev/null || true)
+  [ "$(printf '%s\n' "$body" | grep -c .)" -eq 1 ] || return 1
+  printf '%s\n' "$body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'
 }
 
 # Moves an existing file aside. Never overwrites a backup, and never touches the original on

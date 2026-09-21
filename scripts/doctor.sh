@@ -299,7 +299,7 @@ printf 'AGENTS.md health\n'
 # Claude Code reaches a user-scope AGENTS.md through no native path: its discovery walks the
 # ancestors of the working directory, which never reaches ~/.claude for a project stored elsewhere.
 # So ~/.claude/CLAUDE.md holding exactly the import is correct here, and its absence is the fault.
-# "Policy" is anything beyond the import, a comment or blank space.
+# Content is anything beyond the import and blank space; Markdown has no comment syntax.
 # The canonical global policy. install.sh --global-agents puts a regular file here and points both
 # harnesses at it; doctor only reports what it finds and never changes any of it.
 canonical_policy=$CLAUDE_HOME/AGENTS.md
@@ -319,15 +319,16 @@ if [ ! -e "$global_shim" ]; then
     info "$global_shim absent and no $CLAUDE_HOME/AGENTS.md; no global instructions configured"
   fi
 else
-  # Exactly one substantive line, and it is the @AGENTS.md import. A second import such as
-  # @OTHER.md pulls in policy outside the canonical file, so it is not an import-only shim.
-  shim_body=$(grep -vE '^[[:space:]]*(#.*)?$' "$global_shim" 2>/dev/null || true)
+  # Exactly one non-blank line, and it is the @AGENTS.md import. CLAUDE.md is Markdown and has no
+  # comment syntax, so a '# note' line is a heading the model reads; that and a second import such
+  # as @OTHER.md are both content of their own, and neither is an import-only shim.
+  shim_body=$(grep -vE '^[[:space:]]*$' "$global_shim" 2>/dev/null || true)
   substantive=$(printf '%s\n' "$shim_body" | grep -c . || true)
   substantive=${substantive:-0}
   if [ "$substantive" -eq 1 ] && printf '%s\n' "$shim_body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'; then
-    ok "$global_shim is an import-only shim (no policy of its own)"
+    ok "$global_shim is an import-only shim (no content of its own)"
   else
-    warn "$global_shim carries $substantive substantive line(s); it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
+    warn "$global_shim holds $substantive non-blank line(s); it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
   fi
 fi
 if [ -e "$CLAUDE_HOME/CLAUDE.local.md" ]; then

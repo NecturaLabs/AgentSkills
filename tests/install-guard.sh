@@ -309,9 +309,11 @@ bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
 check "allornothing-replace-applies-all" "3" "$(backup_count "$H")"
 check "allornothing-replace-canonical" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
 
-# 23. the Claude adapter is a shim only when its one substantive line is the @AGENTS.md import.
-#      A second import pulls in policy the bootstrap does not control, so it is a conflict -- and
-#      because the run is all-or-nothing, it must leave every destination untouched.
+# 23. the Claude adapter is a shim only when its one non-blank line is the @AGENTS.md import.
+#      CLAUDE.md is Markdown with no comment syntax, so a '# note' line is a heading the model
+#      reads, and a second import pulls in policy the bootstrap does not control. Both are
+#      content of their own, and because the run is all-or-nothing each must leave every
+#      destination untouched.
 shim_case() {
   local label=$1 body=$2 want_exit=$3 want_writes=$4 H before after writes
   H=$(new_home)
@@ -328,10 +330,11 @@ shim_case() {
     check "shim-$label-no-backups" "0" "$(backup_count "$H")"
   fi
 }
-shim_case "import-only"    '@AGENTS.md\n'             "0" "yes"
-shim_case "comments-blanks" '# mine\n\n@AGENTS.md\n\n' "0" "yes"
-shim_case "second-import"  '@AGENTS.md\n@OTHER.md\n'  "1" "no"
-shim_case "foreign-import" '@OTHER.md\n'              "1" "no"
+shim_case "import-only"      '@AGENTS.md\n'            "0" "yes"
+shim_case "blank-lines"      '\n\n@AGENTS.md\n\n'      "0" "yes"
+shim_case "markdown-heading" '# note\n@AGENTS.md\n'    "1" "no"
+shim_case "second-import"    '@AGENTS.md\n@OTHER.md\n' "1" "no"
+shim_case "foreign-import"   '@OTHER.md\n'             "1" "no"
 
 # 24. the default bootstrapped policy must be usable before any customization: no unfilled
 #     placeholder may survive as an active instruction, because an agent obeys what it says.
