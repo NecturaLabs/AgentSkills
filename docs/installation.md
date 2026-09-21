@@ -71,16 +71,24 @@ bash scripts/install.sh --global-agents <file> --replace-global
 | Path | What it becomes | Why |
 |---|---|---|
 | `<prefix>/.claude/AGENTS.md` | Regular file, copied from the source | The canonical policy. A copy rather than a symlink into the checkout, so `git pull` cannot silently rewrite it. |
-| `<prefix>/.claude/CLAUDE.md` | Exactly `@AGENTS.md` | Claude Code's `AGENTS.md` discovery walks the working directory's ancestors, so it never reaches a user-scope file; the import is what loads it. Delete this once native user-scope loading lands. |
+| `<prefix>/.claude/CLAUDE.md` | Regular file containing exactly `@AGENTS.md` | Claude Code's `AGENTS.md` discovery walks the working directory's ancestors, so it never reaches a user-scope file; the import is what loads it. Delete this once native user-scope loading lands. |
 | `<codex home>/AGENTS.md` | Symlink to the canonical file | Codex reads `$CODEX_HOME/AGENTS.md` through its own code path. Linking rather than copying is what keeps one maintained source instead of two that drift. |
+
+**The Codex adapter is the only symlink in this layout.** Both Claude paths must be regular
+files. A symlink at either one is a conflict even when the bytes behind it are exactly what would
+have been written, because the point of copying the canonical policy is that nothing outside the
+user's own file decides what loads on every task — a link into a checkout hands that back to the
+next `git pull`. `--replace-global` moves the symlink itself aside as the backup and writes a
+regular file in its place.
 
 Refusal rules, all of which hold with `--dry-run` and without it:
 
 - **A run is all-or-nothing with respect to conflicts.** The three destinations are one
   mechanism, so every one is classified before anything is written. A canonical file that exists
   and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, and a Codex
-  `AGENTS.md` that is not already the link. "Just the import" is exact: one non-blank line, and
-  that line is `@AGENTS.md`. Blank lines are fine; no other content is. `CLAUDE.md` is Markdown
+  `AGENTS.md` that is not already the link, and a symlink at either Claude path. "Just the
+  import" is exact: a regular file whose one non-blank line is `@AGENTS.md`. Blank lines are
+  fine; no other content is. `CLAUDE.md` is Markdown
   and has no comment syntax, so a `# note` line is a heading the model reads, and a second
   import such as `@OTHER.md` pulls in policy the canonical file does not control — either one
   makes the file a conflict.
@@ -95,9 +103,10 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 - An `AGENTS.override.md` in the Codex home is reported, never removed — Codex prefers it over
   `AGENTS.md`, so it silently shadows the canonical policy.
 
-`doctor.sh` reports the same surface read-only: whether a canonical policy exists, whether
-`CLAUDE.md` is still import-only, whether the Codex file resolves to the canonical one or has
-become a separate copy, and whether an override is shadowing it. It never repairs any of them.
+`doctor.sh` reports the same surface read-only: whether a canonical policy exists and is a
+regular file rather than a symlink, whether `CLAUDE.md` is still a regular import-only shim,
+whether the Codex file resolves to the canonical one or has become a separate copy, and whether
+an override is shadowing it. It never repairs any of them.
 
 ## Alternative: Claude Code plugin
 

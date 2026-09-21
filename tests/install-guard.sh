@@ -343,5 +343,46 @@ bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "bootstrapped-policy-no-active-placeholders" "0" \
   "$(grep -cE '^[[:space:]]*[-*][^<]*<your ' "$H/.claude/AGENTS.md" 2>/dev/null || true)"
 
+# 25. the two Claude destinations must be regular files, never symlinks, even when the bytes
+#      behind the link are exactly what we would have written. The canonical policy is copied
+#      rather than linked precisely so nothing outside the user's own file can change their live
+#      instructions later; accepting a link into a checkout hands that control back to `git pull`.
+#      `-f` follows symlinks, so this is the case a contents comparison alone cannot catch.
+entry_type() { find "$1" -maxdepth 0 -printf '%y' 2>/dev/null || printf 'none'; }
+
+H=$(new_home)
+ln -s "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md"
+printf '@AGENTS.md\n' > "$H/shim-target.md"
+ln -s "$H/shim-target.md" "$H/.claude/CLAUDE.md"
+snap=$(policy_snapshot "$H")
+out=$(bash "$INSTALL" --prefix "$H" --global-agents 2>&1)
+check "symlink-canonical-exit" "1" "$?"
+check "symlink-canonical-still-a-link" "l" "$(entry_type "$H/.claude/AGENTS.md")"
+check "symlink-shim-still-a-link" "l" "$(entry_type "$H/.claude/CLAUDE.md")"
+check "symlink-nothing-written" "$snap" "$(policy_snapshot "$H")"
+check "symlink-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
+check "symlink-no-backups" "0" "$(backup_count "$H")"
+# install.sh runs doctor afterwards, and doctor reports the same two states, so count only
+# within install's own Global policy section.
+check "symlink-both-reported" "2" "$(printf '%s\n' "$out" | sed -n '/^Global policy/,/^Running doctor/p' | grep -c 'is a symlink ->')"
+# doctor must report both states rather than following the links and calling them healthy
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "symlink-doctor-reports-both" "2" "$(printf '%s\n' "$doctor_out" | grep -c 'is a symlink ->.*must be a regular file')"
+check "symlink-doctor-not-ok" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'canonical global policy: ')"
+
+# 25b. --replace-global turns both into regular files and keeps the old symlinks as backups
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "symlink-replaced-canonical-is-regular" "f" "$(entry_type "$H/.claude/AGENTS.md")"
+check "symlink-replaced-shim-is-regular" "f" "$(entry_type "$H/.claude/CLAUDE.md")"
+check "symlink-replaced-shim-content" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "symlink-replaced-canonical-matches" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "symlink-backup-canonical-kept-as-link" "l" "$(entry_type "$H"/.claude/AGENTS.md.backup-*)"
+check "symlink-backup-shim-kept-as-link" "l" "$(entry_type "$H"/.claude/CLAUDE.md.backup-*)"
+check "symlink-backup-canonical-target" "$REPO_ROOT/examples/global-agents.md" "$(readlink "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
+# the checkout the old link pointed into must be untouched by any of this
+check "symlink-source-untouched" "" "$(git -C "$REPO_ROOT" status --porcelain -- examples/global-agents.md)"
+# and the one legitimate symlink in the layout is still the Codex adapter
+check "symlink-codex-adapter-is-link" "l" "$(entry_type "$H/.codex/AGENTS.md")"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

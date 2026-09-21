@@ -313,6 +313,8 @@ timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
 # control. Either one is content of its own, so the file is a conflict, not a shim to leave alone.
 is_import_only_shim() {
   local body
+  # -f follows symlinks, so the link test has to come first: the adapter must be a regular file.
+  [ ! -L "$1" ] || return 1
   [ -f "$1" ] || return 1
   body=$(grep -vE '^[[:space:]]*$' "$1" 2>/dev/null || true)
   [ "$(printf '%s\n' "$body" | grep -c .)" -eq 1 ] || return 1
@@ -339,6 +341,14 @@ backup_path_for() {
 classify_canonical() {
   local src=$1 dst=$2
   if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  # A symlink is a conflict even when its bytes match today. The canonical policy is copied, not
+  # linked, precisely so that nothing outside the user's own file can change their live
+  # instructions later -- a link into a checkout is rewritten by the next pull.
+  if [ -L "$dst" ]; then
+    printf 'conflict|%s is a symlink -> %s; the canonical policy must be a regular file, or updating the link target silently rewrites your global instructions' \
+      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')"
+    return 0
+  fi
   if [ -f "$dst" ] && cmp -s -- "$src" "$dst"; then printf 'ok'; return 0; fi
   printf 'conflict|%s already exists and differs from %s' "$dst" "$src"
 }
@@ -346,6 +356,11 @@ classify_canonical() {
 classify_claude_adapter() {
   local dst=$1
   if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if [ -L "$dst" ]; then
+    printf 'conflict|%s is a symlink -> %s; the Claude adapter must be a regular file holding only @AGENTS.md' \
+      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')"
+    return 0
+  fi
   if is_import_only_shim "$dst"; then printf 'ok'; return 0; fi
   printf 'conflict|%s carries its own content, not just the import' "$dst"
 }

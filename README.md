@@ -102,10 +102,12 @@ That produces one canonical file and two adapters pointing at it:
 ```
 
 The canonical file is a copy, not a link into the checkout: a link would let `git pull` silently
-rewrite your policy. The run is all-or-nothing — every destination is checked before anything is
-written, and if any one conflicts (including a `CLAUDE.md` that carries real policy rather than
-just the import) all conflicts are reported and nothing is written anywhere. Replacing a conflict
-needs `--replace-global`, which backs the old file up beside itself first. Pass your own file to
+rewrite your policy. The Codex adapter is the only symlink in the layout — a symlink at either
+Claude path is a conflict even if its contents currently match. The run is all-or-nothing: every
+destination is checked before anything is written, and if any one conflicts — including a
+`CLAUDE.md` that carries real content rather than just the import — all conflicts are reported
+and nothing is written anywhere. Replacing a conflict needs `--replace-global`, which backs the
+old entry up beside itself first, symlinks included. Pass your own file to
 install that instead of the example:
 
 ```bash

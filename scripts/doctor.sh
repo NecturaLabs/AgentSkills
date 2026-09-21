@@ -303,9 +303,14 @@ printf 'AGENTS.md health\n'
 # The canonical global policy. install.sh --global-agents puts a regular file here and points both
 # harnesses at it; doctor only reports what it finds and never changes any of it.
 canonical_policy=$CLAUDE_HOME/AGENTS.md
-if [ -f "$canonical_policy" ]; then
+# -f follows symlinks, so the link test comes first. The canonical policy is deliberately a copy:
+# a symlink means something outside the user's own file decides what loads on every task, and
+# updating that target -- a git pull, say -- rewrites their global instructions with no signal.
+if [ -L "$canonical_policy" ]; then
+  warn "$canonical_policy is a symlink -> $(readlink -- "$canonical_policy" 2>/dev/null || printf '<unresolvable>'); the canonical policy must be a regular file, or updating the link target silently rewrites your global instructions"
+elif [ -f "$canonical_policy" ]; then
   ok "canonical global policy: $canonical_policy ($(wc -c < "$canonical_policy") bytes)"
-elif [ -e "$canonical_policy" ] || [ -L "$canonical_policy" ]; then
+elif [ -e "$canonical_policy" ]; then
   warn "$canonical_policy exists but is not a regular file"
 else
   info "no $canonical_policy; no canonical global policy installed (bootstrap one with install.sh --global-agents)"
@@ -325,7 +330,9 @@ else
   shim_body=$(grep -vE '^[[:space:]]*$' "$global_shim" 2>/dev/null || true)
   substantive=$(printf '%s\n' "$shim_body" | grep -c . || true)
   substantive=${substantive:-0}
-  if [ "$substantive" -eq 1 ] && printf '%s\n' "$shim_body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'; then
+  if [ -L "$global_shim" ]; then
+    warn "$global_shim is a symlink -> $(readlink -- "$global_shim" 2>/dev/null || printf '<unresolvable>'); the Claude adapter must be a regular file holding only '@AGENTS.md'"
+  elif [ "$substantive" -eq 1 ] && printf '%s\n' "$shim_body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'; then
     ok "$global_shim is an import-only shim (no content of its own)"
   else
     warn "$global_shim holds $substantive non-blank line(s); it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
