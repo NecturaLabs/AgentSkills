@@ -57,6 +57,39 @@ remove is printed with the reason. `--include-legacy` extends it to v1 skill nam
 Both take `--dry-run` and `--prefix <dir>`; `--prefix` overrides the home base, which is how the
 scripts are tested without touching a real home directory.
 
+## Optional: bootstrap the global working agreement
+
+`install.sh` links skills and nothing else. Adopting a global operating policy changes how every
+future session behaves, so it is a separate, explicit operation and is never implied:
+
+```bash
+bash scripts/install.sh --global-agents --dry-run
+bash scripts/install.sh --global-agents [<file>]      # default: examples/global-agents.md
+bash scripts/install.sh --global-agents <file> --replace-global
+```
+
+| Path | What it becomes | Why |
+|---|---|---|
+| `<prefix>/.claude/AGENTS.md` | Regular file, copied from the source | The canonical policy. A copy rather than a symlink into the checkout, so `git pull` cannot silently rewrite it. |
+| `<prefix>/.claude/CLAUDE.md` | Exactly `@AGENTS.md` | Claude Code's `AGENTS.md` discovery walks the working directory's ancestors, so it never reaches a user-scope file; the import is what loads it. Delete this once native user-scope loading lands. |
+| `<codex home>/AGENTS.md` | Symlink to the canonical file | Codex reads `$CODEX_HOME/AGENTS.md` through its own code path. Linking rather than copying is what keeps one maintained source instead of two that drift. |
+
+Refusal rules, all of which hold with `--dry-run` and without it:
+
+- A canonical file that already exists and differs is left untouched; so is a `CLAUDE.md` carrying
+  anything beyond the import, and a Codex `AGENTS.md` that is not already the link. Each is
+  reported with the reason, and the run exits non-zero so a script can notice.
+- `--replace-global` is the only way to replace any of them, and it moves the existing file to
+  `<path>.backup-<UTC timestamp>` first. It never overwrites an existing backup; if one from the
+  same second is already there, that action is abandoned and the original is left alone.
+- `--replace-global` without `--global-agents` is rejected before anything is read or written.
+- An `AGENTS.override.md` in the Codex home is reported, never removed — Codex prefers it over
+  `AGENTS.md`, so it silently shadows the canonical policy.
+
+`doctor.sh` reports the same surface read-only: whether a canonical policy exists, whether
+`CLAUDE.md` is still import-only, whether the Codex file resolves to the canonical one or has
+become a separate copy, and whether an override is shadowing it. It never repairs any of them.
+
 ## Alternative: Claude Code plugin
 
 ```

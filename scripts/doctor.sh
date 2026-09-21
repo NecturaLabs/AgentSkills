@@ -300,6 +300,17 @@ printf 'AGENTS.md health\n'
 # ancestors of the working directory, which never reaches ~/.claude for a project stored elsewhere.
 # So ~/.claude/CLAUDE.md holding exactly the import is correct here, and its absence is the fault.
 # "Policy" is anything beyond the import, a comment or blank space.
+# The canonical global policy. install.sh --global-agents puts a regular file here and points both
+# harnesses at it; doctor only reports what it finds and never changes any of it.
+canonical_policy=$CLAUDE_HOME/AGENTS.md
+if [ -f "$canonical_policy" ]; then
+  ok "canonical global policy: $canonical_policy ($(wc -c < "$canonical_policy") bytes)"
+elif [ -e "$canonical_policy" ] || [ -L "$canonical_policy" ]; then
+  warn "$canonical_policy exists but is not a regular file"
+else
+  info "no $canonical_policy; no canonical global policy installed (bootstrap one with install.sh --global-agents)"
+fi
+
 global_shim=$CLAUDE_HOME/CLAUDE.md
 if [ ! -e "$global_shim" ]; then
   if [ -e "$CLAUDE_HOME/AGENTS.md" ]; then
@@ -408,6 +419,22 @@ else
     info "$codex_doc is $(wc -c < "$codex_doc") bytes (loaded separately; does not consume the $doc_budget-byte project budget)"
   else
     err "$codex_doc is not a readable regular file"
+  fi
+  # One canonical source: Codex should read the same bytes as Claude Code, not a second copy that
+  # drifts. Reported, never repaired -- install.sh --global-agents is what changes it.
+  if [ -f "$canonical_policy" ]; then
+    codex_target=$(readlink -f -- "$codex_doc" 2>/dev/null || true)
+    canonical_real=$(readlink -f -- "$canonical_policy" 2>/dev/null || printf '%s' "$canonical_policy")
+    if [ "$codex_target" = "$canonical_real" ]; then
+      ok "Codex reads the canonical policy ($codex_doc -> $canonical_real)"
+    elif cmp -s -- "$codex_doc" "$canonical_policy"; then
+      warn "$codex_doc is a separate copy of $canonical_policy with identical contents; it will drift (install.sh --global-agents --replace-global relinks it)"
+    else
+      warn "$codex_doc is a second, independently maintained global policy that differs from $canonical_policy; the two harnesses are running different rules"
+    fi
+  fi
+  if [ "$codex_doc" = "$CODEX_HOME_DIR/AGENTS.override.md" ] && [ -e "$CODEX_HOME_DIR/AGENTS.md" ]; then
+    warn "$codex_doc takes precedence for Codex, so $CODEX_HOME_DIR/AGENTS.md is never read"
   fi
 fi
 printf '\n'

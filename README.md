@@ -82,6 +82,38 @@ shadowing duplicate is visible. Install refuses to overwrite anything it doesn't
 directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
 replaced, `--force` included.
 
+### Optional: bootstrap a global working agreement
+
+Installing skills and installing an operating policy are separate operations, so the command above
+touches no instruction file. To also adopt the global example as your own policy:
+
+```bash
+bash scripts/install.sh --global-agents --dry-run   # show every policy action first
+bash scripts/install.sh --global-agents
+```
+
+That produces one canonical file and two adapters pointing at it:
+
+```
+~/.claude/AGENTS.md    the policy — a regular file you own and edit
+~/.claude/CLAUDE.md    "@AGENTS.md" — the adapter Claude Code needs, because its AGENTS.md
+                       discovery walks the working directory's ancestors and never reaches $HOME
+~/.codex/AGENTS.md  →  ~/.claude/AGENTS.md — a symlink, so Codex reads the same bytes
+```
+
+The canonical file is a copy, not a link into the checkout: a link would let `git pull` silently
+rewrite your policy. Anything already in place that would conflict is left untouched and reported,
+including a `CLAUDE.md` that carries real policy rather than just the import. Replacing a conflict
+needs `--replace-global`, which backs the old file up beside itself first. Pass your own file to
+install that instead of the example:
+
+```bash
+bash scripts/install.sh --global-agents ~/my-agents.md --replace-global
+```
+
+`doctor.sh` reports whether the canonical policy and both adapters are healthy — including a Codex
+file that has become a second, independently maintained copy — and never changes any of them.
+
 Claude Code users who prefer the plugin mechanism can install from the marketplace instead:
 
 ```

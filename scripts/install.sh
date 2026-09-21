@@ -6,8 +6,11 @@ V2_SKILLS=(agent-instructions change-review security-review testing project-docs
 usage() {
   cat <<'USAGE'
 Usage: install.sh [--force] [--dry-run] [--prefix <dir>]
+                  [--global-agents [<file>]] [--replace-global]
 
 Links this checkout's v2 skills into the Claude Code and Codex skill roots.
+Installing skills and installing a global operating policy are separate
+operations: without --global-agents this script touches no instruction file.
 
   --force       Replace a skill link that points into a different AgentSkills
                 checkout. Never replaces a real directory, and never replaces a
@@ -15,6 +18,19 @@ Links this checkout's v2 skills into the Claude Code and Codex skill roots.
   --dry-run     Print every action; change nothing.
   --prefix DIR  Use DIR instead of $HOME as the base holding .claude, .agents
                 and .codex.
+
+  --global-agents [FILE]
+                Additionally bootstrap the canonical global instruction file at
+                <prefix>/.claude/AGENTS.md from FILE, defaulting to this
+                checkout's examples/global-agents.md. Also writes the Claude
+                adapter <prefix>/.claude/CLAUDE.md containing only '@AGENTS.md',
+                and points Codex at the same canonical file by symlinking
+                <codex home>/AGENTS.md to it, so there is never a second
+                independently maintained copy. Anything already present that
+                would conflict is left untouched and reported.
+  --replace-global
+                Only with --global-agents. Replace a conflicting file after
+                backing it up alongside itself. Never used implicitly.
 USAGE
 }
 
@@ -24,6 +40,9 @@ FORCE=0
 DRY_RUN=0
 PREFIX=${HOME:-}
 PREFIX_GIVEN=0
+GLOBAL_AGENTS=0
+REPLACE_GLOBAL=0
+GLOBAL_SRC=''
 
 while [ "$#" -gt 0 ]; do
   case $1 in
@@ -31,11 +50,25 @@ while [ "$#" -gt 0 ]; do
     --dry-run|-n) DRY_RUN=1 ;;
     --prefix) [ "$#" -ge 2 ] || die "--prefix needs a directory"; PREFIX=$2; PREFIX_GIVEN=1; shift ;;
     --prefix=*) PREFIX=${1#--prefix=}; PREFIX_GIVEN=1 ;;
+    --global-agents)
+      GLOBAL_AGENTS=1
+      # The optional value must not swallow the next flag.
+      case ${2:-} in
+        ''|-*) ;;
+        *) GLOBAL_SRC=$2; shift ;;
+      esac
+      ;;
+    --global-agents=*) GLOBAL_AGENTS=1; GLOBAL_SRC=${1#--global-agents=} ;;
+    --replace-global) REPLACE_GLOBAL=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "unknown option: $1" ;;
   esac
   shift
 done
+
+if [ "$REPLACE_GLOBAL" -eq 1 ] && [ "$GLOBAL_AGENTS" -eq 0 ]; then
+  die "--replace-global only means something with --global-agents"
+fi
 
 [ -n "$PREFIX" ] || die "no HOME set; pass --prefix <dir>"
 [ -d "$PREFIX" ] || die "prefix is not a directory: $PREFIX"
@@ -255,6 +288,194 @@ for name in "${V2_SKILLS[@]}"; do
   fi
 done
 
+# --- global policy bootstrap -------------------------------------------------
+# Runs only under --global-agents. Installing skills and installing an operating policy are
+# different operations, and the second one overwrites how every future session behaves, so it is
+# never implied by the first. The layout it produces keeps exactly one canonical file:
+#
+#   <prefix>/.claude/AGENTS.md   the policy itself, a regular file the user owns and edits
+#   <prefix>/.claude/CLAUDE.md   '@AGENTS.md' -- the adapter Claude Code needs, because its
+#                                AGENTS.md discovery walks the working directory's ancestors and
+#                                so never reaches the home directory
+#   <codex home>/AGENTS.md       a symlink to the canonical file, so Codex reads the same bytes
+#                                rather than a second copy that drifts
+#
+# The canonical file is a copy of the source, never a link into this checkout: a link would make
+# `git pull` silently rewrite the user's own policy.
+GLOBAL_ACTIONS=()
+g_note() { GLOBAL_ACTIONS+=("$1"); }
+
+timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
+
+# A shim carries the import and nothing else; comments and blank lines are still a shim.
+is_import_only_shim() {
+  [ -f "$1" ] || return 1
+  grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$' "$1" || return 1
+  ! grep -qvE '^[[:space:]]*(#.*)?$|^[[:space:]]*@' "$1"
+}
+
+# Moves an existing file aside. Never overwrites a backup, and never touches the original on
+# failure, so a conflicting name aborts that one action instead of destroying anything.
+backup_path_for() {
+  local target=$1 stamp candidate
+  stamp=$(timestamp_utc)
+  candidate=$target.backup-$stamp
+  if [ -e "$candidate" ] || [ -L "$candidate" ]; then
+    return 1
+  fi
+  printf '%s' "$candidate"
+}
+
+install_canonical_policy() {
+  local src=$1 dst=$2 backup
+
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      g_note "would create $dst from $src"
+      return 0
+    fi
+    mkdir -p -- "${dst%/*}"
+    cp -- "$src" "$dst" || { g_note "FAILED to write $dst"; return 1; }
+    g_note "created $dst from $src"
+    return 0
+  fi
+
+  if [ -f "$dst" ] && cmp -s -- "$src" "$dst"; then
+    g_note "$dst already matches $src; left alone"
+    return 0
+  fi
+
+  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
+    g_note "$dst already exists and differs from $src; left untouched (rerun with --replace-global to replace it, which backs it up first)"
+    return 1
+  fi
+
+  backup=$(backup_path_for "$dst") || {
+    g_note "$dst not replaced: a backup from this second already exists; left untouched"
+    return 1
+  }
+  if [ "$DRY_RUN" -eq 1 ]; then
+    g_note "would back up $dst to $backup, then rewrite it from $src"
+    return 0
+  fi
+  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+  cp -- "$src" "$dst" || { g_note "FAILED to write $dst (previous contents are at $backup)"; return 1; }
+  g_note "backed up $dst to $backup and rewrote it from $src"
+}
+
+install_claude_adapter() {
+  local dst=$1 backup
+
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      g_note "would create $dst containing '@AGENTS.md'"
+      return 0
+    fi
+    mkdir -p -- "${dst%/*}"
+    printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst"; return 1; }
+    g_note "created $dst containing '@AGENTS.md'"
+    return 0
+  fi
+
+  if is_import_only_shim "$dst"; then
+    g_note "$dst is already an import-only shim; left alone"
+    return 0
+  fi
+
+  # A CLAUDE.md carrying its own policy is the user's real instruction file. Rewriting it would
+  # silently delete policy that is in force on every session, so it needs the explicit flag.
+  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
+    g_note "$dst carries its own content, not just the import; left untouched (rerun with --replace-global to replace it, which backs it up first)"
+    return 1
+  fi
+
+  backup=$(backup_path_for "$dst") || {
+    g_note "$dst not replaced: a backup from this second already exists; left untouched"
+    return 1
+  }
+  if [ "$DRY_RUN" -eq 1 ]; then
+    g_note "would back up $dst to $backup, then replace it with '@AGENTS.md'"
+    return 0
+  fi
+  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+  printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst (previous contents are at $backup)"; return 1; }
+  g_note "backed up $dst to $backup and replaced it with '@AGENTS.md'"
+}
+
+install_codex_adapter() {
+  local dst=$1 canonical=$2 cur backup
+
+  if [ -e "${dst%/*}/AGENTS.override.md" ]; then
+    g_note "${dst%/*}/AGENTS.override.md exists and takes precedence over $dst for Codex; left untouched, but it shadows the canonical policy"
+  fi
+
+  if [ -L "$dst" ]; then
+    cur=$(readlink -f -- "$dst" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ "$cur" = "$canonical" ]; then
+      g_note "$dst already points at $canonical; left alone"
+      return 0
+    fi
+  elif [ ! -e "$dst" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      g_note "would link $dst -> $canonical"
+      return 0
+    fi
+    mkdir -p -- "${dst%/*}"
+    ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst"; return 1; }
+    g_note "linked $dst -> $canonical"
+    return 0
+  fi
+
+  if [ "$REPLACE_GLOBAL" -eq 0 ]; then
+    g_note "$dst already exists and does not point at $canonical; left untouched (rerun with --replace-global to replace it, which backs it up first)"
+    return 1
+  fi
+
+  backup=$(backup_path_for "$dst") || {
+    g_note "$dst not replaced: a backup from this second already exists; left untouched"
+    return 1
+  }
+  if [ "$DRY_RUN" -eq 1 ]; then
+    g_note "would back up $dst to $backup, then link it to $canonical"
+    return 0
+  fi
+  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+  ln -s -- "$canonical" "$dst" || { g_note "FAILED to link $dst (previous entry is at $backup)"; return 1; }
+  g_note "backed up $dst to $backup and linked it -> $canonical"
+}
+
+bootstrap_global_agents() {
+  local src=$GLOBAL_SRC
+  local canonical=$PREFIX/.claude/AGENTS.md
+  local claude_adapter=$PREFIX/.claude/CLAUDE.md
+  local codex_adapter=$CODEX_HOME_DIR/AGENTS.md
+  local rc=0
+
+  [ -n "$src" ] || src=$REPO_ROOT/examples/global-agents.md
+  case $src in
+    /*) ;;
+    *) src=$PWD/$src ;;
+  esac
+  [ -f "$src" ] || die "global agents source is not a readable file: $src"
+  [ -s "$src" ] || die "global agents source is empty: $src"
+  src=$(cd -- "${src%/*}" && printf '%s/%s' "$(pwd -P)" "${src##*/}")
+
+  printf 'Global policy\n'
+  printf '  source    : %s\n' "$src"
+  printf '  canonical : %s\n' "$canonical"
+  [ "$REPLACE_GLOBAL" -eq 1 ] && printf '  mode      : --replace-global (conflicts are backed up, then replaced)\n'
+  [ "$DRY_RUN" -eq 1 ] && printf '  mode      : dry run (nothing will be changed)\n'
+
+  install_canonical_policy "$src" "$canonical" || rc=1
+  # The adapters only make sense once a canonical file exists or would exist.
+  install_claude_adapter "$claude_adapter" || rc=1
+  install_codex_adapter "$codex_adapter" "$canonical" || rc=1
+
+  printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+  printf '\n'
+  return "$rc"
+}
+
 print_group() {
   local label=$1
   shift
@@ -274,6 +495,13 @@ if [ "${#CREATED[@]}" -eq 0 ] && [ "${#CORRECT[@]}" -eq 0 ] && [ "${#UPDATED[@]}
   printf '  nothing to do\n'
 fi
 printf '\n'
+
+if [ "$GLOBAL_AGENTS" -eq 1 ]; then
+  bootstrap_global_agents || status=1
+else
+  printf 'Global policy\n'
+  printf '  not requested; no instruction file was read or written (pass --global-agents to bootstrap one)\n\n'
+fi
 
 if [ -x "$SCRIPT_DIR/doctor.sh" ]; then
   printf 'Running doctor\n'

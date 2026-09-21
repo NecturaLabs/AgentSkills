@@ -157,5 +157,102 @@ bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
 check "codex-other-checkout-refreshed-with-force" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
 check "codex-foreign-survives-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/security-review")"
 
+# --- global policy bootstrap ---------------------------------------------------------------
+# Installing skills and installing an operating policy are separate operations. These assert the
+# second never happens by accident, and never destroys an instruction file that is already in force.
+
+policy_snapshot() {
+  # Every instruction file and backup under the sandbox home, with content, so any silent rewrite
+  # shows up as a diff rather than as a passing test.
+  find "$1" \( -name 'AGENTS.md' -o -name 'AGENTS.override.md' -o -name 'CLAUDE.md' \
+    -o -name 'CLAUDE.local.md' -o -name '*.backup-*' \) -printf '%y %p ' -exec cat {} \; 2>/dev/null | sort
+}
+backup_count() { find "$1" -name '*.backup-*' 2>/dev/null | wc -l | tr -d ' '; }
+
+# 12. an ordinary install writes no instruction file at all, even next to an existing one
+H=$(new_home)
+printf 'MY OWN GLOBAL POLICY\n' > "$H/.claude/CLAUDE.md"
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "plain-install-touches-no-policy" "$snap" "$(policy_snapshot "$H")"
+check "plain-install-creates-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+
+# 13. --global-agents on a clean home produces the canonical file plus both adapters
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "bootstrap-canonical-is-regular-file" "yes" "$([ -f "$H/.claude/AGENTS.md" ] && [ ! -L "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "bootstrap-canonical-matches-source" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "bootstrap-claude-adapter" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "bootstrap-codex-adapter-is-link" "$H/.claude/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+check "bootstrap-no-spurious-backups" "0" "$(backup_count "$H")"
+
+# 14. re-running changes nothing and still creates no backup
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "bootstrap-idempotent" "$snap" "$(policy_snapshot "$H")"
+
+# 15. --dry-run writes no policy file
+H=$(new_home)
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents --dry-run >/dev/null 2>&1
+check "bootstrap-dry-run-writes-nothing" "$snap" "$(policy_snapshot "$H")"
+check "bootstrap-dry-run-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+
+# 16. a CLAUDE.md carrying real policy is never rewritten without --replace-global, and an
+#     existing canonical file and codex doc are left exactly as found
+H=$(new_home)
+printf 'MY REAL GLOBAL POLICY\nrule one\n' > "$H/.claude/CLAUDE.md"
+printf 'MY EXISTING CANONICAL\n' > "$H/.claude/AGENTS.md"
+printf 'MY EXISTING CODEX DOC\n' > "$H/.codex/AGENTS.md"
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "bootstrap-refuses-existing-policy" "$snap" "$(policy_snapshot "$H")"
+check "bootstrap-refusal-makes-no-backup" "0" "$(backup_count "$H")"
+
+# 17. with --replace-global each conflict is backed up first, and the backup holds the old content
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "replace-global-claude-adapter" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "replace-global-canonical-replaced" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "replace-global-codex-relinked" "$H/.claude/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+check "replace-global-backed-up-three" "3" "$(backup_count "$H")"
+check "replace-global-backup-keeps-claude-policy" "MY REAL GLOBAL POLICY" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null | head -1)"
+check "replace-global-backup-keeps-canonical" "MY EXISTING CANONICAL" "$(cat "$H"/.claude/AGENTS.md.backup-* 2>/dev/null | head -1)"
+check "replace-global-backup-keeps-codex-doc" "MY EXISTING CODEX DOC" "$(cat "$H"/.codex/AGENTS.md.backup-* 2>/dev/null | head -1)"
+
+# 18. --replace-global is meaningless on its own and must be rejected before anything is written
+H=$(new_home)
+snap=$(policy_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --replace-global >/dev/null 2>&1
+check "replace-global-alone-rejected" "2" "$?"
+check "replace-global-alone-writes-nothing" "$snap" "$(policy_snapshot "$H")"
+
+# 19. a custom source file is what lands, so a personalized policy can be installed instead
+H=$(new_home)
+printf 'PERSONALIZED POLICY\n' > "$H/mine.md"
+bash "$INSTALL" --prefix "$H" --global-agents "$H/mine.md" >/dev/null 2>&1
+check "bootstrap-custom-source" "PERSONALIZED POLICY" "$(cat "$H/.claude/AGENTS.md" 2>/dev/null)"
+
+# 20. an AGENTS.override.md is reported but never removed -- doctor and install both leave it
+printf 'override rules\n' > "$H/.codex/AGENTS.override.md"
+bash "$INSTALL" --prefix "$H" --global-agents "$H/mine.md" >/dev/null 2>&1
+check "override-survives-bootstrap" "override rules" "$(cat "$H/.codex/AGENTS.override.md" 2>/dev/null)"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "doctor-reports-override-shadowing" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'never read' || true)"
+
+# 21. doctor detects a skill name resolving to different targets across the two Codex roots.
+#     Both roots are live for some Codex versions, so a stale link in the compatibility root
+#     shadowing the real one in .agents/skills is a genuine version-skew bug, not cosmetic.
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+mkdir -p "$H/.codex/skills"
+ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.codex/skills/testing"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "doctor-detects-cross-root-shadow" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'resolves to different targets across roots' || true)"
+check "doctor-shadow-is-an-error" "1" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\].*testing resolves to different targets' || true)"
+# ...and stays quiet when every root agrees.
+rm -f "$H/.codex/skills/testing"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "doctor-no-false-shadow" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'no skill name resolves to conflicting targets' || true)"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
