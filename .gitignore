@@ -4,34 +4,23 @@ package-lock.json
 
 # OS files
 Thumbs.db
-ehthumbs.db
-Desktop.ini
 .DS_Store
 
 # IDE / Editor
 .vscode/
 .idea/
 *.swp
-*.swo
 *~
 
 # Environment
 .env
 .env.local
-.env.*.local
-
-# Build output
-dist/
-build/
-out/
 
 # Logs
 *.log
-npm-debug.log*
 
-# Cache
-.cache/
-.tmp/
-
-# Local git worktrees live here; the tracked .claude/CLAUDE.md must stay tracked
+# Local git worktrees live here; sibling branches keep their own uncommitted state in them
 .claude/worktrees/
+
+# Eval runs write here
+evals/results/
