@@ -189,11 +189,16 @@ graph is the execution plane.
 - Deterministic plumbing — flattening, filtering, deduplication, sorting, routing on known fields,
   counters, retry and round bookkeeping — belongs in the script, or in the manager under ordinary
   dispatch. Never spend a model call on it.
-- Completion notifications arrive on their own, so never poll for them. Check in on an event: a
-  handoff lands, a node escalates, or a long-running node has been quiet long enough that
-  stalling or drift is the likelier explanation than progress. Then weigh progress, blockers,
-  scope adherence, duplicated effort and stale work, and nudge, redirect, cancel or reassign.
-  Anything that finishes in a few minutes reports before a check would have told you anything.
+- Completion notifications arrive on their own, so never poll to learn whether a node is done.
+  Check in on an event: a handoff lands, a node escalates, or a long-running node has been quiet
+  long enough that stalling or drift is the likelier explanation than progress. Then weigh
+  progress, blockers, scope adherence, duplicated effort and stale work, and nudge, redirect,
+  cancel or reassign.
+- A heartbeat sits on top of that, not instead of it: every 5 minutes while ordinary subagents are
+  active, run the same check, so a node that has gone quiet without emitting an event is still
+  caught. Never poll tighter than that — work that finishes inside one interval reports before a
+  check could have told you anything. A script-held workflow is exempt and keeps its own
+  deterministic monitoring.
 
 ### Context
 
