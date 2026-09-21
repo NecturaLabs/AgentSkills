@@ -456,5 +456,71 @@ bash "$INSTALL" --prefix "$H" --global-agents "$H/chosen.md" --replace-global >/
 check "legacy-explicit-source-wins" "AN EXPLICIT CHOICE" "$(cat "$H/.agents/AGENTS.md" 2>/dev/null)"
 check "legacy-explicit-source-still-backs-up" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
 
+# 28. backup feasibility is preflighted, not discovered mid-write. Backups are named from one
+#      timestamp fixed at the start of the run, so every path the run needs is knowable before
+#      the first write; finding a taken one halfway through would leave the policy half
+#      migrated -- canonical replaced, adapter not, the two harnesses on different rules.
+occupy_backup_slots() {
+  # The run's timestamp is whatever second it starts in, so occupy a few to make the collision
+  # deterministic rather than a race with the clock.
+  local target=$1 off
+  for off in 0 1 2 3 4; do
+    printf 'pre-existing backup\n' > "$target.backup-$(date -u -d "+$off seconds" +%Y%m%dT%H%M%SZ)"
+  done
+}
+
+# 28a. a collision at the SECOND destination must stop the first from being touched
+H=$(new_home)
+printf 'MY CANONICAL\n' > "$H/.agents/AGENTS.md"
+printf 'MY REAL CLAUDE POLICY\n' > "$H/.claude/CLAUDE.md"
+occupy_backup_slots "$H/.claude/CLAUDE.md"
+out=$(bash "$INSTALL" --prefix "$H" --global-agents --replace-global 2>&1)
+check "backupclash-exit" "1" "$?"
+check "backupclash-canonical-untouched" "MY CANONICAL" "$(cat "$H/.agents/AGENTS.md" 2>/dev/null)"
+check "backupclash-adapter-untouched" "MY REAL CLAUDE POLICY" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "backupclash-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
+check "backupclash-reported" "1" "$(printf '%s\n' "$out" | grep -c "cannot be backed up under this run's timestamp")"
+# the occupied backups are someone else's files and must survive untouched
+check "backupclash-existing-backups-intact" "pre-existing backup" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null | sort -u)"
+
+# 28b. the same during a pre-release migration
+H=$(make_legacy_home)
+occupy_backup_slots "$H/.claude/AGENTS.md"
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "backupclash-migration-exit" "1" "$?"
+check "backupclash-migration-policy-intact" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H/.claude/AGENTS.md" 2>/dev/null)"
+check "backupclash-migration-adapter-intact" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "backupclash-migration-no-neutral" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
+
+# 28c. when every backup path is free, --replace-global still does the whole job, and every
+#      backup shares the one timestamp the run fixed at the start
+H=$(new_home)
+printf 'OLD CANON\n' > "$H/.agents/AGENTS.md"
+printf 'OLD ADAPTER\n' > "$H/.claude/CLAUDE.md"
+printf 'OLD CODEX\n' > "$H/.codex/AGENTS.md"
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "backupfree-exit" "0" "$?"
+check "backupfree-canonical-replaced" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "backupfree-adapter" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "backupfree-three-backups" "3" "$(backup_count "$H")"
+check "backupfree-one-timestamp" "1" "$(find "$H" -name '*.backup-*' -printf '%f\n' | sed 's/.*backup-//' | sort -u | wc -l | tr -d ' ')"
+
+# 29. a directory or other special object at any destination is never moved, even with
+#      --replace-global: renaming one is not the same operation as replacing a file, and nothing
+#      here knows what it holds.
+for tgt in .agents/AGENTS.md .claude/CLAUDE.md .claude/AGENTS.md .codex/AGENTS.md; do
+  H=$(new_home)
+  mkdir -p "$H/$tgt"
+  printf 'someone else\n' > "$H/$tgt/keep.txt"
+  out=$(bash "$INSTALL" --prefix "$H" --global-agents --replace-global 2>&1)
+  rc=$?
+  label=${tgt//\//-}
+  check "dirblock-$label-exit" "1" "$rc"
+  check "dirblock-$label-still-a-dir" "yes" "$([ -d "$H/$tgt" ] && [ ! -L "$H/$tgt" ] && echo yes || echo no)"
+  check "dirblock-$label-contents-kept" "someone else" "$(cat "$H/$tgt/keep.txt" 2>/dev/null)"
+  check "dirblock-$label-reported" "1" "$(printf '%s\n' "$out" | grep -c 'directory or other special object')"
+  check "dirblock-$label-no-backup" "0" "$(backup_count "$H")"
+done
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

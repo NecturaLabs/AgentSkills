@@ -104,9 +104,17 @@ Refusal rules, all of which hold with `--dry-run` and without it:
   **nothing is written anywhere**, and the run exits non-zero. Writing the adapters while
   refusing the canonical file would point both harnesses at a policy the run had just declined
   to install.
-- `--replace-global` is the only way to replace any of them, and it moves the existing file to
-  `<path>.backup-<UTC timestamp>` first. It never overwrites an existing backup; if one from the
-  same second is already there, that action is abandoned and the original is left alone.
+- `--replace-global` is the only way to replace any of them, and it moves the existing entry to
+  `<path>.backup-<UTC timestamp>` first. One timestamp is fixed at the start of the run, so every
+  backup path the run will need is known before the first write and all of them are checked for
+  collisions up front. If any is already taken, every collision is reported and **nothing is
+  written anywhere** — discovering one halfway through would leave the policy half migrated, with
+  the canonical file replaced and the adapter not, putting the two harnesses on different rules.
+  An existing backup is never overwritten.
+- `--replace-global` moves aside only a regular file or a symlink. A directory or any other
+  special object at a destination is a hard conflict it cannot resolve: renaming one is not the
+  same operation as replacing a file, and nothing here knows what it holds. Such a destination is
+  reported and the run writes nothing, with or without the flag.
 - `--replace-global` without `--global-agents` is rejected before anything is read or written.
 - An `AGENTS.override.md` in the Codex home is reported, never removed — Codex prefers it over
   `AGENTS.md`, so it silently shadows the canonical policy.

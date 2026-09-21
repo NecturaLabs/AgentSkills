@@ -315,7 +315,19 @@ done
 GLOBAL_ACTIONS=()
 g_note() { GLOBAL_ACTIONS+=("$1"); }
 
-timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
+# One timestamp for the whole run. Every backup is named from it, so each backup path a run will
+# need is knowable during preflight and can be checked for collisions before the first write.
+TX_STAMP=''
+backup_path_of() { printf '%s.backup-%s' "$1" "$TX_STAMP"; }
+
+# Only a regular file or a symlink may be moved aside. A directory or any other special object is
+# never moved or replaced, with --replace-global or without: renaming one is not the same
+# operation as replacing a file, and nothing here knows what it holds.
+is_replaceable_entry() {
+  [ -L "$1" ] && return 0
+  [ -f "$1" ] && return 0
+  return 1
+}
 
 # The import line the Claude adapter must carry. `~` is what a real install writes, because the
 # adapter has to be portable across machines; a --prefix sandbox gets the absolute path instead,
@@ -348,18 +360,6 @@ is_import_only_shim() {
   [ "$body" = "$want" ]
 }
 
-# Moves an existing file aside. Never overwrites a backup, and never touches the original on
-# failure, so a conflicting name aborts that one action instead of destroying anything.
-backup_path_for() {
-  local target=$1 stamp candidate
-  stamp=$(timestamp_utc)
-  candidate=$target.backup-$stamp
-  if [ -e "$candidate" ] || [ -L "$candidate" ]; then
-    return 1
-  fi
-  printf '%s' "$candidate"
-}
-
 # Each destination is classified before anything is written: "create" (nothing there), "ok"
 # (already exactly what we would write) or "conflict" with a reason. A --global-agents run is
 # all-or-nothing with respect to conflicts, because the three destinations are one mechanism:
@@ -368,6 +368,10 @@ backup_path_for() {
 classify_canonical() {
   local src=$1 dst=$2
   if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
   # A symlink is a conflict even when its bytes match today. The canonical policy is copied, not
   # linked, precisely so that nothing outside the user's own file can change their live
   # instructions later -- a link into a checkout is rewritten by the next pull.
@@ -383,6 +387,10 @@ classify_canonical() {
 classify_claude_adapter() {
   local dst=$1 want=$2
   if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
   if [ -L "$dst" ]; then
     printf 'conflict|%s is a symlink -> %s; the Claude adapter must be a regular file holding only %s' \
       "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')" "$want"
@@ -406,6 +414,10 @@ classify_codex_adapter() {
     return 0
   fi
   if [ ! -e "$dst" ]; then printf 'create'; return 0; fi
+  if ! is_replaceable_entry "$dst"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$dst"
+    return 0
+  fi
   printf 'conflict|%s already exists and is not a link to %s' "$dst" "$canonical"
 }
 
@@ -416,29 +428,21 @@ classify_codex_adapter() {
 classify_legacy_canonical() {
   local legacy=$1
   if [ ! -e "$legacy" ] && [ ! -L "$legacy" ]; then printf 'absent'; return 0; fi
-  printf 'conflict|%s is the pre-release canonical policy; the canonical policy now lives at %s/.agents/AGENTS.md and this file must be migrated' \
-    "$legacy" "$PREFIX"
-}
-
-# Moves a conflicting entry aside. Only ever called under --replace-global.
-move_aside() {
-  local dst=$1 backup
-  backup=$(backup_path_for "$dst") || {
-    g_note "$dst not replaced: a backup from this second already exists; left untouched"
-    return 1
-  }
-  if [ "$DRY_RUN" -eq 1 ]; then
-    printf '%s' "$backup"
+  if ! is_replaceable_entry "$legacy"; then
+    printf 'blocked|%s exists and is a directory or other special object; --replace-global only moves a regular file or a symlink aside, so this is never replaced' "$legacy"
     return 0
   fi
-  mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
-  printf '%s' "$backup"
+  printf 'conflict|%s is the pre-release canonical policy; the canonical policy now lives at %s/.agents/AGENTS.md and this file must be migrated' \
+    "$legacy" "$PREFIX"
 }
 
 apply_canonical() {
   local src=$1 dst=$2 action=$3 backup=''
   if [ "$action" = replace ]; then
-    backup=$(move_aside "$dst") || return 1
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
   fi
   if [ "$DRY_RUN" -eq 1 ]; then
     if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then write it from $src"
@@ -454,7 +458,10 @@ apply_canonical() {
 apply_claude_adapter() {
   local dst=$1 want=$2 action=$3 backup=''
   if [ "$action" = replace ]; then
-    backup=$(move_aside "$dst") || return 1
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
   fi
   if [ "$DRY_RUN" -eq 1 ]; then
     if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then replace it with '$want'"
@@ -471,18 +478,22 @@ apply_claude_adapter() {
 # used as the bootstrap source when no other was named, so the policy survives in both places.
 apply_legacy_retire() {
   local legacy=$1 backup
-  backup=$(move_aside "$legacy") || return 1
+  backup=$(backup_path_of "$legacy")
   if [ "$DRY_RUN" -eq 1 ]; then
     g_note "would move the pre-release policy $legacy to $backup"
     return 0
   fi
+  mv -- "$legacy" "$backup" || { g_note "FAILED to move $legacy aside; left untouched"; return 1; }
   g_note "moved the pre-release policy $legacy to $backup"
 }
 
 apply_codex_adapter() {
   local dst=$1 canonical=$2 action=$3 backup=''
   if [ "$action" = replace ]; then
-    backup=$(move_aside "$dst") || return 1
+    backup=$(backup_path_of "$dst")
+    if [ "$DRY_RUN" -eq 0 ]; then
+      mv -- "$dst" "$backup" || { g_note "FAILED to back up $dst; left untouched"; return 1; }
+    fi
   fi
   if [ "$DRY_RUN" -eq 1 ]; then
     if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then link it -> $canonical"
@@ -502,8 +513,11 @@ bootstrap_global_agents() {
   local codex_adapter=$CODEX_HOME_DIR/AGENTS.md
   local legacy_canonical=$PREFIX/.claude/AGENTS.md
   local want migrating=0
-  local rc=0 c_can c_cla c_cod c_leg conflicts=()
+  local rc=0 c_can c_cla c_cod c_leg conflicts=() blockers=()
 
+  # Fixed before anything is inspected, so every backup path this run could need is decided up
+  # front rather than at the moment each write happens.
+  TX_STAMP=$(date -u +%Y%m%dT%H%M%SZ)
   want=$(adapter_import_line)
   c_leg=$(classify_legacy_canonical "$legacy_canonical")
 
@@ -534,10 +548,31 @@ bootstrap_global_agents() {
   c_cla=$(classify_claude_adapter "$claude_adapter" "$want")
   c_cod=$(classify_codex_adapter "$codex_adapter" "$canonical")
 
-  local entry
-  for entry in "$c_can" "$c_cla" "$c_cod" "$c_leg"; do
-    case $entry in conflict\|*) conflicts+=("${entry#conflict|}") ;; esac
-  done
+  local entry path bk
+  local -a replacing=()
+  # Classification and destination are passed as separate arguments rather than packed into one
+  # string: a reason is free prose and must never have to avoid a separator character.
+  record_dest() {
+    case $1 in
+      blocked\|*) blockers+=("${1#blocked|}") ;;
+      conflict\|*) conflicts+=("${1#conflict|}"); replacing+=("$2") ;;
+    esac
+  }
+  record_dest "$c_can" "$canonical"
+  record_dest "$c_cla" "$claude_adapter"
+  record_dest "$c_cod" "$codex_adapter"
+  record_dest "$c_leg" "$legacy_canonical"
+
+  # A directory or special object at a destination is never replaced, so --replace-global cannot
+  # clear it. Reported first, because no amount of re-running will make it proceed.
+  if [ "${#blockers[@]}" -gt 0 ]; then
+    for entry in "${blockers[@]}"; do g_note "$entry"; done
+    for entry in ${conflicts[@]+"${conflicts[@]}"}; do g_note "$entry"; done
+    g_note "nothing was written: --replace-global cannot resolve the entries above, so every destination is left untouched"
+    printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+    printf '\n'
+    return 1
+  fi
 
   if [ "${#conflicts[@]}" -gt 0 ] && [ "$REPLACE_GLOBAL" -eq 0 ]; then
     for entry in "${conflicts[@]}"; do
@@ -547,6 +582,25 @@ bootstrap_global_agents() {
     printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
     printf '\n'
     return 1
+  fi
+
+  # Every backup this run needs, checked before the first write. Discovering a taken backup path
+  # halfway through would leave the policy half-migrated: canonical replaced, adapter not.
+  if [ "${#replacing[@]}" -gt 0 ]; then
+    local -a taken=()
+    for path in "${replacing[@]}"; do
+      bk=$(backup_path_of "$path")
+      if [ -e "$bk" ] || [ -L "$bk" ]; then
+        taken+=("$bk already exists, so $path cannot be backed up under this run's timestamp")
+      fi
+    done
+    if [ "${#taken[@]}" -gt 0 ]; then
+      for entry in "${taken[@]}"; do g_note "$entry"; done
+      g_note "nothing was written: every backup a run needs is checked before the first write, so a taken backup path leaves every destination untouched (rerun in the next second, or move the existing backup aside)"
+      printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"
+      printf '\n'
+      return 1
+    fi
   fi
 
   # Codex prefers an override file, so it would shadow the canonical policy. Reported, never removed.
