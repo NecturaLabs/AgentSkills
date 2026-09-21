@@ -186,9 +186,9 @@ the execution plane.
 - Deterministic plumbing — flattening, filtering, deduplication, sorting, routing on known fields,
   counters, retry and round bookkeeping — belongs in the script, or in the manager under ordinary
   dispatch. Never spend a model call on it.
-- Check in on active subagents on a slow cadence: progress, blockers, scope adherence, duplicated
-  effort, stale work — then nudge, redirect, cancel or reassign. Never poll tighter than that;
-  completion notifications arrive on their own.
+- Run a heartbeat every 5 minutes while ordinary subagents are active: progress, blockers, scope
+  adherence, duplicated effort, stale work — then nudge, redirect, cancel or reassign. No tighter
+  polling of anything; completion notifications arrive on their own.
 
 ### Context
 
