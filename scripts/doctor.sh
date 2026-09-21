@@ -319,12 +319,15 @@ if [ ! -e "$global_shim" ]; then
     info "$global_shim absent and no $CLAUDE_HOME/AGENTS.md; no global instructions configured"
   fi
 else
-  substantive=$(grep -cvE '^[[:space:]]*(#.*)?$|^[[:space:]]*@' "$global_shim" 2>/dev/null || true)
+  # Exactly one substantive line, and it is the @AGENTS.md import. A second import such as
+  # @OTHER.md pulls in policy outside the canonical file, so it is not an import-only shim.
+  shim_body=$(grep -vE '^[[:space:]]*(#.*)?$' "$global_shim" 2>/dev/null || true)
+  substantive=$(printf '%s\n' "$shim_body" | grep -c . || true)
   substantive=${substantive:-0}
-  if [ "$substantive" -eq 0 ]; then
+  if [ "$substantive" -eq 1 ] && printf '%s\n' "$shim_body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'; then
     ok "$global_shim is an import-only shim (no policy of its own)"
   else
-    warn "$global_shim carries $substantive line(s) of its own policy; it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
+    warn "$global_shim carries $substantive substantive line(s); it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
   fi
 fi
 if [ -e "$CLAUDE_HOME/CLAUDE.local.md" ]; then

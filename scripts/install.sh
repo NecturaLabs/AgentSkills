@@ -307,11 +307,15 @@ g_note() { GLOBAL_ACTIONS+=("$1"); }
 
 timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
 
-# A shim carries the import and nothing else; comments and blank lines are still a shim.
+# A shim carries exactly one substantive line, and that line is the @AGENTS.md import. Blank
+# lines and comments are still a shim. A second import is not: `@AGENTS.md` plus `@OTHER.md`
+# pulls in policy this bootstrap does not control, so it is a conflict, not a shim to leave alone.
 is_import_only_shim() {
+  local substantive
   [ -f "$1" ] || return 1
-  grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$' "$1" || return 1
-  ! grep -qvE '^[[:space:]]*(#.*)?$|^[[:space:]]*@' "$1"
+  substantive=$(grep -vE '^[[:space:]]*(#.*)?$' "$1" 2>/dev/null || true)
+  [ "$(printf '%s\n' "$substantive" | grep -c .)" -eq 1 ] || return 1
+  printf '%s\n' "$substantive" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'
 }
 
 # Moves an existing file aside. Never overwrites a backup, and never touches the original on

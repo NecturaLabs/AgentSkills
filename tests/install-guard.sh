@@ -309,5 +309,29 @@ bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
 check "allornothing-replace-applies-all" "3" "$(backup_count "$H")"
 check "allornothing-replace-canonical" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
 
+# 23. the Claude adapter is a shim only when its one substantive line is the @AGENTS.md import.
+#      A second import pulls in policy the bootstrap does not control, so it is a conflict -- and
+#      because the run is all-or-nothing, it must leave every destination untouched.
+shim_case() {
+  local label=$1 body=$2 want_exit=$3 want_writes=$4 H before after writes
+  H=$(new_home)
+  printf '%b' "$body" > "$H/.claude/CLAUDE.md"
+  before=$(policy_snapshot "$H")
+  bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+  check "shim-$label-exit" "$want_exit" "$?"
+  after=$(policy_snapshot "$H")
+  writes=$([ "$before" = "$after" ] && echo no || echo yes)
+  check "shim-$label-writes" "$want_writes" "$writes"
+  if [ "$want_writes" = no ]; then
+    check "shim-$label-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+    check "shim-$label-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
+    check "shim-$label-no-backups" "0" "$(backup_count "$H")"
+  fi
+}
+shim_case "import-only"    '@AGENTS.md\n'             "0" "yes"
+shim_case "comments-blanks" '# mine\n\n@AGENTS.md\n\n' "0" "yes"
+shim_case "second-import"  '@AGENTS.md\n@OTHER.md\n'  "1" "no"
+shim_case "foreign-import" '@OTHER.md\n'              "1" "no"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

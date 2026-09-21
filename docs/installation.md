@@ -79,10 +79,13 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 - **A run is all-or-nothing with respect to conflicts.** The three destinations are one
   mechanism, so every one is classified before anything is written. A canonical file that exists
   and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, and a Codex
-  `AGENTS.md` that is not already the link. If any destination conflicts and `--replace-global` is
-  absent, all conflicts are reported, **nothing is written anywhere**, and the run exits non-zero.
-  Writing the adapters while refusing the canonical file would point both harnesses at a policy
-  the run had just declined to install.
+  `AGENTS.md` that is not already the link. "Just the import" is exact: one substantive line,
+  and that line is `@AGENTS.md`. Blank lines and comments are fine; a second import such as
+  `@OTHER.md` is a conflict, because it pulls in policy the canonical file does not control.
+  If any destination conflicts and `--replace-global` is absent, all conflicts are reported,
+  **nothing is written anywhere**, and the run exits non-zero. Writing the adapters while
+  refusing the canonical file would point both harnesses at a policy the run had just declined
+  to install.
 - `--replace-global` is the only way to replace any of them, and it moves the existing file to
   `<path>.backup-<UTC timestamp>` first. It never overwrites an existing backup; if one from the
   same second is already there, that action is abandoned and the original is left alone.
