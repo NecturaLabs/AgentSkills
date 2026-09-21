@@ -21,11 +21,14 @@ checked against.
   - `claude-md-or-agents-md` — the default described above
   - `claude-md-and-agents-md` — both, always
   - `managed-only` — only an organization-managed file
-- **Consequence:** a user-scope file at `~/.claude/AGENTS.md` is **not** reached by an ancestors walk
-  from a project rooted elsewhere on disk — the walk starts at the working directory and climbs, it
-  does not also check the home directory. Nothing loads it natively. A `~/.claude/CLAUDE.md`
-  containing `@AGENTS.md` is what actually loads it, because `CLAUDE.md`'s own import mechanism —
+- **Consequence:** a user-scope `AGENTS.md` is **not** reached by an ancestors walk from a project
+  rooted elsewhere on disk — the walk starts at the working directory and climbs, it does not also
+  check the home directory. Nothing loads it natively, wherever you keep it. A `~/.claude/CLAUDE.md`
+  holding a single import is what actually loads it, because `CLAUDE.md`'s own import mechanism —
   not the `AGENTS.md` discovery path — pulls the file in.
+- **Verified:** that import may name any path, not just a sibling. Both `@~/…` and an absolute path
+  resolve, checked on 2.1.278 against a file reachable only through the import. So the user-scope
+  policy does not have to live in the harness's own directory; the adapter can point anywhere.
 - Support for native `AGENTS.md` reading is additionally gated by a remote feature flag whose
   code-level default is off. It can be unavailable on another account even at the same client
   version, independent of the `instructionFiles` setting.

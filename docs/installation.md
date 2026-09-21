@@ -70,24 +70,32 @@ bash scripts/install.sh --global-agents <file> --replace-global
 
 | Path | What it becomes | Why |
 |---|---|---|
-| `<prefix>/.claude/AGENTS.md` | Regular file, copied from the source | The canonical policy. A copy rather than a symlink into the checkout, so `git pull` cannot silently rewrite it. |
-| `<prefix>/.claude/CLAUDE.md` | Regular file containing exactly `@AGENTS.md` | Claude Code's `AGENTS.md` discovery walks the working directory's ancestors, so it never reaches a user-scope file; the import is what loads it. Delete this once native user-scope loading lands. |
+| `<prefix>/.agents/AGENTS.md` | Regular file, copied from the source | The canonical policy, in neither harness's directory. A copy rather than a symlink into the checkout, so `git pull` cannot silently rewrite it. |
+| `<prefix>/.claude/CLAUDE.md` | Regular file containing exactly `@~/.agents/AGENTS.md` | Claude Code's `AGENTS.md` discovery walks the working directory's ancestors, so it never reaches a user-scope file; the import is what loads it. Verified on 2.1.278: a `CLAUDE.md` import resolves both `@~/…` and absolute paths. Delete this once native user-scope loading lands. |
 | `<codex home>/AGENTS.md` | Symlink to the canonical file | Codex reads `$CODEX_HOME/AGENTS.md` through its own code path. Linking rather than copying is what keeps one maintained source instead of two that drift. |
 
-**The Codex adapter is the only symlink in this layout.** Both Claude paths must be regular
-files. A symlink at either one is a conflict even when the bytes behind it are exactly what would
-have been written, because the point of copying the canonical policy is that nothing outside the
-user's own file decides what loads on every task — a link into a checkout hands that back to the
-next `git pull`. `--replace-global` moves the symlink itself aside as the backup and writes a
-regular file in its place.
+**The policy lives in neither harness's directory.** Claude Code and Codex are peer consumers of
+one neutral file, each reached through its own adapter, so adding a third harness later means
+adding a third adapter rather than relocating the policy. There is no `~/.claude/AGENTS.md` in
+this layout.
+
+**The Codex adapter is the only symlink in this layout.** The canonical file and the Claude
+adapter must both be regular files. A symlink at either is a conflict even when the bytes behind
+it are exactly what would have been written, because the point of copying the canonical policy is
+that nothing outside the user's own file decides what loads on every task — a link into a
+checkout hands that back to the next `git pull`. `--replace-global` moves the symlink itself
+aside as the backup and writes a regular file in its place.
 
 Refusal rules, all of which hold with `--dry-run` and without it:
 
 - **A run is all-or-nothing with respect to conflicts.** The three destinations are one
   mechanism, so every one is classified before anything is written. A canonical file that exists
   and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, and a Codex
-  `AGENTS.md` that is not already the link, and a symlink at either Claude path. "Just the
-  import" is exact: a regular file whose one non-blank line is `@AGENTS.md`. Blank lines are
+  `AGENTS.md` that is not already the link, a symlink at the canonical path or the Claude
+  adapter, and a policy still sitting at the pre-release `<prefix>/.claude/AGENTS.md`. "Just the
+  import" is exact: a regular file whose one non-blank line is `@~/.agents/AGENTS.md`
+  (a `--prefix` sandbox gets the absolute form, so the adapter points inside the sandbox rather
+  than at the real home). Blank lines are
   fine; no other content is. `CLAUDE.md` is Markdown
   and has no comment syntax, so a `# note` line is a heading the model reads, and a second
   import such as `@OTHER.md` pulls in policy the canonical file does not control — either one
@@ -103,10 +111,30 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 - An `AGENTS.override.md` in the Codex home is reported, never removed — Codex prefers it over
   `AGENTS.md`, so it silently shadows the canonical policy.
 
-`doctor.sh` reports the same surface read-only: whether a canonical policy exists and is a
-regular file rather than a symlink, whether `CLAUDE.md` is still a regular import-only shim,
-whether the Codex file resolves to the canonical one or has become a separate copy, and whether
-an override is shadowing it. It never repairs any of them.
+### Migrating the pre-release layout
+
+An earlier revision of this branch put the policy at `~/.claude/AGENTS.md`, with the adapter
+importing `@AGENTS.md` and Codex linked into Claude's directory. That layout was never released
+and is not a compatibility contract. It is recognized, never silently changed:
+
+- `doctor.sh` reports a policy still at `~/.claude/AGENTS.md` as the pre-release canonical path
+  and names the migration command; it reports an adapter importing `@AGENTS.md` as pointing back
+  into Claude's own directory; and it reports a Codex adapter still aimed at the old path.
+- An ordinary `--global-agents` run treats the old policy as a conflict, so it refuses and writes
+  nothing rather than leaving two files that both claim to be the policy.
+- `install.sh --global-agents --replace-global` migrates it: the old file's own bytes become the
+  source when no `FILE` was named, so the policy moves rather than being overwritten by the
+  example; the adapter is rewritten to the neutral import; Codex is relinked; and the old file is
+  moved to a timestamped backup rather than deleted. Naming a `FILE` explicitly still wins, and
+  the old policy is backed up either way.
+- If an old `~/.claude/AGENTS.md` is still present after a run that did not migrate, `doctor.sh`
+  reports it as leftover state that is no longer read as policy — it never deletes it.
+
+`doctor.sh` reports the same surface read-only: whether a canonical policy exists at
+`~/.agents/AGENTS.md` and is a regular file rather than a symlink, whether `CLAUDE.md` is a
+regular file holding exactly the neutral import, whether the Codex file resolves to the canonical
+one or has become a separate copy, and whether an override is shadowing it. It never repairs any
+of them.
 
 ## Alternative: Claude Code plugin
 
@@ -139,11 +167,13 @@ switches that repository to native `AGENTS.md` loading. The behavior is governed
 `managed-only`. Availability is additionally gated by a remote feature flag whose built-in default is
 off, so another account may not have it.
 
-One consequence is easy to miss: **a user-scope `~/.claude/AGENTS.md` is not reached by an ancestors
-walk** from a project stored elsewhere on disk, so it is not loaded natively. Verified by moving
-`~/.claude/CLAUDE.md` aside and starting a fresh session: the global instructions did not load. If
-you keep global policy in `~/.claude/AGENTS.md`, a `~/.claude/CLAUDE.md` containing only
-`@AGENTS.md` is what loads it.
+One consequence is easy to miss: **a user-scope `AGENTS.md` is not reached by an ancestors walk**
+from a project stored elsewhere on disk, so it is not loaded natively wherever you keep it.
+Verified by moving `~/.claude/CLAUDE.md` aside and starting a fresh session: the global
+instructions did not load. A `~/.claude/CLAUDE.md` holding a single import is what loads user-scope
+policy, and the import may name any path — verified on 2.1.278 that both `@~/…` and an absolute
+path resolve, against a file reachable only through the import. That is why the bootstrap above
+can keep the policy at `~/.agents/AGENTS.md` and still have Claude Code load it.
 
 **Codex 0.155.1** reads `$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`) through its own code
 path, and separately discovers project-level `AGENTS.override.md`, then `AGENTS.md`, then any

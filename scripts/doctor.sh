@@ -296,13 +296,19 @@ printf '\n'
 
 printf 'AGENTS.md health\n'
 
-# Claude Code reaches a user-scope AGENTS.md through no native path: its discovery walks the
-# ancestors of the working directory, which never reaches ~/.claude for a project stored elsewhere.
-# So ~/.claude/CLAUDE.md holding exactly the import is correct here, and its absence is the fault.
-# Content is anything beyond the import and blank space; Markdown has no comment syntax.
-# The canonical global policy. install.sh --global-agents puts a regular file here and points both
-# harnesses at it; doctor only reports what it finds and never changes any of it.
-canonical_policy=$CLAUDE_HOME/AGENTS.md
+# The canonical global policy lives in neither harness's directory: both are peer consumers and
+# each gets an adapter pointing at it. Claude Code reaches a user-scope AGENTS.md through no
+# native path -- its discovery walks the ancestors of the working directory, which never reaches
+# the home directory -- so ~/.claude/CLAUDE.md holding exactly the import is what loads it.
+# doctor only reports what it finds here and never changes any of it.
+canonical_policy=$AGENTS_HOME/AGENTS.md
+legacy_policy=$CLAUDE_HOME/AGENTS.md
+if [ "$PREFIX" = "${HOME:-}" ]; then
+  expected_import="@~/.agents/AGENTS.md"
+else
+  expected_import="@$PREFIX/.agents/AGENTS.md"
+fi
+
 # -f follows symlinks, so the link test comes first. The canonical policy is deliberately a copy:
 # a symlink means something outside the user's own file decides what loads on every task, and
 # updating that target -- a git pull, say -- rewrites their global instructions with no signal.
@@ -316,26 +322,42 @@ else
   info "no $canonical_policy; no canonical global policy installed (bootstrap one with install.sh --global-agents)"
 fi
 
-global_shim=$CLAUDE_HOME/CLAUDE.md
-if [ ! -e "$global_shim" ]; then
-  if [ -e "$CLAUDE_HOME/AGENTS.md" ]; then
-    err "$CLAUDE_HOME/AGENTS.md exists but $global_shim does not; Claude Code loads no global instructions (it does not read a user-scope AGENTS.md natively)"
+# The pre-release layout kept the policy in Claude's own directory. It is never written now, and
+# never treated as the canonical policy: left in place it is a second file claiming to be policy.
+if [ -e "$legacy_policy" ] || [ -L "$legacy_policy" ]; then
+  if [ -f "$canonical_policy" ]; then
+    warn "$legacy_policy is left over from the pre-release layout and is no longer read as policy; the canonical policy is $canonical_policy. Move it aside once you have confirmed nothing you want is only in it"
   else
-    info "$global_shim absent and no $CLAUDE_HOME/AGENTS.md; no global instructions configured"
+    warn "$legacy_policy holds the pre-release canonical policy; the canonical policy now lives at $canonical_policy. Migrate with: install.sh --global-agents --replace-global (it carries this file's contents over and backs the original up)"
+  fi
+fi
+
+global_shim=$CLAUDE_HOME/CLAUDE.md
+if [ ! -e "$global_shim" ] && [ ! -L "$global_shim" ]; then
+  if [ -f "$canonical_policy" ] || [ -e "$legacy_policy" ]; then
+    err "a global policy exists but $global_shim does not; Claude Code loads no global instructions (it does not read a user-scope AGENTS.md natively)"
+  else
+    info "$global_shim absent and no canonical policy; no global instructions configured"
   fi
 else
-  # Exactly one non-blank line, and it is the @AGENTS.md import. CLAUDE.md is Markdown and has no
-  # comment syntax, so a '# note' line is a heading the model reads; that and a second import such
-  # as @OTHER.md are both content of their own, and neither is an import-only shim.
+  # Exactly one non-blank line, and it is the neutral import. CLAUDE.md is Markdown and has no
+  # comment syntax, so a '# note' line is a heading the model reads; that, a second import, and
+  # the pre-release '@AGENTS.md' are each content or a wrong target, not a valid adapter.
   shim_body=$(grep -vE '^[[:space:]]*$' "$global_shim" 2>/dev/null || true)
   substantive=$(printf '%s\n' "$shim_body" | grep -c . || true)
   substantive=${substantive:-0}
+  shim_line=${shim_body#"${shim_body%%[![:space:]]*}"}
+  shim_line=${shim_line%"${shim_line##*[![:space:]]}"}
   if [ -L "$global_shim" ]; then
-    warn "$global_shim is a symlink -> $(readlink -- "$global_shim" 2>/dev/null || printf '<unresolvable>'); the Claude adapter must be a regular file holding only '@AGENTS.md'"
-  elif [ "$substantive" -eq 1 ] && printf '%s\n' "$shim_body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'; then
-    ok "$global_shim is an import-only shim (no content of its own)"
+    warn "$global_shim is a symlink -> $(readlink -- "$global_shim" 2>/dev/null || printf '<unresolvable>'); the Claude adapter must be a regular file holding only '$expected_import'"
+  elif [ "$substantive" -eq 1 ] && [ "$shim_line" = "$expected_import" ]; then
+    ok "$global_shim imports the canonical policy ($expected_import) and holds nothing else"
+  elif [ "$substantive" -eq 1 ] && [ "$shim_line" = "@AGENTS.md" ]; then
+    warn "$global_shim is the pre-release adapter importing '@AGENTS.md', which points back into $CLAUDE_HOME rather than at the canonical policy; it should import '$expected_import'"
+  elif [ "$substantive" -eq 1 ]; then
+    warn "$global_shim imports '$shim_line'; it should import '$expected_import' so the canonical policy stays the single maintained source"
   else
-    warn "$global_shim holds $substantive non-blank line(s); it should hold only '@AGENTS.md' so AGENTS.md stays the single maintained source"
+    warn "$global_shim holds $substantive non-blank line(s); it should hold only '$expected_import'"
   fi
 fi
 if [ -e "$CLAUDE_HOME/CLAUDE.local.md" ]; then
@@ -433,8 +455,11 @@ else
   fi
   # One canonical source: Codex should read the same bytes as Claude Code, not a second copy that
   # drifts. Reported, never repaired -- install.sh --global-agents is what changes it.
-  if [ -f "$canonical_policy" ]; then
-    codex_target=$(readlink -f -- "$codex_doc" 2>/dev/null || true)
+  codex_target=$(readlink -f -- "$codex_doc" 2>/dev/null || true)
+  legacy_real=$(readlink -f -- "$legacy_policy" 2>/dev/null || printf '%s' "$legacy_policy")
+  if [ -n "$codex_target" ] && [ "$codex_target" = "$legacy_real" ] && [ "$legacy_real" != "$canonical_policy" ]; then
+    warn "$codex_doc points at $legacy_policy, the pre-release canonical path, not at $canonical_policy; migrate with install.sh --global-agents --replace-global"
+  elif [ -f "$canonical_policy" ]; then
     canonical_real=$(readlink -f -- "$canonical_policy" 2>/dev/null || printf '%s' "$canonical_policy")
     if [ "$codex_target" = "$canonical_real" ]; then
       ok "Codex reads the canonical policy ($codex_doc -> $canonical_real)"

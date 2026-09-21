@@ -21,16 +21,21 @@ operations: without --global-agents this script touches no instruction file.
 
   --global-agents [FILE]
                 Additionally bootstrap the canonical global instruction file at
-                <prefix>/.claude/AGENTS.md from FILE, defaulting to this
-                checkout's examples/global-agents.md. Also writes the Claude
-                adapter <prefix>/.claude/CLAUDE.md containing only '@AGENTS.md',
-                and points Codex at the same canonical file by symlinking
-                <codex home>/AGENTS.md to it, so there is never a second
-                independently maintained copy. Anything already present that
-                would conflict is left untouched and reported.
+                <prefix>/.agents/AGENTS.md from FILE, defaulting to this
+                checkout's examples/global-agents.md. The policy lives in
+                neither harness's directory; each gets an adapter instead:
+                <prefix>/.claude/CLAUDE.md holding only '@~/.agents/AGENTS.md',
+                and <codex home>/AGENTS.md symlinked to the canonical file, so
+                there is never a second independently maintained copy. Anything
+                already present that would conflict is left untouched and
+                reported.
   --replace-global
                 Only with --global-agents. Replace a conflicting file after
-                backing it up alongside itself. Never used implicitly.
+                backing it up alongside itself, and migrate the pre-release
+                layout: a policy still at <prefix>/.claude/AGENTS.md becomes
+                the source when no FILE was named, so it moves to the neutral
+                path rather than being overwritten by the example, and the
+                original is backed up rather than deleted. Never implicit.
 USAGE
 }
 
@@ -293,32 +298,54 @@ done
 # different operations, and the second one overwrites how every future session behaves, so it is
 # never implied by the first. The layout it produces keeps exactly one canonical file:
 #
-#   <prefix>/.claude/AGENTS.md   the policy itself, a regular file the user owns and edits
-#   <prefix>/.claude/CLAUDE.md   '@AGENTS.md' -- the adapter Claude Code needs, because its
-#                                AGENTS.md discovery walks the working directory's ancestors and
-#                                so never reaches the home directory
+#   <prefix>/.agents/AGENTS.md   the policy itself, a regular file the user owns and edits
+#   <prefix>/.claude/CLAUDE.md   '@~/.agents/AGENTS.md' -- the adapter Claude Code needs, because
+#                                its AGENTS.md discovery walks the working directory's ancestors
+#                                and so never reaches the home directory
 #   <codex home>/AGENTS.md       a symlink to the canonical file, so Codex reads the same bytes
 #                                rather than a second copy that drifts
 #
-# The canonical file is a copy of the source, never a link into this checkout: a link would make
-# `git pull` silently rewrite the user's own policy.
+# The policy lives in neither harness's directory. Both harnesses are peer consumers of it and
+# each gets an adapter; adding a third harness later means adding a third adapter, not moving the
+# policy. The canonical file is a copy of the source, never a link into this checkout: a link
+# would make `git pull` silently rewrite the user's own policy.
+#
+# <prefix>/.claude/AGENTS.md is the pre-release layout's canonical path. It is never written here
+# and never read as policy; it is reported, and migrated only under --replace-global.
 GLOBAL_ACTIONS=()
 g_note() { GLOBAL_ACTIONS+=("$1"); }
 
 timestamp_utc() { date -u +%Y%m%dT%H%M%SZ; }
 
-# A shim carries exactly one non-blank line, and that line is the @AGENTS.md import. Blank lines
-# are fine; nothing else is. CLAUDE.md is Markdown, so it has no comment syntax -- a `# note`
-# line is an H1 heading the model reads, and `@OTHER.md` pulls in policy this bootstrap does not
+# The import line the Claude adapter must carry. `~` is what a real install writes, because the
+# adapter has to be portable across machines; a --prefix sandbox gets the absolute path instead,
+# so the adapter it writes actually points inside that sandbox rather than at the real home.
+# Claude Code resolves both forms -- verified on 2.1.278 against a file only reachable through
+# the import.
+adapter_import_line() {
+  if [ "$PREFIX" = "${HOME:-}" ]; then
+    printf '@~/.agents/AGENTS.md'
+  else
+    printf '@%s/.agents/AGENTS.md' "$PREFIX"
+  fi
+}
+
+# A shim carries exactly one non-blank line, and that line is the import in $2. Blank lines are
+# fine; nothing else is. CLAUDE.md is Markdown, so it has no comment syntax -- a `# note` line is
+# an H1 heading the model reads, and a second import pulls in policy this bootstrap does not
 # control. Either one is content of its own, so the file is a conflict, not a shim to leave alone.
 is_import_only_shim() {
-  local body
+  local body want=$2
   # -f follows symlinks, so the link test has to come first: the adapter must be a regular file.
   [ ! -L "$1" ] || return 1
   [ -f "$1" ] || return 1
   body=$(grep -vE '^[[:space:]]*$' "$1" 2>/dev/null || true)
   [ "$(printf '%s\n' "$body" | grep -c .)" -eq 1 ] || return 1
-  printf '%s\n' "$body" | grep -qE '^[[:space:]]*@AGENTS\.md[[:space:]]*$'
+  # Exact match on the import, not a pattern: the path contains characters a regex would treat
+  # as wildcards, and "close enough" here means Claude loads something other than our policy.
+  body=${body#"${body%%[![:space:]]*}"}
+  body=${body%"${body##*[![:space:]]}"}
+  [ "$body" = "$want" ]
 }
 
 # Moves an existing file aside. Never overwrites a backup, and never touches the original on
@@ -354,15 +381,20 @@ classify_canonical() {
 }
 
 classify_claude_adapter() {
-  local dst=$1
+  local dst=$1 want=$2
   if [ ! -e "$dst" ] && [ ! -L "$dst" ]; then printf 'create'; return 0; fi
   if [ -L "$dst" ]; then
-    printf 'conflict|%s is a symlink -> %s; the Claude adapter must be a regular file holding only @AGENTS.md' \
-      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')"
+    printf 'conflict|%s is a symlink -> %s; the Claude adapter must be a regular file holding only %s' \
+      "$dst" "$(readlink -- "$dst" 2>/dev/null || printf '?')" "$want"
     return 0
   fi
-  if is_import_only_shim "$dst"; then printf 'ok'; return 0; fi
-  printf 'conflict|%s carries its own content, not just the import' "$dst"
+  if is_import_only_shim "$dst" "$want"; then printf 'ok'; return 0; fi
+  # The pre-release adapter imported @AGENTS.md, which points back into Claude's own directory.
+  if is_import_only_shim "$dst" '@AGENTS.md'; then
+    printf 'conflict|%s is the pre-release adapter importing @AGENTS.md, which points back into Claude'"'"'s own directory; it must import %s' "$dst" "$want"
+    return 0
+  fi
+  printf 'conflict|%s does not hold exactly %s' "$dst" "$want"
 }
 
 classify_codex_adapter() {
@@ -375,6 +407,17 @@ classify_codex_adapter() {
   fi
   if [ ! -e "$dst" ]; then printf 'create'; return 0; fi
   printf 'conflict|%s already exists and is not a link to %s' "$dst" "$canonical"
+}
+
+# The pre-release layout kept the policy at <prefix>/.claude/AGENTS.md. Leaving it in place beside
+# a neutral canonical would mean two files claiming to be the policy, so its presence is a
+# conflict that --replace-global resolves by migrating: the file becomes the bootstrap source
+# when none was named, and the original is moved to a backup rather than deleted.
+classify_legacy_canonical() {
+  local legacy=$1
+  if [ ! -e "$legacy" ] && [ ! -L "$legacy" ]; then printf 'absent'; return 0; fi
+  printf 'conflict|%s is the pre-release canonical policy; the canonical policy now lives at %s/.agents/AGENTS.md and this file must be migrated' \
+    "$legacy" "$PREFIX"
 }
 
 # Moves a conflicting entry aside. Only ever called under --replace-global.
@@ -409,19 +452,31 @@ apply_canonical() {
 }
 
 apply_claude_adapter() {
-  local dst=$1 action=$2 backup=''
+  local dst=$1 want=$2 action=$3 backup=''
   if [ "$action" = replace ]; then
     backup=$(move_aside "$dst") || return 1
   fi
   if [ "$DRY_RUN" -eq 1 ]; then
-    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then replace it with '@AGENTS.md'"
-    else g_note "would create $dst containing '@AGENTS.md'"; fi
+    if [ -n "$backup" ]; then g_note "would back up $dst to $backup, then replace it with '$want'"
+    else g_note "would create $dst containing '$want'"; fi
     return 0
   fi
   mkdir -p -- "${dst%/*}"
-  printf '@AGENTS.md\n' > "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
-  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and replaced it with '@AGENTS.md'"
-  else g_note "created $dst containing '@AGENTS.md'"; fi
+  printf '%s\n' "$want" > "$dst" || { g_note "FAILED to write $dst${backup:+ (previous contents are at $backup)}"; return 1; }
+  if [ -n "$backup" ]; then g_note "backed up $dst to $backup and replaced it with '$want'"
+  else g_note "created $dst containing '$want'"; fi
+}
+
+# Retires the pre-release canonical file by moving it to a backup. Its bytes have already been
+# used as the bootstrap source when no other was named, so the policy survives in both places.
+apply_legacy_retire() {
+  local legacy=$1 backup
+  backup=$(move_aside "$legacy") || return 1
+  if [ "$DRY_RUN" -eq 1 ]; then
+    g_note "would move the pre-release policy $legacy to $backup"
+    return 0
+  fi
+  g_note "moved the pre-release policy $legacy to $backup"
 }
 
 apply_codex_adapter() {
@@ -442,11 +497,23 @@ apply_codex_adapter() {
 
 bootstrap_global_agents() {
   local src=$GLOBAL_SRC
-  local canonical=$PREFIX/.claude/AGENTS.md
+  local canonical=$PREFIX/.agents/AGENTS.md
   local claude_adapter=$PREFIX/.claude/CLAUDE.md
   local codex_adapter=$CODEX_HOME_DIR/AGENTS.md
-  local rc=0 c_can c_cla c_cod conflicts=()
+  local legacy_canonical=$PREFIX/.claude/AGENTS.md
+  local want migrating=0
+  local rc=0 c_can c_cla c_cod c_leg conflicts=()
 
+  want=$(adapter_import_line)
+  c_leg=$(classify_legacy_canonical "$legacy_canonical")
+
+  # Migrating the pre-release layout means moving the user's existing policy to the neutral path,
+  # not overwriting it with the shipped example. So when a pre-release policy is present and no
+  # source was named, that file is the source. Naming a source explicitly still wins.
+  if [ -z "$src" ] && [ "$c_leg" != absent ] && [ -f "$legacy_canonical" ] && [ ! -L "$legacy_canonical" ]; then
+    src=$legacy_canonical
+    migrating=1
+  fi
   [ -n "$src" ] || src=$REPO_ROOT/examples/global-agents.md
   case $src in
     /*) ;;
@@ -457,17 +524,18 @@ bootstrap_global_agents() {
   src=$(cd -- "${src%/*}" && printf '%s/%s' "$(pwd -P)" "${src##*/}")
 
   printf 'Global policy\n'
-  printf '  source    : %s\n' "$src"
+  printf '  source    : %s%s\n' "$src" "$([ "$migrating" -eq 1 ] && printf ' (the pre-release policy, carried over)')"
   printf '  canonical : %s\n' "$canonical"
+  printf '  adapters  : %s -> %s, %s -> symlink\n' "$claude_adapter" "$want" "$codex_adapter"
   [ "$REPLACE_GLOBAL" -eq 1 ] && printf '  mode      : --replace-global (conflicts are backed up, then replaced)\n'
   [ "$DRY_RUN" -eq 1 ] && printf '  mode      : dry run (nothing will be changed)\n'
 
   c_can=$(classify_canonical "$src" "$canonical")
-  c_cla=$(classify_claude_adapter "$claude_adapter")
+  c_cla=$(classify_claude_adapter "$claude_adapter" "$want")
   c_cod=$(classify_codex_adapter "$codex_adapter" "$canonical")
 
   local entry
-  for entry in "$c_can" "$c_cla" "$c_cod"; do
+  for entry in "$c_can" "$c_cla" "$c_cod" "$c_leg"; do
     case $entry in conflict\|*) conflicts+=("${entry#conflict|}") ;; esac
   done
 
@@ -486,20 +554,26 @@ bootstrap_global_agents() {
     g_note "${codex_adapter%/*}/AGENTS.override.md takes precedence over $codex_adapter for Codex; left untouched, but it shadows the canonical policy"
   fi
 
+  # Order matters: the canonical file is written from the pre-release policy before that policy is
+  # moved aside, so the bytes are never in flight with nowhere to land.
   case $c_can in
     create) apply_canonical "$src" "$canonical" create || rc=1 ;;
     ok) g_note "$canonical already matches $src; left alone" ;;
     conflict\|*) apply_canonical "$src" "$canonical" replace || rc=1 ;;
   esac
   case $c_cla in
-    create) apply_claude_adapter "$claude_adapter" create || rc=1 ;;
-    ok) g_note "$claude_adapter is already an import-only shim; left alone" ;;
-    conflict\|*) apply_claude_adapter "$claude_adapter" replace || rc=1 ;;
+    create) apply_claude_adapter "$claude_adapter" "$want" create || rc=1 ;;
+    ok) g_note "$claude_adapter already imports $want; left alone" ;;
+    conflict\|*) apply_claude_adapter "$claude_adapter" "$want" replace || rc=1 ;;
   esac
   case $c_cod in
     create) apply_codex_adapter "$codex_adapter" "$canonical" create || rc=1 ;;
     ok) g_note "$codex_adapter already points at $canonical; left alone" ;;
     conflict\|*) apply_codex_adapter "$codex_adapter" "$canonical" replace || rc=1 ;;
+  esac
+  case $c_leg in
+    absent) ;;
+    *) apply_legacy_retire "$legacy_canonical" || rc=1 ;;
   esac
 
   printf '%s\n' "${GLOBAL_ACTIONS[@]/#/  }"

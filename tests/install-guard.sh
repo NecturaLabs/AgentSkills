@@ -175,15 +175,15 @@ printf 'MY OWN GLOBAL POLICY\n' > "$H/.claude/CLAUDE.md"
 snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 check "plain-install-touches-no-policy" "$snap" "$(policy_snapshot "$H")"
-check "plain-install-creates-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "plain-install-creates-no-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
 
 # 13. --global-agents on a clean home produces the canonical file plus both adapters
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
-check "bootstrap-canonical-is-regular-file" "yes" "$([ -f "$H/.claude/AGENTS.md" ] && [ ! -L "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
-check "bootstrap-canonical-matches-source" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
-check "bootstrap-claude-adapter" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
-check "bootstrap-codex-adapter-is-link" "$H/.claude/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+check "bootstrap-canonical-is-regular-file" "yes" "$([ -f "$H/.agents/AGENTS.md" ] && [ ! -L "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
+check "bootstrap-canonical-matches-source" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "bootstrap-claude-adapter" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "bootstrap-codex-adapter-is-link" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
 check "bootstrap-no-spurious-backups" "0" "$(backup_count "$H")"
 
 # 14. re-running changes nothing and still creates no backup
@@ -196,13 +196,13 @@ H=$(new_home)
 snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" --global-agents --dry-run >/dev/null 2>&1
 check "bootstrap-dry-run-writes-nothing" "$snap" "$(policy_snapshot "$H")"
-check "bootstrap-dry-run-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "bootstrap-dry-run-no-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
 
 # 16. a CLAUDE.md carrying real policy is never rewritten without --replace-global, and an
 #     existing canonical file and codex doc are left exactly as found
 H=$(new_home)
 printf 'MY REAL GLOBAL POLICY\nrule one\n' > "$H/.claude/CLAUDE.md"
-printf 'MY EXISTING CANONICAL\n' > "$H/.claude/AGENTS.md"
+printf 'MY EXISTING CANONICAL\n' > "$H/.agents/AGENTS.md"
 printf 'MY EXISTING CODEX DOC\n' > "$H/.codex/AGENTS.md"
 snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
@@ -211,12 +211,12 @@ check "bootstrap-refusal-makes-no-backup" "0" "$(backup_count "$H")"
 
 # 17. with --replace-global each conflict is backed up first, and the backup holds the old content
 bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
-check "replace-global-claude-adapter" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
-check "replace-global-canonical-replaced" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
-check "replace-global-codex-relinked" "$H/.claude/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+check "replace-global-claude-adapter" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "replace-global-canonical-replaced" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "replace-global-codex-relinked" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
 check "replace-global-backed-up-three" "3" "$(backup_count "$H")"
 check "replace-global-backup-keeps-claude-policy" "MY REAL GLOBAL POLICY" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null | head -1)"
-check "replace-global-backup-keeps-canonical" "MY EXISTING CANONICAL" "$(cat "$H"/.claude/AGENTS.md.backup-* 2>/dev/null | head -1)"
+check "replace-global-backup-keeps-canonical" "MY EXISTING CANONICAL" "$(cat "$H"/.agents/AGENTS.md.backup-* 2>/dev/null | head -1)"
 check "replace-global-backup-keeps-codex-doc" "MY EXISTING CODEX DOC" "$(cat "$H"/.codex/AGENTS.md.backup-* 2>/dev/null | head -1)"
 
 # 18. --replace-global is meaningless on its own and must be rejected before anything is written
@@ -230,7 +230,7 @@ check "replace-global-alone-writes-nothing" "$snap" "$(policy_snapshot "$H")"
 H=$(new_home)
 printf 'PERSONALIZED POLICY\n' > "$H/mine.md"
 bash "$INSTALL" --prefix "$H" --global-agents "$H/mine.md" >/dev/null 2>&1
-check "bootstrap-custom-source" "PERSONALIZED POLICY" "$(cat "$H/.claude/AGENTS.md" 2>/dev/null)"
+check "bootstrap-custom-source" "PERSONALIZED POLICY" "$(cat "$H/.agents/AGENTS.md" 2>/dev/null)"
 
 # 20. an AGENTS.override.md is reported but never removed -- doctor and install both leave it
 printf 'override rules\n' > "$H/.codex/AGENTS.override.md"
@@ -266,7 +266,7 @@ assert_nothing_written() {
 
 # 22a. conflict at the canonical file only
 H=$(new_home)
-printf 'THE USERS OWN PRIVATE POLICY\n' > "$H/.claude/AGENTS.md"
+printf 'THE USERS OWN PRIVATE POLICY\n' > "$H/.agents/AGENTS.md"
 snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "allornothing-canonical-exit" "1" "$?"
@@ -281,7 +281,7 @@ snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "allornothing-claude-exit" "1" "$?"
 assert_nothing_written "claude" "$H" "$snap"
-check "allornothing-claude-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "allornothing-claude-no-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
 check "allornothing-claude-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
 
 # 22c. conflict at the Codex adapter only
@@ -291,32 +291,35 @@ snap=$(policy_snapshot "$H")
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "allornothing-codex-exit" "1" "$?"
 assert_nothing_written "codex" "$H" "$snap"
-check "allornothing-codex-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "allornothing-codex-no-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
 check "allornothing-codex-no-claude-adapter" "no" "$([ -e "$H/.claude/CLAUDE.md" ] && echo yes || echo no)"
 
 # 22d. conflicts at all three: every one is reported, and still nothing is written
 H=$(new_home)
-printf 'A\n' > "$H/.claude/AGENTS.md"
+printf 'A\n' > "$H/.agents/AGENTS.md"
 printf 'B\n' > "$H/.claude/CLAUDE.md"
 printf 'C\n' > "$H/.codex/AGENTS.md"
 snap=$(policy_snapshot "$H")
 out=$(bash "$INSTALL" --prefix "$H" --global-agents 2>&1)
 assert_nothing_written "multi" "$H" "$snap"
-check "allornothing-multi-reports-all-three" "3" "$(printf '%s\n' "$out" | grep -c 'already exists and differs\|carries its own content\|is not a link to')"
+check "allornothing-multi-reports-all-three" "3" "$(printf '%s\n' "$out" | grep -c 'already exists and differs\|does not hold exactly\|is not a link to')"
 
 # 22e. the same conflicts under --replace-global are all applied, so the gate is not just refusing
 bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
 check "allornothing-replace-applies-all" "3" "$(backup_count "$H")"
-check "allornothing-replace-canonical" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "allornothing-replace-canonical" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 || echo differs)"
 
 # 23. the Claude adapter is a shim only when its one non-blank line is the @AGENTS.md import.
 #      CLAUDE.md is Markdown with no comment syntax, so a '# note' line is a heading the model
 #      reads, and a second import pulls in policy the bootstrap does not control. Both are
 #      content of their own, and because the run is all-or-nothing each must leave every
 #      destination untouched.
+# $2 is the adapter body, with the token %%IMPORT%% standing in for the neutral import this
+# sandbox expects -- the call sites cannot name it, because it contains the sandbox's own path.
 shim_case() {
   local label=$1 body=$2 want_exit=$3 want_writes=$4 H before after writes
   H=$(new_home)
+  body=${body//%%IMPORT%%/@$H/.agents/AGENTS.md}
   printf '%b' "$body" > "$H/.claude/CLAUDE.md"
   before=$(policy_snapshot "$H")
   bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
@@ -325,23 +328,25 @@ shim_case() {
   writes=$([ "$before" = "$after" ] && echo no || echo yes)
   check "shim-$label-writes" "$want_writes" "$writes"
   if [ "$want_writes" = no ]; then
-    check "shim-$label-no-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+    check "shim-$label-no-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
     check "shim-$label-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
     check "shim-$label-no-backups" "0" "$(backup_count "$H")"
   fi
 }
-shim_case "import-only"      '@AGENTS.md\n'            "0" "yes"
-shim_case "blank-lines"      '\n\n@AGENTS.md\n\n'      "0" "yes"
-shim_case "markdown-heading" '# note\n@AGENTS.md\n'    "1" "no"
-shim_case "second-import"    '@AGENTS.md\n@OTHER.md\n' "1" "no"
-shim_case "foreign-import"   '@OTHER.md\n'             "1" "no"
+shim_case "import-only"        '%%IMPORT%%\n'            "0" "yes"
+shim_case "blank-lines"        '\n\n%%IMPORT%%\n\n'      "0" "yes"
+shim_case "markdown-heading"   '# note\n%%IMPORT%%\n'    "1" "no"
+shim_case "second-import"      '%%IMPORT%%\n@OTHER.md\n' "1" "no"
+shim_case "foreign-import"     '@OTHER.md\n'             "1" "no"
+# the pre-release adapter imported @AGENTS.md, pointing back into Claude's own directory
+shim_case "pre-release-import" '@AGENTS.md\n'            "1" "no"
 
 # 24. the default bootstrapped policy must be usable before any customization: no unfilled
 #     placeholder may survive as an active instruction, because an agent obeys what it says.
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "bootstrapped-policy-no-active-placeholders" "0" \
-  "$(grep -cE '^[[:space:]]*[-*][^<]*<your ' "$H/.claude/AGENTS.md" 2>/dev/null || true)"
+  "$(grep -cE '^[[:space:]]*[-*][^<]*<your ' "$H/.agents/AGENTS.md" 2>/dev/null || true)"
 
 # 25. the two Claude destinations must be regular files, never symlinks, even when the bytes
 #      behind the link are exactly what we would have written. The canonical policy is copied
@@ -351,13 +356,13 @@ check "bootstrapped-policy-no-active-placeholders" "0" \
 entry_type() { find "$1" -maxdepth 0 -printf '%y' 2>/dev/null || printf 'none'; }
 
 H=$(new_home)
-ln -s "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md"
+ln -s "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md"
 printf '@AGENTS.md\n' > "$H/shim-target.md"
 ln -s "$H/shim-target.md" "$H/.claude/CLAUDE.md"
 snap=$(policy_snapshot "$H")
 out=$(bash "$INSTALL" --prefix "$H" --global-agents 2>&1)
 check "symlink-canonical-exit" "1" "$?"
-check "symlink-canonical-still-a-link" "l" "$(entry_type "$H/.claude/AGENTS.md")"
+check "symlink-canonical-still-a-link" "l" "$(entry_type "$H/.agents/AGENTS.md")"
 check "symlink-shim-still-a-link" "l" "$(entry_type "$H/.claude/CLAUDE.md")"
 check "symlink-nothing-written" "$snap" "$(policy_snapshot "$H")"
 check "symlink-no-codex-adapter" "no" "$([ -e "$H/.codex/AGENTS.md" ] || [ -L "$H/.codex/AGENTS.md" ] && echo yes || echo no)"
@@ -372,17 +377,84 @@ check "symlink-doctor-not-ok" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'cano
 
 # 25b. --replace-global turns both into regular files and keeps the old symlinks as backups
 bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
-check "symlink-replaced-canonical-is-regular" "f" "$(entry_type "$H/.claude/AGENTS.md")"
+check "symlink-replaced-canonical-is-regular" "f" "$(entry_type "$H/.agents/AGENTS.md")"
 check "symlink-replaced-shim-is-regular" "f" "$(entry_type "$H/.claude/CLAUDE.md")"
-check "symlink-replaced-shim-content" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
-check "symlink-replaced-canonical-matches" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.claude/AGENTS.md" >/dev/null 2>&1 || echo differs)"
-check "symlink-backup-canonical-kept-as-link" "l" "$(entry_type "$H"/.claude/AGENTS.md.backup-*)"
+check "symlink-replaced-shim-content" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "symlink-replaced-canonical-matches" "" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 || echo differs)"
+check "symlink-backup-canonical-kept-as-link" "l" "$(entry_type "$H"/.agents/AGENTS.md.backup-*)"
 check "symlink-backup-shim-kept-as-link" "l" "$(entry_type "$H"/.claude/CLAUDE.md.backup-*)"
-check "symlink-backup-canonical-target" "$REPO_ROOT/examples/global-agents.md" "$(readlink "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
+check "symlink-backup-canonical-target" "$REPO_ROOT/examples/global-agents.md" "$(readlink "$H"/.agents/AGENTS.md.backup-* 2>/dev/null)"
 # the checkout the old link pointed into must be untouched by any of this
 check "symlink-source-untouched" "" "$(git -C "$REPO_ROOT" status --porcelain -- examples/global-agents.md)"
 # and the one legitimate symlink in the layout is still the Codex adapter
 check "symlink-codex-adapter-is-link" "l" "$(entry_type "$H/.codex/AGENTS.md")"
+
+# 26. the canonical policy lives in neither harness's directory. A clean bootstrap must not
+#      create the pre-release path at all, and both adapters must point at the neutral file.
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "neutral-canonical-is-regular" "f" "$(entry_type "$H/.agents/AGENTS.md")"
+check "neutral-no-claude-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] || [ -L "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "neutral-claude-adapter-import" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "neutral-codex-resolves-to-canonical" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "neutral-doctor-healthy" "0" "$(printf '%s\n' "$doctor_out" | grep -c '\[warn\].*\(canonical policy\|adapter\|pre-release\)')"
+check "neutral-doctor-names-canonical" "1" "$(printf '%s\n' "$doctor_out" | grep -c "canonical global policy: $H/.agents/AGENTS.md")"
+
+# 26b. doctor reports a wrong adapter import and a Codex adapter still aimed at the old path
+printf '@~/somewhere-else.md\n' > "$H/.claude/CLAUDE.md"
+check "doctor-detects-wrong-import" "1" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c "imports '@~/somewhere-else.md'")"
+printf 'OLD\n' > "$H/.claude/AGENTS.md"
+rm -f "$H/.codex/AGENTS.md"
+ln -s "$H/.claude/AGENTS.md" "$H/.codex/AGENTS.md"
+check "doctor-detects-legacy-codex-target" "1" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c 'the pre-release canonical path')"
+
+# 27. migrating the pre-release layout. The user's policy must end up at the neutral path with
+#      its bytes intact, the old file must be preserved as a backup rather than deleted, and an
+#      ordinary run must refuse to do any of it.
+make_legacy_home() {
+  local h
+  h=$(new_home)
+  printf 'MY REAL PRE-RELEASE POLICY\nrule one\n' > "$h/.claude/AGENTS.md"
+  printf '@AGENTS.md\n' > "$h/.claude/CLAUDE.md"
+  ln -s "$h/.claude/AGENTS.md" "$h/.codex/AGENTS.md"
+  printf '%s' "$h"
+}
+
+# 27a. doctor names it as the pre-release layout needing migration, and changes nothing
+H=$(make_legacy_home)
+snap=$(policy_snapshot "$H")
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "legacy-doctor-reports-migration" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'holds the pre-release canonical policy')"
+check "legacy-doctor-reports-old-adapter" "1" "$(printf '%s\n' "$doctor_out" | grep -c "pre-release adapter importing '@AGENTS.md'")"
+check "legacy-doctor-writes-nothing" "$snap" "$(policy_snapshot "$H")"
+
+# 27b. an ordinary --global-agents run refuses the whole thing and writes nothing
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "legacy-refused-exit" "1" "$?"
+check "legacy-refused-writes-nothing" "$snap" "$(policy_snapshot "$H")"
+check "legacy-refused-no-neutral-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
+
+# 27c. --replace-global migrates: the policy moves to the neutral path with its bytes intact,
+#      the adapter is rewritten, Codex is relinked, and the old file survives as a backup
+bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
+check "legacy-migrated-exit" "0" "$?"
+check "legacy-migrated-canonical-is-regular" "f" "$(entry_type "$H/.agents/AGENTS.md")"
+check "legacy-migrated-policy-bytes-kept" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H/.agents/AGENTS.md" 2>/dev/null)"
+check "legacy-migrated-not-the-example" "differs" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 && echo same || echo differs)"
+check "legacy-migrated-adapter" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
+check "legacy-migrated-codex-relinked" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
+check "legacy-migrated-old-path-retired" "no" "$([ -e "$H/.claude/AGENTS.md" ] || [ -L "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
+check "legacy-migrated-old-policy-backed-up" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
+check "legacy-migrated-old-adapter-backed-up" "@AGENTS.md" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null)"
+check "legacy-migrated-doctor-clean" "0" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c 'pre-release')"
+
+# 27d. naming a source explicitly still wins over carrying the pre-release policy over
+H=$(make_legacy_home)
+printf 'AN EXPLICIT CHOICE\n' > "$H/chosen.md"
+bash "$INSTALL" --prefix "$H" --global-agents "$H/chosen.md" --replace-global >/dev/null 2>&1
+check "legacy-explicit-source-wins" "AN EXPLICIT CHOICE" "$(cat "$H/.agents/AGENTS.md" 2>/dev/null)"
+check "legacy-explicit-source-still-backs-up" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
 
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

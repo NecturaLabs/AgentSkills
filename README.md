@@ -92,23 +92,27 @@ bash scripts/install.sh --global-agents --dry-run   # show every policy action f
 bash scripts/install.sh --global-agents
 ```
 
-That produces one canonical file and two adapters pointing at it:
+That produces one canonical policy and one adapter per harness:
 
 ```
-~/.claude/AGENTS.md    the policy — a regular file you own and edit
-~/.claude/CLAUDE.md    "@AGENTS.md" — the adapter Claude Code needs, because its AGENTS.md
-                       discovery walks the working directory's ancestors and never reaches $HOME
-~/.codex/AGENTS.md  →  ~/.claude/AGENTS.md — a symlink, so Codex reads the same bytes
+~/.agents/AGENTS.md    the policy — a regular file you own and edit
+~/.claude/CLAUDE.md    "@~/.agents/AGENTS.md" — the adapter Claude Code needs, because its
+                       AGENTS.md discovery walks the working directory's ancestors, never $HOME
+~/.codex/AGENTS.md  →  ~/.agents/AGENTS.md — a symlink, so Codex reads the same bytes
 ```
+
+The policy lives in neither harness's directory. Claude Code and Codex are peer consumers of it,
+each reached through its own adapter, so adding a third harness later means adding a third
+adapter rather than moving the policy.
 
 The canonical file is a copy, not a link into the checkout: a link would let `git pull` silently
-rewrite your policy. The Codex adapter is the only symlink in the layout — a symlink at either
-Claude path is a conflict even if its contents currently match. The run is all-or-nothing: every
-destination is checked before anything is written, and if any one conflicts — including a
-`CLAUDE.md` that carries real content rather than just the import — all conflicts are reported
-and nothing is written anywhere. Replacing a conflict needs `--replace-global`, which backs the
-old entry up beside itself first, symlinks included. Pass your own file to
-install that instead of the example:
+rewrite your policy. The Codex adapter is the only symlink in the layout — a symlink at
+`~/.agents/AGENTS.md` or `~/.claude/CLAUDE.md` is a conflict even if its contents currently
+match. The run is all-or-nothing: every destination is checked before anything is written, and if
+any one conflicts — including a `CLAUDE.md` that carries real content rather than just the
+import — all conflicts are reported and nothing is written anywhere. Replacing a conflict needs
+`--replace-global`, which backs the old entry up beside itself first, symlinks included. Pass
+your own file to install that instead of the example:
 
 ```bash
 bash scripts/install.sh --global-agents ~/my-agents.md --replace-global
