@@ -72,15 +72,20 @@ Load the skill; do not reconstruct its procedure from memory.
 
 ## Tooling
 
-<!-- customize: name the capabilities you actually have. A placeholder left unfilled is worse than
-     a deleted line — an agent will try to use what it says. Delete any row you have no tool for;
-     the workflow below degrades gracefully to file reads and deterministic commands. -->
+This section is deliberately empty until you fill it in. An unfilled placeholder is worse than a
+missing line, because an agent obeys what it says and will try to reach for a tool that is not
+there. The Tool selection rules below hold regardless, degrading to file reads and deterministic
+commands.
 
-- Code intelligence: `<your LSP or code-intelligence tool>`
-- Source hosting, PRs and issues: `<your repository connector or CLI>`
-- Browser and UI inspection: `<your browser automation tool>`
-- Specialized procedures: `<your installed Agent Skills>`
-- Other connectors: `<docs, cloud, observability, database — list only what you have>`
+<!-- customize: replace this comment with active bullets naming the capabilities you actually
+     have, and list nothing you do not. For example:
+
+     - Code intelligence: your LSP or code-intelligence capability
+     - Source hosting, PRs and issues: your repository connector or CLI
+     - Browser and UI inspection: your browser automation capability
+     - Specialized procedures: your installed skills
+     - Other connectors: documentation, cloud, observability, database
+-->
 
 An installed tool does not automatically deserve a global rule. It belongs here only where its
 presence materially changes the recommended workflow.
@@ -239,7 +244,14 @@ whose job is to judge the work independently, and widen context only on demand.
 - A node prompt names only the specific rule it must apply; the harness already gives subagents
   these files. Nodes that do not receive them need what they need stated outright.
 - Output a script or several nodes consume is schema-validated; output a person reads stays prose.
-- A failed node drops its branch, not the run. Name anything dropped in the summary.
+- A failed node is resolved against the graph, not by a blanket rule. Apply its predeclared
+  bounded retry or escalation policy first. Then: a failed optional or independent node drops its
+  own branch, reported explicitly; a failed required dependency blocks its downstream
+  descendants, which never run on absent input; branches that do not consume its output continue.
+  If recovery fails, stop the affected integration path and report the blocker — never present a
+  graph as complete when a path through it did not finish. In a script-held workflow the retry
+  and gating are deterministic and belong to the script; under ordinary dispatch the manager owns
+  the unresolved branch. Name everything dropped or blocked in the summary.
 - A node escalates at once for ambiguity that materially changes the work, conflicting
   requirements, missing context, blockers, or a consequential decision it lacks evidence for. The
   manager answers, redirects or reallocates promptly and is a router for the rest, not a

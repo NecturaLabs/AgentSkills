@@ -333,5 +333,12 @@ shim_case "comments-blanks" '# mine\n\n@AGENTS.md\n\n' "0" "yes"
 shim_case "second-import"  '@AGENTS.md\n@OTHER.md\n'  "1" "no"
 shim_case "foreign-import" '@OTHER.md\n'              "1" "no"
 
+# 24. the default bootstrapped policy must be usable before any customization: no unfilled
+#     placeholder may survive as an active instruction, because an agent obeys what it says.
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
+check "bootstrapped-policy-no-active-placeholders" "0" \
+  "$(grep -cE '^[[:space:]]*[-*][^<]*<your ' "$H/.claude/AGENTS.md" 2>/dev/null || true)"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
