@@ -354,8 +354,19 @@ check "bootstrapped-policy-no-active-placeholders" "0" \
 #      instructions later; accepting a link into a checkout hands that control back to `git pull`.
 #      `-f` follows symlinks, so this is the case a contents comparison alone cannot catch.
 entry_type() { find "$1" -maxdepth 0 -printf '%y' 2>/dev/null || printf 'none'; }
+# A byte-for-byte copy taken before the run, kept in the sandbox, is what proves the checkout was
+# never written to. Asking git instead would conflate the two things it cannot tell apart: an
+# installer that rewrote the file, and an ordinary uncommitted edit made before the suite started.
+snapshot_file() {
+  local dst
+  dst=$(mktemp "$SANDBOX/snapshot.XXXXXX")
+  cp -- "$1" "$dst"
+  printf '%s' "$dst"
+}
+same_bytes() { cmp -s -- "$1" "$2" && printf 'identical' || printf 'differs'; }
 
 H=$(new_home)
+source_snap=$(snapshot_file "$REPO_ROOT/examples/global-agents.md")
 ln -s "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md"
 printf '@AGENTS.md\n' > "$H/shim-target.md"
 ln -s "$H/shim-target.md" "$H/.claude/CLAUDE.md"
@@ -385,7 +396,15 @@ check "symlink-backup-canonical-kept-as-link" "l" "$(entry_type "$H"/.agents/AGE
 check "symlink-backup-shim-kept-as-link" "l" "$(entry_type "$H"/.claude/CLAUDE.md.backup-*)"
 check "symlink-backup-canonical-target" "$REPO_ROOT/examples/global-agents.md" "$(readlink "$H"/.agents/AGENTS.md.backup-* 2>/dev/null)"
 # the checkout the old link pointed into must be untouched by any of this
-check "symlink-source-untouched" "" "$(git -C "$REPO_ROOT" status --porcelain -- examples/global-agents.md)"
+check "symlink-source-untouched" "identical" \
+  "$(same_bytes "$source_snap" "$REPO_ROOT/examples/global-agents.md")"
+# ...and that comparison is only worth having if it can fail. A stand-in copy plays the part of
+# the checkout, so the failing half is exercised without ever writing into the real one.
+decoy=$(mktemp "$SANDBOX/decoy-source.XXXXXX")
+cp -- "$REPO_ROOT/examples/global-agents.md" "$decoy"
+decoy_snap=$(snapshot_file "$decoy")
+printf 'rewritten behind the symlink\n' >> "$decoy"
+check "symlink-source-guard-detects-a-rewrite" "differs" "$(same_bytes "$decoy_snap" "$decoy")"
 # and the one legitimate symlink in the layout is still the Codex adapter
 check "symlink-codex-adapter-is-link" "l" "$(entry_type "$H/.codex/AGENTS.md")"
 
