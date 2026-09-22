@@ -9,18 +9,19 @@ Assess one change for security defects, by working out which threat surfaces it 
 reviewing against those. The job is triage first, depth second — not a sweep of every weakness class
 against every diff.
 
-## Relationship to `independent-review`
+## Relationship to the general review
 
 They are different passes with different questions, run in this order:
 
 1. **This skill** asks *can this change be abused?* Run it first, on changes with a threat surface.
-2. **`independent-review`** asks *is this change correct, clear and maintainable?* It runs afterwards, on
-   the change including whatever this pass fixed.
+2. **The general review** — the harness's own reviewer or `independent-review` — asks *is this
+   change correct, clear and maintainable?* It runs afterwards, on the change including whatever
+   this pass fixed.
 
 Do not run the general review checklist here, and do not restate a design, naming, complexity or
-test-structure finding as a security finding — hand those to `independent-review` instead. Do not chain
-into `independent-review` automatically either; report, and let the caller decide what runs next. A
-change with no threat surface skips this skill entirely and goes straight to `independent-review`.
+test-structure finding as a security finding — hand those to the general review instead. Do not
+chain into it automatically either; report, and let the caller decide what runs next. A change with
+no threat surface skips this skill entirely and goes straight to the general review.
 
 ## Relationship to a native security review
 
@@ -145,7 +146,7 @@ Report, in this order:
    control that rules them out. This is what makes a clean pass checkable.
 4. **Not covered** — anything the scope, missing context or an unreadable dependency prevented
    assessing.
-5. **Next** — whether `independent-review` should now run, and on what.
+5. **Next** — whether the general review should now run, and on what.
 
 Every CRITICAL or HIGH finding caused or exposed by the change is resolved before the change is
 done. Nothing in scope is deferred, downgraded or filed as a follow-up unless the caller explicitly
