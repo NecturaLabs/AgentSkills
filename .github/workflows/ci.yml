@@ -37,6 +37,28 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
+      # Self-hosted runners share one OS user, so parallel jobs would race on a shared ~/.rustup.
+      # Each runner gets its own Rust home in its tool cache instead.
+      - name: Per-runner Rust home (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$RUNNER_TOOL_CACHE/cargo" >> "$GITHUB_ENV"
+          echo "$RUNNER_TOOL_CACHE/cargo/bin" >> "$GITHUB_PATH"
+      # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
+      - name: Per-runner Rust home, Git Bash first (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Split-Path (Get-Command git).Source
+          while ($dir -and -not (Test-Path (Join-Path $dir 'bin\bash.exe'))) { $dir = Split-Path $dir }
+          if (-not $dir) { throw 'Git Bash not found next to git' }
+          Add-Content $env:GITHUB_PATH (Join-Path $dir 'bin')
+          Add-Content $env:GITHUB_PATH (Join-Path $env:RUNNER_TOOL_CACHE 'cargo\bin')
+          Add-Content $env:GITHUB_ENV "RUSTUP_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'rustup')"
+          Add-Content $env:GITHUB_ENV "CARGO_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'cargo')"
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.98"
@@ -54,6 +76,28 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
+      # Self-hosted runners share one OS user, so parallel jobs would race on a shared ~/.rustup.
+      # Each runner gets its own Rust home in its tool cache instead.
+      - name: Per-runner Rust home (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$RUNNER_TOOL_CACHE/cargo" >> "$GITHUB_ENV"
+          echo "$RUNNER_TOOL_CACHE/cargo/bin" >> "$GITHUB_PATH"
+      # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
+      - name: Per-runner Rust home, Git Bash first (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Split-Path (Get-Command git).Source
+          while ($dir -and -not (Test-Path (Join-Path $dir 'bin\bash.exe'))) { $dir = Split-Path $dir }
+          if (-not $dir) { throw 'Git Bash not found next to git' }
+          Add-Content $env:GITHUB_PATH (Join-Path $dir 'bin')
+          Add-Content $env:GITHUB_PATH (Join-Path $env:RUNNER_TOOL_CACHE 'cargo\bin')
+          Add-Content $env:GITHUB_ENV "RUSTUP_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'rustup')"
+          Add-Content $env:GITHUB_ENV "CARGO_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'cargo')"
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.85"
@@ -67,6 +111,28 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
+      # Self-hosted runners share one OS user, so parallel jobs would race on a shared ~/.rustup.
+      # Each runner gets its own Rust home in its tool cache instead.
+      - name: Per-runner Rust home (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$RUNNER_TOOL_CACHE/cargo" >> "$GITHUB_ENV"
+          echo "$RUNNER_TOOL_CACHE/cargo/bin" >> "$GITHUB_PATH"
+      # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
+      - name: Per-runner Rust home, Git Bash first (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Split-Path (Get-Command git).Source
+          while ($dir -and -not (Test-Path (Join-Path $dir 'bin\bash.exe'))) { $dir = Split-Path $dir }
+          if (-not $dir) { throw 'Git Bash not found next to git' }
+          Add-Content $env:GITHUB_PATH (Join-Path $dir 'bin')
+          Add-Content $env:GITHUB_PATH (Join-Path $env:RUNNER_TOOL_CACHE 'cargo\bin')
+          Add-Content $env:GITHUB_ENV "RUSTUP_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'rustup')"
+          Add-Content $env:GITHUB_ENV "CARGO_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'cargo')"
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.98"
@@ -80,6 +146,28 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           persist-credentials: false
+      # Self-hosted runners share one OS user, so parallel jobs would race on a shared ~/.rustup.
+      # Each runner gets its own Rust home in its tool cache instead.
+      - name: Per-runner Rust home (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/rustup" >> "$GITHUB_ENV"
+          echo "CARGO_HOME=$RUNNER_TOOL_CACHE/cargo" >> "$GITHUB_ENV"
+          echo "$RUNNER_TOOL_CACHE/cargo/bin" >> "$GITHUB_PATH"
+      # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
+      - name: Per-runner Rust home, Git Bash first (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Split-Path (Get-Command git).Source
+          while ($dir -and -not (Test-Path (Join-Path $dir 'bin\bash.exe'))) { $dir = Split-Path $dir }
+          if (-not $dir) { throw 'Git Bash not found next to git' }
+          Add-Content $env:GITHUB_PATH (Join-Path $dir 'bin')
+          Add-Content $env:GITHUB_PATH (Join-Path $env:RUNNER_TOOL_CACHE 'cargo\bin')
+          Add-Content $env:GITHUB_ENV "RUSTUP_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'rustup')"
+          Add-Content $env:GITHUB_ENV "CARGO_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'cargo')"
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.98"
