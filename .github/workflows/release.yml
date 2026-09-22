@@ -39,7 +39,7 @@ jobs:
       # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
       - name: Per-runner Rust home, Git Bash first (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $ErrorActionPreference = 'Stop'
           $dir = Split-Path (Get-Command git).Source
@@ -63,7 +63,7 @@ jobs:
           tar -czf dist/necturalabs-fab-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release necturalabs-fab
       - name: Package (zip)
         if: matrix.archive == 'zip'
-        shell: pwsh
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Compress-Archive -Path target/${{ matrix.target }}/release/necturalabs-fab.exe -DestinationPath dist/necturalabs-fab-${{ matrix.target }}.zip
