@@ -18,9 +18,6 @@ jobs:
           - target: x86_64-unknown-linux-musl
             runner: [self-hosted, Linux, X64]
             archive: tar.gz
-          - target: x86_64-pc-windows-msvc
-            runner: [self-hosted, Windows, X64]
-            archive: zip
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
@@ -29,26 +26,12 @@ jobs:
           persist-credentials: false
       # Self-hosted runners share one OS user, so parallel jobs would race on a shared ~/.rustup.
       # Each runner gets its own Rust home in its tool cache instead.
-      - name: Per-runner Rust home (Unix)
-        if: runner.os != 'Windows'
+      - name: Per-runner Rust home
         shell: bash
         run: |
           echo "RUSTUP_HOME=$RUNNER_TOOL_CACHE/rustup" >> "$GITHUB_ENV"
           echo "CARGO_HOME=$RUNNER_TOOL_CACHE/cargo" >> "$GITHUB_ENV"
           echo "$RUNNER_TOOL_CACHE/cargo/bin" >> "$GITHUB_PATH"
-      # On these runners `bash` resolves to the WSL launcher in System32; actions need Git Bash.
-      - name: Per-runner Rust home, Git Bash first (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $dir = Split-Path (Get-Command git).Source
-          while ($dir -and -not (Test-Path (Join-Path $dir 'bin\bash.exe'))) { $dir = Split-Path $dir }
-          if (-not $dir) { throw 'Git Bash not found next to git' }
-          Add-Content $env:GITHUB_PATH (Join-Path $dir 'bin')
-          Add-Content $env:GITHUB_PATH (Join-Path $env:RUNNER_TOOL_CACHE 'cargo\bin')
-          Add-Content $env:GITHUB_ENV "RUSTUP_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'rustup')"
-          Add-Content $env:GITHUB_ENV "CARGO_HOME=$(Join-Path $env:RUNNER_TOOL_CACHE 'cargo')"
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: "1.98"
@@ -61,12 +44,6 @@ jobs:
         run: |
           mkdir -p dist
           tar -czf dist/necturalabs-fab-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release necturalabs-fab
-      - name: Package (zip)
-        if: matrix.archive == 'zip'
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
-        run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path target/${{ matrix.target }}/release/necturalabs-fab.exe -DestinationPath dist/necturalabs-fab-${{ matrix.target }}.zip
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: necturalabs-fab-${{ matrix.target }}

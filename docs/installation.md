@@ -97,7 +97,7 @@ named after necturalabs-fab or FabCLI, or any reference to them in Claude Code o
 behind. It also checks that a foreign `fabcli` is never overwritten and that pre-existing FabCLI
 state survives uninstall. A throwaway `HOME` does not isolate the OS keyring, so the script cuts
 itself off from the D-Bus session bus (and refuses to run on macOS) to keep uninstall's sign-out away
-from your real FabCLI key. CI runs it on Linux and an equivalent check on Windows.
+from your real FabCLI key. CI runs it on the Linux runners.
 
 ## Update
 
@@ -110,7 +110,7 @@ marketplaces it added to that same release, and updates the plugins (`claude plu
 | Platform | necturalabs-fab | FabCLI | Verified |
 |---|---|---|---|
 | Linux x86-64 | release build (static musl) | release build | locally and in CI |
-| Windows x86-64 | release build | release build | CI installer round trip |
+| Windows x86-64 | built with `cargo` (releases are Linux-only) | release build | `install.ps1` round trip passed on Windows PowerShell 5.1 once; CI runs on Linux only |
 | macOS | built with `cargo` | **no build published** — install FabCLI from source if you need it | not verified |
 
 FabCLI's sign-in window needs WebKitGTK on Linux: `webkit2gtk-4.1` on Arch,
