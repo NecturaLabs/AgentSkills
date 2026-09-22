@@ -193,7 +193,10 @@ resolve_tag() {
   # A private repository answers anonymous requests with 404; a signed-in gh can still see it.
   case $TAG in
     v[0-9]*) ;;
-    *) if have gh; then TAG=$(gh release view -R "$REPO" --json tagName -q .tagName 2>/dev/null || true); fi ;;
+    *) if have gh; then
+         TAG=$(gh release view -R "$REPO" --json tagName -q .tagName 2>/dev/null || true)
+         VIA_GH=1
+       fi ;;
   esac
   case $TAG in v[0-9]*) ;; *) die "no release of $REPO found (got '$TAG'); pass --version" ;; esac
   case $TAG in *[!A-Za-z0-9.+-]*) die "unexpected release tag '$TAG'" ;; esac
@@ -404,7 +407,11 @@ do_install() {
   say ""
   "$BIN_DIR/necturalabs-fab" ${FABCLI_PATH:+--fabcli-path "$FABCLI_PATH"} --human doctor || true
   say ""
-  say "Done. Uninstall with: curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | sh -s -- --uninstall"
+  if [ "${VIA_GH:-0}" = 1 ]; then
+    say "Done. Uninstall with: gh api -H 'Accept: application/vnd.github.raw' repos/$REPO/contents/scripts/install.sh | sh -s -- --uninstall"
+  else
+    say "Done. Uninstall with: curl -fsSL https://raw.githubusercontent.com/$REPO/main/scripts/install.sh | sh -s -- --uninstall"
+  fi
 }
 
 # --- uninstall ----------------------------------------------------------------------------
