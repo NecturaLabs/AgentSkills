@@ -243,11 +243,16 @@ command -v claude >/dev/null 2>&1 && claude_present=1
 { [ -d "$PREFIX/.codex" ] || [ -d "$PREFIX/.agents" ]; } && codex_present=1
 command -v codex >/dev/null 2>&1 && codex_present=1
 
-# Installed as a Claude Code plugin, these skills already load as <plugin>:<skill>. A personal link
-# as well would load every one of them twice, so the Claude root gets no links in that case.
+# Installed and enabled as a Claude Code plugin, these skills already load as <plugin>:<skill>. A
+# personal link as well would load every one of them twice, so the Claude root gets no links in
+# that case. Claude Code loads a marketplace plugin only while the user's enabledPlugins marks it
+# true; an installed but disabled plugin loads nothing, so it gets the personal links.
 claude_plugin=0
 installed_plugins=$PREFIX/.claude/plugins/installed_plugins.json
-if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_NAME@" "$installed_plugins"; then
+claude_settings=$PREFIX/.claude/settings.json
+if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_NAME@" "$installed_plugins" \
+  && [ -f "$claude_settings" ] \
+  && grep -Eq "\"$PLUGIN_NAME@[^\"]+\"[[:space:]]*:[[:space:]]*true" "$claude_settings"; then
   claude_plugin=1
 fi
 

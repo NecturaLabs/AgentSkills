@@ -219,12 +219,20 @@ check_root() {
   printf '\n'
 }
 
-# A Claude Code plugin install loads these skills as <plugin>:<skill>, so personal links are not
-# required -- and any that exist load each skill a second time under its bare name.
+# An enabled Claude Code plugin install loads these skills as <plugin>:<skill>, so personal links
+# are not required -- and any that exist load each skill a second time under its bare name. Claude
+# Code loads a marketplace plugin only while the user's enabledPlugins marks it true, so an
+# installed but disabled plugin counts for nothing and the personal links are required again.
 claude_plugin=0
+claude_plugin_disabled=0
 installed_plugins=$CLAUDE_HOME/plugins/installed_plugins.json
 if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_NAME@" "$installed_plugins"; then
-  claude_plugin=1
+  if [ -f "$CLAUDE_HOME/settings.json" ] \
+    && grep -Eq "\"$PLUGIN_NAME@[^\"]+\"[[:space:]]*:[[:space:]]*true" "$CLAUDE_HOME/settings.json"; then
+    claude_plugin=1
+  else
+    claude_plugin_disabled=1
+  fi
 fi
 
 printf 'Installed skills\n'
@@ -238,6 +246,9 @@ if [ "$claude_active" -eq 1 ] && [ "$claude_plugin" -eq 1 ]; then
   done
   printf '\n'
 elif [ "$claude_active" -eq 1 ]; then
+  if [ "$claude_plugin_disabled" -eq 1 ]; then
+    warn "the $PLUGIN_NAME plugin is installed but not enabled in $CLAUDE_HOME/settings.json, so its skills do not load; the personal links below are required instead"
+  fi
   check_root "$CLAUDE_ROOT" "Claude Code" 1
 else
   printf 'Claude Code (%s)\n' "$CLAUDE_ROOT"

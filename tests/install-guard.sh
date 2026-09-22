@@ -495,18 +495,21 @@ check "native-doctor-detects-codex-system" "1" "$(printf '%s\n' "$doctor_out" | 
 check "native-doctor-counts-codex-system" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'read 2 Codex system skill(s)')"
 check "native-doctor-no-false-codex" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'imagegen is also')"
 
-# 31. with this plugin installed in Claude Code, its skills already load as <plugin>:<skill>: install
-#     makes no personal Claude links (they would load everything twice), still links Codex, and
-#     doctor accepts the plugin and warns about a personal link that duplicates it
+# 31. with this plugin installed and enabled in Claude Code, its skills already load as
+#     <plugin>:<skill>: install makes no personal Claude links (they would load everything twice),
+#     still links Codex, and doctor accepts the plugin and warns about a personal link that
+#     duplicates it
 plugin_home() {
-  local h
+  local h enabled=$1
   h=$(new_home)
   mkdir -p "$h/.claude/plugins"
   printf '{"version": 2, "plugins": {"%s@%s": [{"scope": "user"}]}}\n' "$OTHER_PLUGIN_NAME" "$OTHER_PLUGIN_NAME" \
     > "$h/.claude/plugins/installed_plugins.json"
+  printf '{\n  "enabledPlugins": {\n    "%s@%s": %s\n  }\n}\n' "$OTHER_PLUGIN_NAME" "$OTHER_PLUGIN_NAME" "$enabled" \
+    > "$h/.claude/settings.json"
   printf '%s' "$h"
 }
-H=$(plugin_home)
+H=$(plugin_home true)
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 check "plugin-install-no-claude-links" "0" "$(link_count "$H/.claude")"
 check "plugin-install-still-links-codex" "${#SKILLS[@]}" "$(link_count "$H/.agents")"
@@ -517,6 +520,17 @@ mkdir -p "$H/.claude/skills"
 ln -s "$REPO_ROOT/skills/testing" "$H/.claude/skills/testing"
 doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
 check "plugin-doctor-warns-duplicate" "1" "$(printf '%s\n' "$doctor_out" | grep -c "loads both $OTHER_PLUGIN_NAME:testing and testing")"
+
+# 32. Claude Code loads a marketplace plugin only while enabledPlugins marks it true, so an installed
+#     but disabled plugin loads nothing: install links the skills personally, and doctor says the
+#     plugin is disabled rather than accepting it
+H=$(plugin_home false)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "plugin-disabled-install-links-claude" "${#SKILLS[@]}" "$(link_count "$H/.claude")"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "plugin-disabled-doctor-not-accepted" "0" "$(printf '%s\n' "$doctor_out" | grep -c "installed as the $OTHER_PLUGIN_NAME plugin")"
+check "plugin-disabled-doctor-reports" "1" "$(printf '%s\n' "$doctor_out" | grep -c "$OTHER_PLUGIN_NAME plugin is installed but not enabled")"
+check "plugin-disabled-doctor-no-missing" "0" "$(printf '%s\n' "$doctor_out" | sed -n '/^Claude Code/,/^$/p' | grep -c 'is not installed')"
 
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
