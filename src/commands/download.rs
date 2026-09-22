@@ -183,11 +183,14 @@ pub fn resolve_output_dir(ctx: &Ctx, args: &DownloadArgs, listing_id: &str) -> P
         Some(out) => out.clone(),
         None => ctx.config.download.directory.join(listing_id),
     };
-    if base.is_absolute() {
+    let joined = if base.is_absolute() {
         base
     } else {
         ctx.cwd.join(base)
-    }
+    };
+    // Rebuilt from components so the reported path uses the platform's own
+    // separator even when the user typed `assets/castle` on Windows.
+    joined.components().collect()
 }
 
 /// What the destination currently holds.
