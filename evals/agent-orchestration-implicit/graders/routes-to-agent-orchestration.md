@@ -6,5 +6,5 @@ min: 1
 weight: 1
 ---
 
-Work is about to be split across several agents with real dependencies, shared files and a failure
-case to plan for. The orchestration skill must fire.
+The user asks for fourteen independent modules to be ported by several workers at once without
+touching each other's files, without naming orchestration. The orchestration skill must fire.

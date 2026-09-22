@@ -6,5 +6,6 @@ min: 1
 weight: 1
 ---
 
-Work is about to be split across several agents with real dependencies, shared files and a failure
-case to plan for. The orchestration skill must fire.
+Between a changelog bump and a summary, the user asks for six services to be upgraded side by side
+by separate agents without colliding on a shared build config. The orchestration skill must fire
+for that part of the work.
