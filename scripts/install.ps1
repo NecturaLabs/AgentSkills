@@ -251,9 +251,9 @@ function Install-FabCli([string]$Work) {
   Expand-Archive -LiteralPath $zip -DestinationPath $Work -Force
   Initialize-BinDir
   # FabCLI's sign-in state that predates us belongs to the user: uninstall must then neither sign it
-  # out nor delete it. State of a FabCLI this installer put here before is ours.
+  # out nor delete it.
   if (-not (Recorded 'fabcli_state')) {
-    Record 'fabcli_state' $(if ($ours -eq "installed:$target" -or -not (Test-Path -LiteralPath $FabCliStateDir)) { 'ours' } else { 'preexisting' })
+    Record 'fabcli_state' $(if (Test-Path -LiteralPath $FabCliStateDir) { 'preexisting' } else { 'ours' })
   }
   Copy-Item -LiteralPath (Join-Path $Work "fabcli-v$FabCliVersion-windows64\fabcli.exe") -Destination $target -Force
   Record 'fabcli' "installed:$target"

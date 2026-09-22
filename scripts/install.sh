@@ -250,14 +250,9 @@ install_fabcli() {
   tar -xzf "$WORK/$FABCLI_LINUX_ASSET" -C "$WORK"
   ensure_bin_dir
   # FabCLI keeps its sign-in state here. State that predates us belongs to the user: uninstall
-  # must then neither sign it out nor delete it. State of a FabCLI this installer put here before
-  # is ours.
+  # must then neither sign it out nor delete it.
   if [ -z "$(recorded fabcli_state)" ]; then
-    if [ "$ours" = "installed:$BIN_DIR/fabcli" ] || [ ! -e "$CONFIG_HOME/fabcli" ]; then
-      record fabcli_state ours
-    else
-      record fabcli_state preexisting
-    fi
+    if [ -e "$CONFIG_HOME/fabcli" ]; then record fabcli_state preexisting; else record fabcli_state ours; fi
   fi
   install -m 755 "$WORK/fabcli-v$FABCLI_VERSION-linux64/fabcli" "$BIN_DIR/fabcli"
   record fabcli "installed:$BIN_DIR/fabcli"
