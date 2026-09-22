@@ -84,4 +84,4 @@ must rebuild it.
 
 The manager's report to the user states the outcome; what each node produced and how it was
 verified; everything dropped, blocked or left unresolved, by name; and the final verification it
-ran itself, with the command and what it printed.
+ran itself, with the command and its actual result.

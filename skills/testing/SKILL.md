@@ -102,8 +102,8 @@ Report, for whatever mode ran:
 
 - What was added, updated, or deleted, and why — citing the upsert decision or the named defect.
 - For every new or repaired test, how it was confirmed to fail for the reason it claims.
-- The exact command run for the affected level, and what it actually printed — not a description of
-  expected output.
+- The exact command run for the affected level and its actual result — not a description of
+  expected output. Quote the output where it shows a failure or something unexpected.
 - Any defect the run surfaced that wasn't already in scope: fixed alongside (if small), or reported
   with file and location plus a size estimate.
 - For audit mode: the classification of everything reviewed, the defect catalogue, and the portfolio

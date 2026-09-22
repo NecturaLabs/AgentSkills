@@ -191,7 +191,7 @@ Fix each confirmed finding at its root. Never suppress a symptom, and never weak
 to make the result green.
 
 After the fixes, verify **only the affected surface**: the tests covering what changed,
-plus the repository's required checks. Report the command and what it printed.
+plus the repository's required checks. Report the command and its actual result.
 
 The work is done when every confirmed blocking finding is resolved and verified. Then stop.
 
