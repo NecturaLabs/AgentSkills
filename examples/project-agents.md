@@ -79,7 +79,7 @@ Route test work through the `testing` skill. Project-specific:
   full PAN anywhere, at any level, including debug; weaken an idempotency check to make a test
   pass.
 - **Security-sensitive**: `adapters/cardnet/` and `internal/auth/`. Changes there go through
-  `security-review` before `change-review`. Never log request or response bodies in either.
+  `threat-review` before `independent-review`. Never log request or response bodies in either.
 
 ## Authoritative docs
 

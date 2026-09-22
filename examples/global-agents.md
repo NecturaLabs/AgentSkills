@@ -42,8 +42,8 @@ Load the skill; do not reconstruct its procedure from memory.
 | When | Skill |
 |---|---|
 | Writing, fixing, auditing or deleting automated tests | `testing` |
-| A non-trivial change is finished and needs independent review | `change-review` |
-| The change touches auth, authorization, sessions, tokens, crypto, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies | `security-review`, then `change-review` |
+| A non-trivial change is finished and needs independent review | `independent-review` |
+| The change touches auth, authorization, sessions, tokens, crypto, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies | `threat-review`, then `independent-review` |
 | Creating, auditing or shrinking an `AGENTS.md` | `agent-instructions` |
 | Recording a decision, architecture, design, runbook or reference doc | `project-docs` |
 
@@ -365,7 +365,7 @@ review-until-clean, which turns a finite change into an open loop.
 
 - Every behavioral, cross-file, schema, dependency or security-sensitive change gets an
   independent review before commit, merge or "done". A manual "looks good" is never a review.
-  Route through `change-review`, which owns the method; dispatching it needs no permission.
+  Route through `independent-review`, which owns the method; dispatching it needs no permission.
 - The reviewer receives the requirements and acceptance criteria, the factual architecture and
   contracts, the exact diff scope and the tree's absolute path, and what verification is required.
   It does not receive the implementer's reasoning, defence, dismissed concerns or any earlier
@@ -377,7 +377,7 @@ review-until-clean, which turns a finite change into an open loop.
 
 ## Security
 
-Route to `security-review` when the change touches the surfaces listed in Routing. Always,
+Route to `threat-review` when the change touches the surfaces listed in Routing. Always,
 regardless:
 
 - Do not introduce new secrets, tokens, connection strings or PII into commits, logs or output.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-V2_SKILLS=(agent-instructions change-review security-review testing project-docs)
+V2_SKILLS=(agent-instructions independent-review threat-review testing project-docs)
 
 V1_SKILLS=(using-necturalabs agent-context-loader iterative-code-review \
            iterative-security-audit test-manager unit-test-manager \

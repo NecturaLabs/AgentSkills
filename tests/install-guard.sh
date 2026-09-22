@@ -13,7 +13,7 @@ REPO_ROOT=${SCRIPT_DIR%/*}
 INSTALL=$REPO_ROOT/scripts/install.sh
 UNINSTALL=$REPO_ROOT/scripts/uninstall.sh
 DOCTOR=$REPO_ROOT/scripts/doctor.sh
-SKILLS=(agent-instructions change-review security-review testing project-docs)
+SKILLS=(agent-instructions independent-review threat-review testing project-docs)
 
 PASS=0
 FAIL=0
@@ -149,13 +149,13 @@ printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$SANDBOX/other-checkout/.claud
 H=$(new_home)
 mkdir -p "$H/.codex/skills"
 ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.codex/skills/testing"
-ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/security-review"
+ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/threat-review"
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 check "codex-other-checkout-untouched-without-force" "$SANDBOX/other-checkout/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
-check "codex-foreign-untouched-without-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/security-review")"
+check "codex-foreign-untouched-without-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
 bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
 check "codex-other-checkout-refreshed-with-force" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
-check "codex-foreign-survives-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/security-review")"
+check "codex-foreign-survives-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
 
 # --- global policy bootstrap ---------------------------------------------------------------
 # Installing skills and installing an operating policy are separate operations. These assert the

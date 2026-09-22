@@ -37,8 +37,8 @@ belongs.
 | Skill | Use when |
 |---|---|
 | **`agent-instructions`** | Writing a repository's `AGENTS.md`, auditing one for stale or oversized guidance, or deciding what belongs in persistent instructions versus a skill, a document or a lint rule |
-| **`change-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it |
-| **`security-review`** | A change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies |
+| **`independent-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it |
+| **`threat-review`** | A change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies |
 | **`testing`** | Adding coverage for new behavior, writing a regression test for a defect, fixing a failing or flaky test, choosing the right test level, or auditing a suite |
 | **`project-docs`** | Recording a consequential decision and its rationale, documenting how a system is structured, or auditing docs that have drifted from the code |
 
