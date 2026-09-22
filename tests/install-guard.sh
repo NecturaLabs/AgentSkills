@@ -338,8 +338,8 @@ shim_case "blank-lines"        '\n\n%%IMPORT%%\n\n'      "0" "yes"
 shim_case "markdown-heading"   '# note\n%%IMPORT%%\n'    "1" "no"
 shim_case "second-import"      '%%IMPORT%%\n@OTHER.md\n' "1" "no"
 shim_case "foreign-import"     '@OTHER.md\n'             "1" "no"
-# the pre-release adapter imported @AGENTS.md, pointing back into Claude's own directory
-shim_case "pre-release-import" '@AGENTS.md\n'            "1" "no"
+# a relative import resolves against Claude's own directory, not the canonical policy
+shim_case "relative-import"    '@AGENTS.md\n'            "1" "no"
 
 # 24. the default bootstrapped policy must be usable before any customization: no unfilled
 #     placeholder may survive as an active instruction, because an agent obeys what it says.
@@ -409,7 +409,7 @@ check "symlink-source-guard-detects-a-rewrite" "differs" "$(same_bytes "$decoy_s
 check "symlink-codex-adapter-is-link" "l" "$(entry_type "$H/.codex/AGENTS.md")"
 
 # 26. the canonical policy lives in neither harness's directory. A clean bootstrap must not
-#      create the pre-release path at all, and both adapters must point at the neutral file.
+#      create ~/.claude/AGENTS.md, and both adapters must point at the neutral file.
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
 check "neutral-canonical-is-regular" "f" "$(entry_type "$H/.agents/AGENTS.md")"
@@ -417,68 +417,17 @@ check "neutral-no-claude-canonical" "no" "$([ -e "$H/.claude/AGENTS.md" ] || [ -
 check "neutral-claude-adapter-import" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
 check "neutral-codex-resolves-to-canonical" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
 doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
-check "neutral-doctor-healthy" "0" "$(printf '%s\n' "$doctor_out" | grep -c '\[warn\].*\(canonical policy\|adapter\|pre-release\)')"
+check "neutral-doctor-healthy" "0" "$(printf '%s\n' "$doctor_out" | grep -c '\[warn\].*\(canonical policy\|adapter\)')"
 check "neutral-doctor-names-canonical" "1" "$(printf '%s\n' "$doctor_out" | grep -c "canonical global policy: $H/.agents/AGENTS.md")"
 
-# 26b. doctor reports a wrong adapter import and a Codex adapter still aimed at the old path
+# 26b. doctor reports a wrong adapter import
 printf '@~/somewhere-else.md\n' > "$H/.claude/CLAUDE.md"
 check "doctor-detects-wrong-import" "1" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c "imports '@~/somewhere-else.md'")"
-printf 'OLD\n' > "$H/.claude/AGENTS.md"
-rm -f "$H/.codex/AGENTS.md"
-ln -s "$H/.claude/AGENTS.md" "$H/.codex/AGENTS.md"
-check "doctor-detects-legacy-codex-target" "1" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c 'the pre-release canonical path')"
-
-# 27. migrating the pre-release layout. The user's policy must end up at the neutral path with
-#      its bytes intact, the old file must be preserved as a backup rather than deleted, and an
-#      ordinary run must refuse to do any of it.
-make_legacy_home() {
-  local h
-  h=$(new_home)
-  printf 'MY REAL PRE-RELEASE POLICY\nrule one\n' > "$h/.claude/AGENTS.md"
-  printf '@AGENTS.md\n' > "$h/.claude/CLAUDE.md"
-  ln -s "$h/.claude/AGENTS.md" "$h/.codex/AGENTS.md"
-  printf '%s' "$h"
-}
-
-# 27a. doctor names it as the pre-release layout needing migration, and changes nothing
-H=$(make_legacy_home)
-snap=$(policy_snapshot "$H")
-doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
-check "legacy-doctor-reports-migration" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'holds the pre-release canonical policy')"
-check "legacy-doctor-reports-old-adapter" "1" "$(printf '%s\n' "$doctor_out" | grep -c "pre-release adapter importing '@AGENTS.md'")"
-check "legacy-doctor-writes-nothing" "$snap" "$(policy_snapshot "$H")"
-
-# 27b. an ordinary --global-agents run refuses the whole thing and writes nothing
-bash "$INSTALL" --prefix "$H" --global-agents >/dev/null 2>&1
-check "legacy-refused-exit" "1" "$?"
-check "legacy-refused-writes-nothing" "$snap" "$(policy_snapshot "$H")"
-check "legacy-refused-no-neutral-canonical" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
-
-# 27c. --replace-global migrates: the policy moves to the neutral path with its bytes intact,
-#      the adapter is rewritten, Codex is relinked, and the old file survives as a backup
-bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
-check "legacy-migrated-exit" "0" "$?"
-check "legacy-migrated-canonical-is-regular" "f" "$(entry_type "$H/.agents/AGENTS.md")"
-check "legacy-migrated-policy-bytes-kept" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H/.agents/AGENTS.md" 2>/dev/null)"
-check "legacy-migrated-not-the-example" "differs" "$(diff -q "$REPO_ROOT/examples/global-agents.md" "$H/.agents/AGENTS.md" >/dev/null 2>&1 && echo same || echo differs)"
-check "legacy-migrated-adapter" "@$H/.agents/AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
-check "legacy-migrated-codex-relinked" "$H/.agents/AGENTS.md" "$(readlink -f -- "$H/.codex/AGENTS.md" 2>/dev/null)"
-check "legacy-migrated-old-path-retired" "no" "$([ -e "$H/.claude/AGENTS.md" ] || [ -L "$H/.claude/AGENTS.md" ] && echo yes || echo no)"
-check "legacy-migrated-old-policy-backed-up" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
-check "legacy-migrated-old-adapter-backed-up" "@AGENTS.md" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null)"
-check "legacy-migrated-doctor-clean" "0" "$(bash "$DOCTOR" --prefix "$H" 2>&1 | grep -c 'pre-release')"
-
-# 27d. naming a source explicitly still wins over carrying the pre-release policy over
-H=$(make_legacy_home)
-printf 'AN EXPLICIT CHOICE\n' > "$H/chosen.md"
-bash "$INSTALL" --prefix "$H" --global-agents "$H/chosen.md" --replace-global >/dev/null 2>&1
-check "legacy-explicit-source-wins" "AN EXPLICIT CHOICE" "$(cat "$H/.agents/AGENTS.md" 2>/dev/null)"
-check "legacy-explicit-source-still-backs-up" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H"/.claude/AGENTS.md.backup-* 2>/dev/null)"
 
 # 28. backup feasibility is preflighted, not discovered mid-write. Backups are named from one
 #      timestamp fixed at the start of the run, so every path the run needs is knowable before
 #      the first write; finding a taken one halfway through would leave the policy half
-#      migrated -- canonical replaced, adapter not, the two harnesses on different rules.
+#      installed -- canonical replaced, adapter not, the two harnesses on different rules.
 occupy_backup_slots() {
   # The run's timestamp is whatever second it starts in, so occupy a few to make the collision
   # deterministic rather than a race with the clock.
@@ -502,15 +451,6 @@ check "backupclash-reported" "1" "$(printf '%s\n' "$out" | grep -c "cannot be ba
 # the occupied backups are someone else's files and must survive untouched
 check "backupclash-existing-backups-intact" "pre-existing backup" "$(cat "$H"/.claude/CLAUDE.md.backup-* 2>/dev/null | sort -u)"
 
-# 28b. the same during a pre-release migration
-H=$(make_legacy_home)
-occupy_backup_slots "$H/.claude/AGENTS.md"
-bash "$INSTALL" --prefix "$H" --global-agents --replace-global >/dev/null 2>&1
-check "backupclash-migration-exit" "1" "$?"
-check "backupclash-migration-policy-intact" "MY REAL PRE-RELEASE POLICY" "$(head -1 "$H/.claude/AGENTS.md" 2>/dev/null)"
-check "backupclash-migration-adapter-intact" "@AGENTS.md" "$(cat "$H/.claude/CLAUDE.md" 2>/dev/null)"
-check "backupclash-migration-no-neutral" "no" "$([ -e "$H/.agents/AGENTS.md" ] && echo yes || echo no)"
-
 # 28c. when every backup path is free, --replace-global still does the whole job, and every
 #      backup shares the one timestamp the run fixed at the start
 H=$(new_home)
@@ -527,7 +467,7 @@ check "backupfree-one-timestamp" "1" "$(find "$H" -name '*.backup-*' -printf '%f
 # 29. a directory or other special object at any destination is never moved, even with
 #      --replace-global: renaming one is not the same operation as replacing a file, and nothing
 #      here knows what it holds.
-for tgt in .agents/AGENTS.md .claude/CLAUDE.md .claude/AGENTS.md .codex/AGENTS.md; do
+for tgt in .agents/AGENTS.md .claude/CLAUDE.md .codex/AGENTS.md; do
   H=$(new_home)
   mkdir -p "$H/$tgt"
   printf 'someone else\n' > "$H/$tgt/keep.txt"
@@ -540,61 +480,6 @@ for tgt in .agents/AGENTS.md .claude/CLAUDE.md .claude/AGENTS.md .codex/AGENTS.m
   check "dirblock-$label-reported" "1" "$(printf '%s\n' "$out" | grep -c 'directory or other special object')"
   check "dirblock-$label-no-backup" "0" "$(backup_count "$H")"
 done
-
-# 29. upgrading from the names earlier releases installed. A link under a retired name that
-#     resolves into an AgentSkills checkout is ours and is retired; anything else under that name
-#     belongs to someone else and survives.
-tree_snapshot() { find "$1" -printf '%y %p -> %l\n' 2>/dev/null | sort; }
-H=$(new_home)
-mkdir -p "$H/.claude/skills" "$H/.agents/skills"
-ln -s "$REPO_ROOT/skills/change-review" "$H/.claude/skills/change-review"
-ln -s "$REPO_ROOT/skills/security-review" "$H/.agents/skills/security-review"
-ln -s "$SANDBOX/unrelated/some-skill" "$H/.claude/skills/security-review"
-mkdir -p "$H/.agents/skills/change-review"
-printf 'hand written\n' > "$H/.agents/skills/change-review/SKILL.md"
-doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
-check "retired-doctor-reports-ours" "2" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\].*renamed to')"
-snap=$(tree_snapshot "$H")
-bash "$INSTALL" --prefix "$H" --dry-run >/dev/null 2>&1
-check "retired-dry-run-writes-nothing" "$snap" "$(tree_snapshot "$H")"
-bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
-check "retired-claude-link-removed" "no" "$([ -e "$H/.claude/skills/change-review" ] || [ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
-check "retired-agents-link-removed" "no" "$([ -e "$H/.agents/skills/security-review" ] || [ -L "$H/.agents/skills/security-review" ] && echo yes || echo no)"
-check "retired-foreign-link-survives" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.claude/skills/security-review")"
-check "retired-real-dir-survives" "hand written" "$(cat "$H/.agents/skills/change-review/SKILL.md" 2>/dev/null)"
-missing=''
-for s in independent-review threat-review; do
-  for root in .claude .agents; do
-    [ "$(readlink -f -- "$H/$root/skills/$s" 2>/dev/null)" = "$REPO_ROOT/skills/$s" ] || missing="$missing $root/$s"
-  done
-done
-check "retired-new-names-installed" "" "$missing"
-doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
-check "retired-doctor-clean-after-install" "0" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\].*renamed to')"
-
-# 29b. an old-name link into a different checkout that still carries the old skill is that
-#      checkout's live install: it needs --force, like repointing, and its target is never touched
-mkdir -p "$SANDBOX/old-checkout/skills/change-review" "$SANDBOX/old-checkout/.claude-plugin"
-printf 'old release\n' > "$SANDBOX/old-checkout/skills/change-review/SKILL.md"
-printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$SANDBOX/old-checkout/.claude-plugin/plugin.json"
-H=$(new_home)
-mkdir -p "$H/.claude/skills"
-ln -s "$SANDBOX/old-checkout/skills/change-review" "$H/.claude/skills/change-review"
-bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
-check "retired-other-checkout-exit" "1" "$?"
-check "retired-other-checkout-kept-without-force" "$SANDBOX/old-checkout/skills/change-review" "$(readlink -- "$H/.claude/skills/change-review")"
-bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
-check "retired-other-checkout-removed-with-force" "no" "$([ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
-check "retired-other-checkout-target-intact" "old release" "$(cat "$SANDBOX/old-checkout/skills/change-review/SKILL.md" 2>/dev/null)"
-
-# 29c. uninstall treats retired names as this project's own
-H=$(new_home)
-mkdir -p "$H/.claude/skills"
-ln -s "$REPO_ROOT/skills/change-review" "$H/.claude/skills/change-review"
-ln -s "$SANDBOX/unrelated/some-skill" "$H/.claude/skills/security-review"
-bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
-check "uninstall-removes-retired-link" "no" "$([ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
-check "uninstall-keeps-foreign-retired-name" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.claude/skills/security-review")"
 
 # 30. doctor reads Codex's system skills live and reports one sharing a name with ours; a clean
 #     home reports no collision

@@ -86,8 +86,7 @@ This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.
 older, still-supported Codex root that install no longer writes to; `doctor.sh` checks it so a
 shadowing duplicate is visible. Install refuses to overwrite anything it doesn't recognise: a real
 directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
-replaced, `--force` included. A link an earlier release left under a renamed skill's old name is
-retired when it provably belongs to an AgentSkills checkout.
+replaced, `--force` included.
 
 ### Optional: bootstrap a global working agreement
 
@@ -144,7 +143,6 @@ from the plugin; run it from the plugin's marketplace clone to serve Codex from 
 git pull                                 # the links follow the checkout
 bash scripts/doctor.sh                   # what is installed, what is broken, what conflicts
 bash scripts/uninstall.sh                # removes only links this project created
-bash scripts/uninstall.sh --include-legacy   # also removes v1 skill links
 ```
 
 `doctor.sh` also reports instruction-file health — whether a `CLAUDE.md` is suppressing native
@@ -195,10 +193,6 @@ the native names with the version each was verified on, the validator fails the 
 and `doctor.sh` checks the installed skills — Codex's system skills read live from disk, Claude
 Code's against the list, since its bundled skills live inside the binary with no listing a script
 can read.
-
-Upgrading from 2.x? See [docs/migration-v2-to-v3.md](docs/migration-v2-to-v3.md): two skills were
-renamed off native names, `agent-orchestration` was added, and the global example shrank to durable
-policy. From v1, see [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md).
 
 ## License
 

@@ -2,13 +2,6 @@
 set -euo pipefail
 
 SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
-# Names earlier releases installed, as old:new.
-RETIRED_SKILLS=(change-review:independent-review security-review:threat-review)
-
-V1_SKILLS=(using-necturalabs agent-context-loader iterative-code-review \
-           iterative-security-audit test-manager unit-test-manager \
-           integration-test-manager e2e-test-manager agents-md-manager \
-           docs-manager git-workflow comment-manager update-plugins)
 
 DEFAULT_DOC_BUDGET=32768
 
@@ -263,58 +256,6 @@ fi
 # report-only compatibility/older root: still checked, but never required.
 check_root "$CODEX_ROOT" "Codex (compatibility root, \$CODEX_HOME)" 0
 
-printf 'v1 artifacts\n'
-legacy_found=0
-for root in "$CLAUDE_ROOT" "$AGENTS_ROOT" "$CODEX_ROOT"; do
-  [ -d "$root" ] || continue
-  for name in "${V1_SKILLS[@]}"; do
-    path=$root/$name
-    [ -e "$path" ] || [ -L "$path" ] || continue
-    legacy_found=1
-    if [ -L "$path" ]; then
-      target=$(readlink -f -- "$path" 2>/dev/null || true)
-      owner=''
-      [ -n "$target" ] && owner=$(checkout_root_of "$target" || true)
-      if [ -n "$owner" ]; then
-        err "$path -> $target (v1 link from an AgentSkills checkout; remove with uninstall.sh --include-legacy)"
-      else
-        warn "$path -> ${target:-unresolvable} (v1 skill name, not owned by this plugin)"
-      fi
-    else
-      warn "$path (v1 skill name as a real directory, not owned by this plugin)"
-    fi
-  done
-done
-[ "$legacy_found" -eq 0 ] && ok "none installed"
-printf '\n'
-
-printf 'Retired names\n'
-retired_found=0
-for root in "$CLAUDE_ROOT" "$AGENTS_ROOT" "$CODEX_ROOT"; do
-  [ -d "$root" ] || continue
-  for entry in "${RETIRED_SKILLS[@]}"; do
-    old=${entry%%:*}
-    new=${entry#*:}
-    path=$root/$old
-    [ -e "$path" ] || [ -L "$path" ] || continue
-    retired_found=1
-    if [ -L "$path" ]; then
-      target=$(readlink -f -- "$path" 2>/dev/null || true)
-      owner=''
-      [ -n "$target" ] && owner=$(checkout_root_of "$target" || true)
-      if [ -n "$owner" ]; then
-        err "$path -> $target (renamed to '$new'; rerun install.sh to retire this link)"
-      else
-        info "$path -> ${target:-unresolvable} (a retired AgentSkills name, but not an AgentSkills link; left alone)"
-      fi
-    else
-      info "$path (a retired AgentSkills name, but a real entry rather than our link; left alone)"
-    fi
-  done
-done
-[ "$retired_found" -eq 0 ] && ok "no links under retired names"
-printf '\n'
-
 printf 'Shadowing\n'
 shadow_found=0
 for name in "${SKILLS[@]}"; do
@@ -402,7 +343,6 @@ printf 'AGENTS.md health\n'
 # the home directory -- so ~/.claude/CLAUDE.md holding exactly the import is what loads it.
 # doctor only reports what it finds here and never changes any of it.
 canonical_policy=$AGENTS_HOME/AGENTS.md
-legacy_policy=$CLAUDE_HOME/AGENTS.md
 if [ "$PREFIX" = "${HOME:-}" ]; then
   expected_import="@~/.agents/AGENTS.md"
 else
@@ -422,27 +362,17 @@ else
   info "no $canonical_policy; no canonical global policy installed (bootstrap one with install.sh --global-agents)"
 fi
 
-# The pre-release layout kept the policy in Claude's own directory. It is never written now, and
-# never treated as the canonical policy: left in place it is a second file claiming to be policy.
-if [ -e "$legacy_policy" ] || [ -L "$legacy_policy" ]; then
-  if [ -f "$canonical_policy" ]; then
-    warn "$legacy_policy is left over from the pre-release layout and is no longer read as policy; the canonical policy is $canonical_policy. Move it aside once you have confirmed nothing you want is only in it"
-  else
-    warn "$legacy_policy holds the pre-release canonical policy; the canonical policy now lives at $canonical_policy. Migrate with: install.sh --global-agents --replace-global (it carries this file's contents over and backs the original up)"
-  fi
-fi
-
 global_shim=$CLAUDE_HOME/CLAUDE.md
 if [ ! -e "$global_shim" ] && [ ! -L "$global_shim" ]; then
-  if [ -f "$canonical_policy" ] || [ -e "$legacy_policy" ]; then
+  if [ -f "$canonical_policy" ]; then
     err "a global policy exists but $global_shim does not; Claude Code loads no global instructions (it does not read a user-scope AGENTS.md natively)"
   else
     info "$global_shim absent and no canonical policy; no global instructions configured"
   fi
 else
   # Exactly one non-blank line, and it is the neutral import. CLAUDE.md is Markdown and has no
-  # comment syntax, so a '# note' line is a heading the model reads; that, a second import, and
-  # the pre-release '@AGENTS.md' are each content or a wrong target, not a valid adapter.
+  # comment syntax, so a '# note' line is a heading the model reads; that and a second import are
+  # each content or a wrong target, not a valid adapter.
   shim_body=$(grep -vE '^[[:space:]]*$' "$global_shim" 2>/dev/null || true)
   substantive=$(printf '%s\n' "$shim_body" | grep -c . || true)
   substantive=${substantive:-0}
@@ -452,8 +382,6 @@ else
     warn "$global_shim is a symlink -> $(readlink -- "$global_shim" 2>/dev/null || printf '<unresolvable>'); the Claude adapter must be a regular file holding only '$expected_import'"
   elif [ "$substantive" -eq 1 ] && [ "$shim_line" = "$expected_import" ]; then
     ok "$global_shim imports the canonical policy ($expected_import) and holds nothing else"
-  elif [ "$substantive" -eq 1 ] && [ "$shim_line" = "@AGENTS.md" ]; then
-    warn "$global_shim is the pre-release adapter importing '@AGENTS.md', which points back into $CLAUDE_HOME rather than at the canonical policy; it should import '$expected_import'"
   elif [ "$substantive" -eq 1 ]; then
     warn "$global_shim imports '$shim_line'; it should import '$expected_import' so the canonical policy stays the single maintained source"
   else
@@ -556,10 +484,7 @@ else
   # One canonical source: Codex should read the same bytes as Claude Code, not a second copy that
   # drifts. Reported, never repaired -- install.sh --global-agents is what changes it.
   codex_target=$(readlink -f -- "$codex_doc" 2>/dev/null || true)
-  legacy_real=$(readlink -f -- "$legacy_policy" 2>/dev/null || printf '%s' "$legacy_policy")
-  if [ -n "$codex_target" ] && [ "$codex_target" = "$legacy_real" ] && [ "$legacy_real" != "$canonical_policy" ]; then
-    warn "$codex_doc points at $legacy_policy, the pre-release canonical path, not at $canonical_policy; migrate with install.sh --global-agents --replace-global"
-  elif [ -f "$canonical_policy" ]; then
+  if [ -f "$canonical_policy" ]; then
     canonical_real=$(readlink -f -- "$canonical_policy" 2>/dev/null || printf '%s' "$canonical_policy")
     if [ "$codex_target" = "$canonical_real" ]; then
       ok "Codex reads the canonical policy ($codex_doc -> $canonical_real)"

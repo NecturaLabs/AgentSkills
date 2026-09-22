@@ -132,10 +132,9 @@ Do not build an elaborate eval platform before these cases work.
 
 Adding a skill is a `minor` version bump and needs agreement first — every skill's metadata is a
 permanent context cost for every user, so a new skill has to be worth more than the routing
-ambiguity it introduces with the existing ones. Removing or renaming one is a `major`: list the old
-name in the `RETIRED_SKILLS` arrays of `install.sh`, `uninstall.sh` and `doctor.sh` so upgrades
-retire the old links. The skill lists in those scripts and the install guard must match `skills/`;
-the validator checks.
+ambiguity it introduces with the existing ones. Removing or renaming one is a `major`. The skill
+lists in `install.sh`, `uninstall.sh`, `doctor.sh` and the install guard must match `skills/`; the
+validator checks.
 
 Before adding, check whether the job is really a new mode of an existing skill. Splitting one skill
 into two is justified only when routing evidence shows the single router picking wrong.

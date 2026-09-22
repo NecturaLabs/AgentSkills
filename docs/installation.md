@@ -53,20 +53,10 @@ recognised by resolving the target and requiring both a `skills/` directory and 
 `uninstall.sh` removes only symlinks whose name is one of this project's skills and whose target
 resolves inside an AgentSkills checkout. It never removes a real directory, never removes a link
 pointing elsewhere, and never removes the skill directories themselves. Anything it declines to
-remove is printed with the reason. `--include-legacy` extends it to v1 skill names.
+remove is printed with the reason.
 
 Both take `--dry-run` and `--prefix <dir>`; `--prefix` overrides the home base, which is how the
 scripts are tested without touching a real home directory.
-
-### Upgrading across a rename
-
-3.0.0 renamed `change-review` to `independent-review` and `security-review` to `threat-review`.
-After `git pull`, rerun `install.sh`: it links the new names and retires a link left under an old
-name when that link provably belongs to an AgentSkills checkout — outright when it points into this
-checkout or no longer resolves, and only with `--force` when a different checkout still carries the
-old skill. A real directory or a foreign link under an old name is reported and never touched.
-`uninstall.sh` removes old-name links too, and `doctor.sh` reports any that remain. Plugin installs
-pick up the rename on the next plugin update. See `docs/migration-v2-to-v3.md`.
 
 ## Optional: bootstrap the global working agreement
 
@@ -101,14 +91,12 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 
 - **A run is all-or-nothing with respect to conflicts.** The three destinations are one
   mechanism, so every one is classified before anything is written. A canonical file that exists
-  and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, and a Codex
-  `AGENTS.md` that is not already the link, a symlink at the canonical path or the Claude
-  adapter, and a policy still sitting at the pre-release `<prefix>/.claude/AGENTS.md`. "Just the
-  import" is exact: a regular file whose one non-blank line is `@~/.agents/AGENTS.md`
-  (a `--prefix` sandbox gets the absolute form, so the adapter points inside the sandbox rather
-  than at the real home). Blank lines are
-  fine; no other content is. `CLAUDE.md` is Markdown
-  and has no comment syntax, so a `# note` line is a heading the model reads, and a second
+  and differs is a conflict; so is a `CLAUDE.md` carrying anything beyond the import, a Codex
+  `AGENTS.md` that is not already the link, and a symlink at the canonical path or the Claude
+  adapter. "Just the import" is exact: a regular file whose one non-blank line is
+  `@~/.agents/AGENTS.md` (a `--prefix` sandbox gets the absolute form, so the adapter points inside
+  the sandbox rather than at the real home). Blank lines are fine; no other content is. `CLAUDE.md`
+  is Markdown and has no comment syntax, so a `# note` line is a heading the model reads, and a second
   import such as `@OTHER.md` pulls in policy the canonical file does not control — either one
   makes the file a conflict.
   If any destination conflicts and `--replace-global` is absent, all conflicts are reported,
@@ -119,7 +107,7 @@ Refusal rules, all of which hold with `--dry-run` and without it:
   `<path>.backup-<UTC timestamp>` first. One timestamp is fixed at the start of the run, so every
   backup path the run will need is known before the first write and all of them are checked for
   collisions up front. If any is already taken, every collision is reported and **nothing is
-  written anywhere** — discovering one halfway through would leave the policy half migrated, with
+  written anywhere** — discovering one halfway through would leave the policy half installed, with
   the canonical file replaced and the adapter not, putting the two harnesses on different rules.
   An existing backup is never overwritten.
 - `--replace-global` moves aside only a regular file or a symlink. A directory or any other
@@ -129,25 +117,6 @@ Refusal rules, all of which hold with `--dry-run` and without it:
 - `--replace-global` without `--global-agents` is rejected before anything is read or written.
 - An `AGENTS.override.md` in the Codex home is reported, never removed — Codex prefers it over
   `AGENTS.md`, so it silently shadows the canonical policy.
-
-### Migrating the pre-release layout
-
-An earlier revision of this branch put the policy at `~/.claude/AGENTS.md`, with the adapter
-importing `@AGENTS.md` and Codex linked into Claude's directory. That layout was never released
-and is not a compatibility contract. It is recognized, never silently changed:
-
-- `doctor.sh` reports a policy still at `~/.claude/AGENTS.md` as the pre-release canonical path
-  and names the migration command; it reports an adapter importing `@AGENTS.md` as pointing back
-  into Claude's own directory; and it reports a Codex adapter still aimed at the old path.
-- An ordinary `--global-agents` run treats the old policy as a conflict, so it refuses and writes
-  nothing rather than leaving two files that both claim to be the policy.
-- `install.sh --global-agents --replace-global` migrates it: the old file's own bytes become the
-  source when no `FILE` was named, so the policy moves rather than being overwritten by the
-  example; the adapter is rewritten to the neutral import; Codex is relinked; and the old file is
-  moved to a timestamped backup rather than deleted. Naming a `FILE` explicitly still wins, and
-  the old policy is backed up either way.
-- If an old `~/.claude/AGENTS.md` is still present after a run that did not migrate, `doctor.sh`
-  reports it as leftover state that is no longer read as policy — it never deletes it.
 
 `doctor.sh` reports the same surface read-only: whether a canonical policy exists at
 `~/.agents/AGENTS.md` and is a regular file rather than a symlink, whether `CLAUDE.md` is a

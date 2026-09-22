@@ -2,41 +2,30 @@
 set -euo pipefail
 
 SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
-# Names earlier releases installed. Still this project's links, so removed by default.
-RETIRED_SKILLS=(change-review security-review)
-
-V1_SKILLS=(using-necturalabs agent-context-loader iterative-code-review \
-           iterative-security-audit test-manager unit-test-manager \
-           integration-test-manager e2e-test-manager agents-md-manager \
-           docs-manager git-workflow comment-manager update-plugins)
 
 usage() {
   cat <<'USAGE'
-Usage: uninstall.sh [--include-legacy] [--dry-run] [--prefix <dir>]
+Usage: uninstall.sh [--dry-run] [--prefix <dir>]
 
 Removes only the skill symlinks this project created: a symlink in a skills
-root whose name is one of this plugin's skills, current or retired, and whose
-target resolves inside an AgentSkills checkout. Real directories, foreign
-links, unrelated entries and the skills directories themselves are never
-touched.
+root whose name is one of this plugin's skills and whose target resolves
+inside an AgentSkills checkout. Real directories, foreign links, unrelated
+entries and the skills directories themselves are never touched.
 
-  --include-legacy  Also remove links left by the v1 skill names.
-  --dry-run         Print every action; change nothing.
-  --prefix DIR      Use DIR instead of $HOME as the base holding .claude,
-                    .agents and .codex.
+  --dry-run     Print every action; change nothing.
+  --prefix DIR  Use DIR instead of $HOME as the base holding .claude, .agents
+                and .codex.
 USAGE
 }
 
 die() { printf 'uninstall: %s\n' "$*" >&2; exit 2; }
 
 DRY_RUN=0
-INCLUDE_LEGACY=0
 PREFIX=${HOME:-}
 PREFIX_GIVEN=0
 
 while [ "$#" -gt 0 ]; do
   case $1 in
-    --include-legacy) INCLUDE_LEGACY=1 ;;
     --dry-run|-n) DRY_RUN=1 ;;
     --prefix) [ "$#" -ge 2 ] || die "--prefix needs a directory"; PREFIX=$2; PREFIX_GIVEN=1; shift ;;
     --prefix=*) PREFIX=${1#--prefix=}; PREFIX_GIVEN=1 ;;
@@ -97,20 +86,11 @@ checkout_root_of() {
   return 1
 }
 
-MANAGED=("${SKILLS[@]}" "${RETIRED_SKILLS[@]}")
-[ "$INCLUDE_LEGACY" -eq 1 ] && MANAGED+=("${V1_SKILLS[@]}")
+MANAGED=("${SKILLS[@]}")
 
 is_managed_name() {
   local candidate=$1 n
   for n in "${MANAGED[@]}"; do
-    [ "$n" = "$candidate" ] && return 0
-  done
-  return 1
-}
-
-is_v1_name() {
-  local candidate=$1 n
-  for n in "${V1_SKILLS[@]}"; do
     [ "$n" = "$candidate" ] && return 0
   done
   return 1
@@ -145,11 +125,7 @@ for root in "${ROOTS[@]}"; do
       continue
     fi
     if ! is_managed_name "$name"; then
-      if [ "$INCLUDE_LEGACY" -eq 0 ] && is_v1_name "$name"; then
-        KEPT+=("$entry (v1 skill name; rerun with --include-legacy to remove)")
-      else
-        KEPT+=("$entry (not a skill of this plugin)")
-      fi
+      KEPT+=("$entry (not a skill of this plugin)")
       continue
     fi
     target=$(readlink -f -- "$entry" 2>/dev/null || true)
