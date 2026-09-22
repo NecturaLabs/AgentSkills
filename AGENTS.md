@@ -47,9 +47,9 @@ verified exception is a user-scope shim outside this repo, covered in `docs/inst
 
 The checkout is the single canonical source for skill content. `scripts/install.sh` symlinks each
 skill into `~/.claude/skills/` and `~/.agents/skills/`; both harnesses follow symlinked skill
-directories. `$CODEX_HOME/skills` (default `~/.codex/skills`) is a supported older Codex root that
-install no longer writes to; `doctor.sh` checks it for a shadowing duplicate. Never maintain a
-copied per-harness skill body.
+directories. Codex also scans `$CODEX_HOME/skills` (default `~/.codex/skills`); install never writes
+there, and `doctor.sh` checks it for a shadowing duplicate. Never maintain a copied per-harness
+skill body.
 
 ## Skill authoring
 

@@ -78,8 +78,8 @@ per skill into each harness's personal skill directory:
 
 Both products document following symlinked skill directories, and both read `SKILL.md` from the
 target. Editing the checkout changes what both harnesses load, with no copy step and nothing to
-drift. `$CODEX_HOME/skills` (default `~/.codex/skills`) remains a supported, older Codex root that
-install no longer writes to; see `docs/installation.md` for the verified skill-root facts.
+drift. Codex also scans `$CODEX_HOME/skills` (default `~/.codex/skills`); install never writes
+there. See `docs/installation.md` for the verified skill-root facts.
 
 To stay loadable by both, `SKILL.md` frontmatter carries only the six keys the open Agent Skills
 specification defines: `name`, `description`, `license`, `compatibility`, `metadata`,

@@ -262,11 +262,10 @@ else
   info "harness not present; skipped"
   printf '\n'
 fi
-# Codex 0.155.1 scans both $CODEX_HOME/skills and $HOME/.agents/skills; .agents/skills is
-# HOME-derived and is the required install root checked above. $CODEX_HOME/skills is kept as a
-# report-only compatibility/older root: still checked, but never required.
-check_root "$CODEX_ROOT" "Codex (compatibility root, \$CODEX_HOME)" 0
 
+# Codex also scans $CODEX_HOME/skills. Install never writes there, so one of our names found there
+# was put there by hand or another tool; it is an error only when it resolves somewhere other than
+# our link.
 printf 'Shadowing\n'
 shadow_found=0
 for name in "${SKILLS[@]}"; do

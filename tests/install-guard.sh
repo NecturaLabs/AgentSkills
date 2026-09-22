@@ -101,13 +101,13 @@ check "dangling-repaired-with-force" "$REPO_ROOT/skills/testing" "$(readlink -- 
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 ln -s "$SANDBOX/unrelated/some-skill" "$H/.claude/skills/unrelated-link"
-mkdir -p "$H/.codex/skills/local-real-skill"
-printf 'hand written\n' > "$H/.codex/skills/local-real-skill/SKILL.md"
+mkdir -p "$H/.agents/skills/local-real-skill"
+printf 'hand written\n' > "$H/.agents/skills/local-real-skill/SKILL.md"
 bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
 check "uninstall-removes-ours" "0" "$(for s in "${SKILLS[@]}"; do [ -e "$H/.claude/skills/$s" ] && echo x; done | wc -l | tr -d ' ')"
 check "uninstall-keeps-foreign-link" "yes" "$([ -L "$H/.claude/skills/unrelated-link" ] && echo yes || echo no)"
-check "uninstall-keeps-real-dir" "hand written" "$(cat "$H/.codex/skills/local-real-skill/SKILL.md" 2>/dev/null)"
-check "uninstall-keeps-roots" "yes" "$([ -d "$H/.claude/skills" ] && [ -d "$H/.codex/skills" ] && echo yes || echo no)"
+check "uninstall-keeps-real-dir" "hand written" "$(cat "$H/.agents/skills/local-real-skill/SKILL.md" 2>/dev/null)"
+check "uninstall-keeps-roots" "yes" "$([ -d "$H/.claude/skills" ] && [ -d "$H/.agents/skills" ] && echo yes || echo no)"
 check "uninstall-keeps-target-dir" "not ours" "$(cat "$SANDBOX/unrelated/some-skill/SKILL.md" 2>/dev/null)"
 
 # 7. --dry-run writes nothing, on either script
@@ -131,16 +131,15 @@ check "doctor-sees-install" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'is not
 # 9. no recursive delete may ever appear in the three scripts
 check "no-recursive-rm" "0" "$(grep -cE '\brm\b[^|]*-[a-zA-Z]*[rR]' "$INSTALL" "$UNINSTALL" "$DOCTOR" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')"
 
-# 10. a clean install never creates or populates the compatibility root ($CODEX_HOME/skills):
-#     it is report-only and is not written to on a fresh install.
+# 10. a clean install never creates or populates $CODEX_HOME/skills: Codex scans it, but the
+#     install root is .agents/skills.
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 check "clean-install-no-codex-skills-dir" "no" "$([ -d "$H/.codex/skills" ] && echo yes || echo no)"
 check "clean-install-no-codex-links" "0" "$(link_count "$H/.codex")"
 
-# 11. a stale AgentSkills-owned link already sitting in the compatibility root and pointing at a
-#     DIFFERENT AgentSkills checkout is refreshed to this checkout only with --force; an unrelated
-#     foreign link sitting in that same root is left alone either way.
+# 11. install and uninstall never write to $CODEX_HOME/skills, --force included: a link already
+#     there, ours or not, is left for doctor to report.
 OTHER_PLUGIN_NAME=$(grep -m1 '"name"' "$REPO_ROOT/.claude-plugin/plugin.json" | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/')
 mkdir -p "$SANDBOX/other-checkout/skills/testing" "$SANDBOX/other-checkout/.claude-plugin"
 printf 'other checkout skill\n' > "$SANDBOX/other-checkout/skills/testing/SKILL.md"
@@ -150,12 +149,13 @@ H=$(new_home)
 mkdir -p "$H/.codex/skills"
 ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.codex/skills/testing"
 ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/threat-review"
-bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
-check "codex-other-checkout-untouched-without-force" "$SANDBOX/other-checkout/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
-check "codex-foreign-untouched-without-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
+ln -s "$REPO_ROOT/skills/testing" "$H/.codex/skills/agent-instructions"
 bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
-check "codex-other-checkout-refreshed-with-force" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
-check "codex-foreign-survives-force" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
+check "codex-home-other-checkout-untouched" "$SANDBOX/other-checkout/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
+check "codex-home-foreign-untouched" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
+check "codex-home-no-new-links" "3" "$(link_count "$H/.codex")"
+bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
+check "codex-home-ours-survives-uninstall" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/agent-instructions")"
 
 # --- global policy bootstrap ---------------------------------------------------------------
 # Installing skills and installing an operating policy are separate operations. These assert the
@@ -240,8 +240,8 @@ doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
 check "doctor-reports-override-shadowing" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'never read' || true)"
 
 # 21. doctor detects a skill name resolving to different targets across the two Codex roots.
-#     Both roots are live for some Codex versions, so a stale link in the compatibility root
-#     shadowing the real one in .agents/skills is a genuine version-skew bug, not cosmetic.
+#     Codex scans both roots, so an entry there that resolves elsewhere shadows the real link in
+#     .agents/skills.
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
 mkdir -p "$H/.codex/skills"

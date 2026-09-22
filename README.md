@@ -82,9 +82,9 @@ bash scripts/install.sh
 ```
 
 This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.agents/skills/`
-(Codex), for whichever harnesses are present. `$CODEX_HOME/skills` (default `~/.codex/skills`) is an
-older, still-supported Codex root that install no longer writes to; `doctor.sh` checks it so a
-shadowing duplicate is visible. Install refuses to overwrite anything it doesn't recognise: a real
+(Codex), for whichever harnesses are present. Codex also scans `$CODEX_HOME/skills` (default
+`~/.codex/skills`); install never writes there, and `doctor.sh` checks it so a shadowing duplicate
+is visible. Install refuses to overwrite anything it doesn't recognise: a real
 directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
 replaced, `--force` included.
 

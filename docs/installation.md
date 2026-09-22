@@ -33,8 +33,9 @@ skill placed as a symlink inside `.agents/skills` was discovered and listed, and
 `$CODEX_HOME/skills` (default `~/.codex/skills`) remains a currently supported, older user root:
 Codex's own bundled skills still live under `~/.codex/skills/.system/`, and its `skill-installer`
 skill still documents only that path — the older convention lagging the newer public one, not
-evidence the newer root is inactive. `install.sh` no longer writes to `$CODEX_HOME/skills`;
-`doctor.sh` inspects it so a duplicate or shadowing skill name between the two roots is visible.
+evidence the newer root is inactive. `install.sh` and `uninstall.sh` never write to
+`$CODEX_HOME/skills`; `doctor.sh` inspects it so a shadowing skill name between the two roots is
+visible.
 Nothing is ever deleted from either root that this project did not create. Claude Code's user skill
 root is unaffected by any of this — it stays `~/.claude/skills`. Verified on Claude Code 2.1.278:
 `~/.agents/skills` and `.agents/skills` appear in the binary only inside its cross-agent import

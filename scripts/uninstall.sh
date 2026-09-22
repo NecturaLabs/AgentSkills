@@ -13,8 +13,8 @@ inside an AgentSkills checkout. Real directories, foreign links, unrelated
 entries and the skills directories themselves are never touched.
 
   --dry-run     Print every action; change nothing.
-  --prefix DIR  Use DIR instead of $HOME as the base holding .claude, .agents
-                and .codex.
+  --prefix DIR  Use DIR instead of $HOME as the base holding .claude and
+                .agents.
 USAGE
 }
 
@@ -22,13 +22,12 @@ die() { printf 'uninstall: %s\n' "$*" >&2; exit 2; }
 
 DRY_RUN=0
 PREFIX=${HOME:-}
-PREFIX_GIVEN=0
 
 while [ "$#" -gt 0 ]; do
   case $1 in
     --dry-run|-n) DRY_RUN=1 ;;
-    --prefix) [ "$#" -ge 2 ] || die "--prefix needs a directory"; PREFIX=$2; PREFIX_GIVEN=1; shift ;;
-    --prefix=*) PREFIX=${1#--prefix=}; PREFIX_GIVEN=1 ;;
+    --prefix) [ "$#" -ge 2 ] || die "--prefix needs a directory"; PREFIX=$2; shift ;;
+    --prefix=*) PREFIX=${1#--prefix=} ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "unknown option: $1" ;;
   esac
@@ -99,11 +98,7 @@ is_managed_name() {
 REMOVED=()
 KEPT=()
 
-CODEX_HOME_DIR=$PREFIX/.codex
-if [ "$PREFIX_GIVEN" -eq 0 ] && [ -n "${CODEX_HOME:-}" ]; then
-  CODEX_HOME_DIR=$CODEX_HOME
-fi
-ROOTS=("$PREFIX/.claude/skills" "$PREFIX/.agents/skills" "$CODEX_HOME_DIR/skills")
+ROOTS=("$PREFIX/.claude/skills" "$PREFIX/.agents/skills")
 
 status=0
 shopt -s nullglob dotglob
