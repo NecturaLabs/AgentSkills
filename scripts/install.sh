@@ -291,6 +291,14 @@ command -v claude >/dev/null 2>&1 && claude_present=1
 { [ -d "$PREFIX/.codex" ] || [ -d "$PREFIX/.agents" ]; } && codex_present=1
 command -v codex >/dev/null 2>&1 && codex_present=1
 
+# Installed as a Claude Code plugin, these skills already load as <plugin>:<skill>. A personal link
+# as well would load every one of them twice, so the Claude root gets no links in that case.
+claude_plugin=0
+installed_plugins=$PREFIX/.claude/plugins/installed_plugins.json
+if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_NAME@" "$installed_plugins"; then
+  claude_plugin=1
+fi
+
 printf 'AgentSkills install\n'
 printf '  checkout : %s\n' "$REPO_ROOT"
 printf '  plugin   : %s\n' "${PLUGIN_NAME:-<unreadable manifest>}"
@@ -301,7 +309,9 @@ if [ "$FORCE" -eq 1 ] && [ -z "$PLUGIN_NAME" ]; then
   printf '  note     : plugin manifest unreadable, so no foreign link can be recognised; --force has no effect\n'
 fi
 
-if [ "$claude_present" -eq 1 ]; then
+if [ "$claude_present" -eq 1 ] && [ "$claude_plugin" -eq 1 ]; then
+  printf '  found    : Claude Code with the %s plugin installed; its skills load from the plugin, so no links go into %s\n' "$PLUGIN_NAME" "$CLAUDE_ROOT"
+elif [ "$claude_present" -eq 1 ]; then
   printf '  found    : Claude Code -> %s\n' "$CLAUDE_ROOT"
 else
   printf '  skipped  : Claude Code not found (no %s/.claude and no claude on PATH)\n' "$PREFIX"
@@ -318,7 +328,7 @@ printf '\n'
 
 status=0
 for name in "${SKILLS[@]}"; do
-  if [ "$claude_present" -eq 1 ]; then
+  if [ "$claude_present" -eq 1 ] && [ "$claude_plugin" -eq 0 ]; then
     install_one "$CLAUDE_ROOT" "$name" || status=1
   fi
   if [ "$codex_present" -eq 1 ]; then

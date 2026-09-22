@@ -135,6 +135,9 @@ Claude Code users who prefer the plugin mechanism can install from the marketpla
 /plugin install necturalabs@necturalabs
 ```
 
+With the plugin installed, `install.sh` links Codex only, since Claude Code already loads the skills
+from the plugin; run it from the plugin's marketplace clone to serve Codex from the same copy.
+
 ### Update, check, remove
 
 ```bash

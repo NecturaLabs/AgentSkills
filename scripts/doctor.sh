@@ -226,8 +226,25 @@ check_root() {
   printf '\n'
 }
 
+# A Claude Code plugin install loads these skills as <plugin>:<skill>, so personal links are not
+# required -- and any that exist load each skill a second time under its bare name.
+claude_plugin=0
+installed_plugins=$CLAUDE_HOME/plugins/installed_plugins.json
+if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_NAME@" "$installed_plugins"; then
+  claude_plugin=1
+fi
+
 printf 'Installed skills\n'
-if [ "$claude_active" -eq 1 ]; then
+if [ "$claude_active" -eq 1 ] && [ "$claude_plugin" -eq 1 ]; then
+  printf 'Claude Code (%s)\n' "$CLAUDE_ROOT"
+  ok "installed as the $PLUGIN_NAME plugin; its skills load as $PLUGIN_NAME:<skill>, so no personal links are needed"
+  for name in "${SKILLS[@]}"; do
+    if [ -e "$CLAUDE_ROOT/$name" ] || [ -L "$CLAUDE_ROOT/$name" ]; then
+      warn "$CLAUDE_ROOT/$name also exists; Claude Code loads both $PLUGIN_NAME:$name and $name"
+    fi
+  done
+  printf '\n'
+elif [ "$claude_active" -eq 1 ]; then
   check_root "$CLAUDE_ROOT" "Claude Code" 1
 else
   printf 'Claude Code (%s)\n' "$CLAUDE_ROOT"

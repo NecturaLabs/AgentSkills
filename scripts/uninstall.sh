@@ -16,8 +16,9 @@ Usage: uninstall.sh [--include-legacy] [--dry-run] [--prefix <dir>]
 
 Removes only the skill symlinks this project created: a symlink in a skills
 root whose name is one of this plugin's skills, current or retired, and whose
-target resolves inside an AgentSkills checkout. Real directories, foreign links, unrelated
-entries and the skills directories themselves are never touched.
+target resolves inside an AgentSkills checkout. Real directories, foreign
+links, unrelated entries and the skills directories themselves are never
+touched.
 
   --include-legacy  Also remove links left by the v1 skill names.
   --dry-run         Print every action; change nothing.

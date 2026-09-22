@@ -163,9 +163,16 @@ of them.
 ```
 
 This copies the plugin into Claude Code's plugin cache, so the checkout is no longer the live source
-and local edits do not take effect. Use it if you only want Claude Code and do not intend to modify
-the skills. Do not combine it with the symlink install — `doctor.sh` reports the duplicate skill
-names that would shadow each other.
+and local edits do not take effect. Plugin skills load namespaced, as `necturalabs:<skill>`, so they
+can never displace a bundled skill.
+
+`install.sh` and `doctor.sh` recognise the plugin from Claude Code's `installed_plugins.json`. With it
+installed, `install.sh` puts no links into `~/.claude/skills` — a personal link beside the plugin
+would load every skill twice — and still links Codex; `doctor.sh` accepts the plugin as the Claude
+install and warns about any personal link that duplicates it. To serve Codex from the same copy
+Claude Code uses, run `install.sh` from the plugin's marketplace clone
+(`~/.claude/plugins/marketplaces/<marketplace>`): the Codex links then follow
+`claude plugin marketplace update`, and no separate working checkout is needed.
 
 ## Any other harness
 
