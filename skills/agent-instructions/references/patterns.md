@@ -1,8 +1,11 @@
 # What a good instruction file contains
 
-Sections in order of priority. Include each one unless that section's own test says to omit it —
-an empty heading kept "just in case" is worse than no heading, because it invites someone to fill
-it with whatever's lying around instead of asking whether it belongs there at all.
+`AGENTS.md` is plain Markdown with no required fields or headings — see the open format at
+[agents.md](https://agents.md/). The sections below follow its common recommendations (overview,
+commands, code style, testing, security, commit and PR conventions), in order of priority.
+Include each one unless that section's own test says to omit it — an empty heading kept "just in
+case" is worse than no heading, because it invites someone to fill it with whatever's lying around
+instead of asking whether it belongs there at all.
 
 ## 1. Project overview (one to three sentences)
 
@@ -134,9 +137,10 @@ break a long file into shorter pieces that all describe the same scope. Each one
 its own:
 
 - **Self-contained for its subtree.** It must make sense as the only file an agent working there
-  ever reads. Different harnesses combine nested files differently — nearest-wins in one, root-to-cwd
-  concatenation with closer files overriding in another — so depending on a particular merge order
-  is not reliable.
+  ever reads. The format's rule is that the file nearest the edited path wins and an explicit chat
+  instruction overrides every file, but harnesses assemble the chain differently — nearest-wins in
+  one, root-to-cwd concatenation with closer files overriding in another — so depending on a
+  particular merge order is not reliable.
 - **Never contradicts the root.** A nested file narrows or adds; it never reverses a root rule for
   its subtree. A rule that's wrong for one subtree belongs at the level where it's actually true,
   not overridden downward.

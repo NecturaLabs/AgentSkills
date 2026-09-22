@@ -82,6 +82,14 @@ Route test work through the `testing` skill. Project-specific:
   pass before the general review, whichever harness or skill runs it. Never log request or response
   bodies in either.
 
+## Commits and pull requests
+
+- Commit scope is the top-level area: `fix(ledger): …`, `feat(console): …`, `chore(infra): …`.
+- A change to `openapi.yaml` regenerates the console client (`make client`) in the same pull request;
+  CI fails a PR whose generated client is stale.
+- A PR that changes replay or idempotency behavior links ADR `0012` and says which invariant it
+  keeps.
+
 ## Authoritative docs
 
 Read these rather than inferring; they are maintained and this file is not a summary of them.

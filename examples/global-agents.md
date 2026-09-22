@@ -12,7 +12,8 @@ How I want work done, in every repository and under any agent.
 **AGENTS.md is the only maintained policy source.** No second always-loaded file competes with it.
 Procedure lives in skills, project truth in each repository's docs, code and config, and
 enforceable rules in scripts, linters, tests and CI. A project's own `AGENTS.md` narrows or
-overrides this file for that repo.
+overrides this file for that repo, the file nearest the edited path wins, and an explicit instruction
+in chat overrides them all.
 
 <!-- customize: a harness that cannot read a user-scope AGENTS.md needs a shim holding only the
      import line; delete it once native loading lands. -->
@@ -127,6 +128,9 @@ otherwise do the work directly — size alone is not a reason. When delegating, 
   diff, never the reasoning that produced it. A manual "looks good" is never a review.
 - Use the harness's own review command when it runs in a separate context on the exact scope;
   otherwise `independent-review`. A security pass comes first where the threat surface warrants it.
+- When no separate context is allowed — I said no subagents, or the harness has none — review the
+  diff yourself against the written requirements and label the result a self-review. Never skip
+  the review, and never present a self-review as independent.
 - One broad pass. Disputed findings are settled by evidence — preferably a test — never by the
   implementer's account. Fix what is confirmed, re-verify the affected surface, stop. A second broad
   pass only when the fixes changed the design or invalidated the evidence.
@@ -150,8 +154,10 @@ otherwise do the work directly — size alone is not a reason. When delegating, 
 - Every problem found is fixed or reported; "out of scope" and "predates my change" are reasons to
   report, never to stay silent. Report what would swamp the change with `file:line` and a size, and
   start no cleanup campaign.
-- Atomic Conventional Commits, each buildable <!-- customize: house commit and branch style -->. No
-  attribution trailers, generated-with credits, model names or session links anywhere.
+- Atomic Conventional Commits, each buildable; a PR title in commit-subject form and a body saying
+  what changed, why, how it was verified and what was left out
+  <!-- customize: house commit, branch and PR style -->. No attribution trailers, generated-with
+  credits, model names or session links anywhere.
 - Clean up only the branches and worktrees you created, with the VCS's own commands, never a
   recursive delete.
 - Commit and push only when asked. Never force-push a shared branch, rewrite pushed history or skip
