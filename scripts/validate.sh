@@ -400,6 +400,8 @@ check_evals() {
         record FAIL "eval-frontmatter" "grader frontmatter missing or unterminated" "$(rel_path "$gf")"
       elif ! has_fm_key type; then
         record FAIL "eval-frontmatter" "grader missing required 'type' key" "$(rel_path "$gf")"
+      elif ! awk -v end="$FM_END_LINE" 'NR > end && /[^[:space:]]/ { found = 1 } END { exit !found }' "$gf"; then
+        record FAIL "eval-grader-description" "grader body does not describe the prompt it grades" "$(rel_path "$gf")"
       fi
     done
   done
@@ -542,6 +544,11 @@ check_skills_and_evals() {
       check_skill "$sd"
       check_evals "$sd"
     done < <(find "$repo_root/skills" -mindepth 1 -maxdepth 1 -print0)
+    # A symlink in a skill ships whatever it points at on the author's machine, and dangles
+    # everywhere else.
+    while IFS= read -r -d '' d; do
+      record FAIL "skills-structure" "symlink inside skills/" "$(rel_path "$d")"
+    done < <(find "$repo_root/skills" -mindepth 1 -type l -print0)
   fi
 
   [[ -d "$repo_root/evals" ]] ||

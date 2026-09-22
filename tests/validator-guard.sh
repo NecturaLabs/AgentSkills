@@ -216,6 +216,22 @@ mutate_eval_frontmatter() {
   sed -i '/^type:/d' "$case_dir/graders/main.md"
 }
 
+mutate_eval_grader_description() {
+  local wd="$1" s gf
+  s="$(pick_skill "$wd" 1)"
+  [[ -n "$s" ]] || return 1
+  gf="$(find "$wd/evals/${s}-negative/graders" -maxdepth 1 -type f -name '*.md' | head -n 1)"
+  [[ -n "$gf" ]] || return 1
+  awk 'BEGIN{n=0} {print} /^---$/{n++; if (n==2) exit}' "$gf" > "$gf.tmp" && mv "$gf.tmp" "$gf"
+}
+
+mutate_skill_symlink() {
+  local wd="$1" s
+  s="$(pick_skill "$wd" 1)"
+  [[ -n "$s" ]] || return 1
+  ln -s "$wd/skills/$s" "$wd/skills/$s/$s"
+}
+
 mutate_version_mismatch() {
   local wd="$1"
   [[ -f "$wd/package.json" ]] || return 1
@@ -293,6 +309,7 @@ fi
 
 echo "=== validator-guard: per-check mutations ==="
 assert_check_fails "skills-structure"       "skills-structure"       mutate_skills_structure
+assert_check_fails "skill-symlink"          "skills-structure"       mutate_skill_symlink
 assert_check_fails "frontmatter-parse"      "frontmatter-parse"      mutate_frontmatter_parse
 assert_check_fails "frontmatter-required"   "frontmatter-required"   mutate_frontmatter_required
 assert_check_fails "frontmatter-unknown-key" "frontmatter-unknown-key" mutate_frontmatter_unknown_key
@@ -309,6 +326,7 @@ assert_check_fails "unreferenced-file"      "unreferenced-file"      mutate_unre
 assert_check_fails "reference-depth"        "reference-depth"        mutate_reference_depth
 assert_check_fails "eval-case-missing"      "eval-case-missing"      mutate_eval_case_missing
 assert_check_fails "eval-frontmatter"       "eval-frontmatter"       mutate_eval_frontmatter
+assert_check_fails "eval-grader-description" "eval-grader-description" mutate_eval_grader_description
 assert_check_fails "version-mismatch"       "version-mismatch"       mutate_version_mismatch
 assert_check_fails "session-hook-dir"       "forbidden-artifact"     mutate_session_hook_dir
 assert_check_fails "competing-instructions" "forbidden-artifact"     mutate_competing_instructions

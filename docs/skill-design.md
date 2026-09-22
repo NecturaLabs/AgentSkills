@@ -121,10 +121,19 @@ grader's pattern accepts either name — `(?:independent-review|code-review)` �
 passes; a negative case forbids both, and a case that asks for something only this skill adds
 requires it alone.
 
-Run them with `claude plugin eval .`. This spends tokens and needs credentials, so CI validates that
-the case files exist and parse, and never executes them. Check that the intended skill fired, that
-no unrelated skill did, that only the needed references were read, and that the amount of
-orchestration matched the size of the task.
+Run them with `claude plugin eval .` once per release, and record the result in `docs/evals.md`.
+This spends tokens and needs credentials, so CI validates that the case files exist and parse, and
+never executes them.
+
+Every run starts in an empty workspace with only read-only tools, and loads none of the user's own
+settings or instruction files. A judge-graded case whose prompt refers to code, a diff or an
+instruction file must therefore carry it inline, or the agent can only report that it found nothing
+— and the judge scores that as a failure of the skill. A case graded only on which skill fired may
+describe the work instead, because the skill loads before anything is read. Every grader's body
+describes the prompt it grades; the validator fails a grader with none.
+
+Check that the intended skill fired, that no unrelated skill did, that only the needed references
+were read, and that the amount of orchestration matched the size of the task.
 
 Do not build an elaborate eval platform before these cases work.
 
