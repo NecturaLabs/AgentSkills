@@ -3,7 +3,7 @@
 Where an instruction file lives decides whether it loads at all, and how much of it survives
 decides whether the back half of a long file is ever seen. Both failures are silent — no error, no
 warning, just guidance that was never read. This reference states what is empirically verified on
-this machine (Claude Code 2.1.278, Codex 0.155.1) separately from what is inferred, so a claim here
+this machine (Claude Code 2.1.278 and 2.1.280, Codex 0.155.1) separately from what is inferred, so a claim here
 can be traced back to which kind of evidence backs it. Verify against the harness's own docs and,
 where possible, its own diagnostic output before relying on a fact here for a version this wasn't
 checked against.
@@ -48,6 +48,35 @@ checked against.
   draw on `project_doc_max_bytes`. Its size therefore cannot starve a project of its own
   instructions. Re-check this against the installed version before relying on it, since it is a
   property of the implementation rather than of a documented contract.
+
+## Skills: precedence and name collisions
+
+Routing entries and skill names interact with what each harness already ships. Verified on Claude
+Code 2.1.280 and Codex 0.155.1.
+
+- **Claude Code** loads skills from managed, personal (`~/.claude/skills`), project
+  (`.claude/skills`, including nested and ancestor directories) and plugin locations, plus the
+  skills bundled into the binary. Same-name precedence is managed, then personal, then project, and
+  any of those **replaces a bundled skill of the same name but not its aliases** — a personal
+  `code-review` replaces `/code-review` while the bundled alias `/review` still runs the bundled
+  one. Plugin skills are namespaced `plugin:name`, so they never collide with anything.
+  `skillOverrides` in settings hides or disables one skill by name (`"off"`, `"name-only"`,
+  `"user-invocable-only"`; plugin skills excepted) and `disableBundledSkills` removes every bundled
+  one. Bundled skills live inside the binary and are materialized lazily, so no directory lists
+  them all; `/skills` or `/context` in a session shows each skill's source.
+- **Codex** scans repository `.agents/skills` directories up to the root, `~/.agents/skills`,
+  `$CODEX_HOME/skills`, `/etc/codex/skills`, plugin caches, and its system skills under
+  `$CODEX_HOME/skills/.system`. Two skills with the same name are **not merged — both are listed**,
+  with no precedence, so a collision leaves the model choosing between them. A skill linked from a
+  directory inside a plugin checkout is listed under that plugin's `name:` prefix. A
+  `[[skills.config]]` entry in `config.toml` with the skill's `path` and `enabled = false` disables
+  one, system skills included; `codex debug prompt-input` prints the skill roots and the list the
+  model actually sees.
+
+The consequence for instruction files: never give a custom skill a native capability's name unless
+replacing that capability is the whole point, and never write a routing rule that forces a custom
+skill over a native one. Name what the skill adds instead, and state the requirement so either can
+meet it.
 
 ## The practical rule
 

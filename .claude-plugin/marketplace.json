@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "necturalabs",
-      "description": "Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security review, test engineering, and project documentation.",
+      "description": "Six Agent Skills for coding agents: instruction-file maintenance, agent orchestration, independent review, threat review, test engineering, and project documentation.",
       "source": "./"
     }
   ]

@@ -59,6 +59,11 @@ copied per-harness skill body.
   fails on any key outside the six.
 - `name` is 1–64 lowercase alphanumeric-and-hyphen characters, no leading, trailing or consecutive
   hyphens, and equals the directory name.
+- `name` never reuses a harness-native capability's name or alias; `scripts/native-names.tsv` lists
+  them and the validator enforces it. Name what the skill adds, not the job a harness already does.
+  Refresh the list when a harness release adds bundled skills, following the steps in its header.
+- A skill complements a native capability rather than competing with it: where a harness does the
+  same job, the skill is the portable procedure around it and the fallback where it is missing.
 - `description` is 1–1024 characters and is routing logic: it must make the trigger distinguishable
   from every neighbouring skill, and say what the skill is *not* for.
 - `SKILL.md` is a router and workflow contract — mode selection, invariants, process, output
@@ -73,7 +78,9 @@ copied per-harness skill body.
 ## Boundaries
 
 - **Always**: run the suite before claiming done; keep `package.json` and
-  `.claude-plugin/plugin.json` on the same version.
+  `.claude-plugin/plugin.json` on the same version; keep the skill lists in `scripts/install.sh`,
+  `uninstall.sh`, `doctor.sh` and `tests/install-guard.sh` equal to `skills/` (the validator
+  checks).
 - **Ask first**: adding or removing a skill; changing what `tests/run-all.sh` aggregates.
 - **Never**: write anything under `.claude/worktrees/` — sibling branches live there with their own
   uncommitted state, and the shell's working directory persists between commands.

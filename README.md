@@ -1,7 +1,7 @@
 # AgentSkills
 
-Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security
-review, test engineering, and project documentation.
+Six Agent Skills for coding agents: instruction-file maintenance, agent orchestration, independent
+review, threat review, test engineering, and project documentation.
 
 They follow the open [Agent Skills specification](https://agentskills.io/specification), so one
 checkout serves every conforming harness. Claude Code and OpenAI Codex are the two that are tested.
@@ -28,6 +28,11 @@ it adds a copy that drifts. A repository `CLAUDE.md` is forbidden here and the v
 build if one reappears; the one verified exception is a user-scope shim outside this repo, covered
 in [docs/installation.md](docs/installation.md).
 
+**Native first.** Where a harness ships its own maintained capability for a job — Claude Code's
+`/code-review` and `/security-review`, Codex's `/review` — and it fits, that capability does the
+job. These skills are the portable procedure around it and the fallback where none exists: they
+never take a native capability's name, and the shipped global policy never mandates them over one.
+
 See [docs/architecture.md](docs/architecture.md) for the full reasoning and
 [docs/skill-design.md](docs/skill-design.md) for how to decide where a given piece of knowledge
 belongs.
@@ -37,8 +42,9 @@ belongs.
 | Skill | Use when |
 |---|---|
 | **`agent-instructions`** | Writing a repository's `AGENTS.md`, auditing one for stale or oversized guidance, or deciding what belongs in persistent instructions versus a skill, a document or a lint rule |
-| **`independent-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it |
-| **`threat-review`** | A change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies |
+| **`agent-orchestration`** | Work is about to be split across subagents or a workflow: deciding whether to delegate, the topology, context packets, write ownership, model and effort per node, failure handling |
+| **`independent-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it — the procedure around the harness's own reviewer, or the reviewer where there is none |
+| **`threat-review`** | A change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies — including the surfaces a native security review excludes |
 | **`testing`** | Adding coverage for new behavior, writing a regression test for a defect, fixing a failing or flaky test, choosing the right test level, or auditing a suite |
 | **`project-docs`** | Recording a consequential decision and its rationale, documenting how a system is structured, or auditing docs that have drifted from the code |
 
@@ -51,7 +57,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement: scope boundaries, orchestration and context discipline, standard of done, review, security, git and communication. Generalized from a working agreement used in production — every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 10 KB: native-first capability selection, scope, the delegation decision, standard of done, testing, review and security invariants, git and communication. Procedure lives in the skills. Every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 
@@ -80,7 +86,8 @@ This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.
 older, still-supported Codex root that install no longer writes to; `doctor.sh` checks it so a
 shadowing duplicate is visible. Install refuses to overwrite anything it doesn't recognise: a real
 directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
-replaced, `--force` included.
+replaced, `--force` included. A link an earlier release left under a renamed skill's old name is
+retired when it provably belongs to an AgentSkills checkout.
 
 ### Optional: bootstrap a global working agreement
 
@@ -178,8 +185,17 @@ names.
 Semver across `package.json` and `.claude-plugin/plugin.json`: patch for fixes, minor for new skills
 or features, major for removed skills or a restructured layout.
 
-Upgrading from v1? See [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md). Thirteen skills
-became five, the session-start hook is gone, and the external plugin dependency is gone.
+No skill may reuse a name a harness already gives its own capability. A personal Claude Code skill
+replaces a bundled one of the same name but not its aliases, and Codex lists two same-named skills
+side by side, so either way the user silently loses the native one. `scripts/native-names.tsv` lists
+the native names with the version each was verified on, the validator fails the build on a match,
+and `doctor.sh` checks the installed skills — Codex's system skills read live from disk, Claude
+Code's against the list, since its bundled skills live inside the binary with no listing a script
+can read.
+
+Upgrading from 2.x? See [docs/migration-v2-to-v3.md](docs/migration-v2-to-v3.md): two skills were
+renamed off native names, `agent-orchestration` was added, and the global example shrank to durable
+policy. From v1, see [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md).
 
 ## License
 

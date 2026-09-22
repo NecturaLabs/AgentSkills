@@ -42,13 +42,31 @@ Bad — fires on everything:
 
 Good — a boundary a model can act on:
 
-> Independently review a finished non-trivial code change for correctness, design, compatibility and
-> test gaps before it is committed or merged. Use when a behavioral, cross-file, schema, dependency
-> or concurrency diff is complete and needs a reviewer that did not write it. Not for a typo, a
-> formatting-only diff, or code that is still being written.
+> Write, repair, debug, audit or delete automated tests. Use when adding coverage for new behavior,
+> writing a regression test for a defect, fixing a failing or flaky test, choosing the right test
+> level, or auditing a suite's quality. Not for explaining what an existing test does, and not for
+> running a suite as a routine verification step.
 
 Limits: 1–1024 characters. `name` is 1–64 lowercase alphanumeric-and-hyphen characters, no leading,
 trailing or consecutive hyphens, and equal to the directory name.
+
+## Naming, and native capabilities
+
+Name the guarantee the skill adds, not the job. A name like `code-review` claims a slot the harness
+may already fill — and in Claude Code a personal skill of that name *replaces* the bundled
+`/code-review`, while Codex lists both with no precedence. The validator fails on any name in
+`scripts/native-names.tsv`, aliases included; `independent-review` and `threat-review` are named for
+what they add over a native reviewer.
+
+The rule is not "never overlap a native capability" — it is "never displace one by accident". Where
+a harness does the same job, write the skill as the procedure around the native capability and the
+fallback where it is missing: say in the body when to use the native command and what the skill
+still owns, and let the description state the trigger in terms of what the skill adds. A skill whose
+whole purpose is replacing a native capability is the one exception: it needs an explicit decision,
+recorded with its reason, and a description that says what it replaces. None here is.
+
+When a harness release adds bundled skills, refresh `scripts/native-names.tsv` using the steps in
+its header, and bump the version each entry was verified on.
 
 ## Writing SKILL.md
 
@@ -98,7 +116,10 @@ Every skill carries five cases under `evals/`, named `<skill>-explicit`, `-impli
 
 Each case is a directory holding `prompt.md` and a `graders/` directory. Routing is asserted with a
 `tool_used` grader on the `Skill` tool, matching the skill name; a forbidden skill is the same
-grader with `min: 0` and `max: 0`.
+grader with `min: 0` and `max: 0`. Where a native capability can satisfy the request equally, the
+grader's pattern accepts either name — `(?:independent-review|code-review)` — so native-first routing
+passes; a negative case forbids both, and a case that asks for something only this skill adds
+requires it alone.
 
 Run them with `claude plugin eval .`. This spends tokens and needs credentials, so CI validates that
 the case files exist and parse, and never executes them. Check that the intended skill fired, that
@@ -110,8 +131,11 @@ Do not build an elaborate eval platform before these cases work.
 ## Adding or removing a skill
 
 Adding a skill is a `minor` version bump and needs agreement first — every skill's metadata is a
-permanent context cost for every user, so a sixth skill has to be worth more than the routing
-ambiguity it introduces with the existing five. Removing one is a `major`.
+permanent context cost for every user, so a new skill has to be worth more than the routing
+ambiguity it introduces with the existing ones. Removing or renaming one is a `major`: list the old
+name in the `RETIRED_SKILLS` arrays of `install.sh`, `uninstall.sh` and `doctor.sh` so upgrades
+retire the old links. The skill lists in those scripts and the install guard must match `skills/`;
+the validator checks.
 
 Before adding, check whether the job is really a new mode of an existing skill. Splitting one skill
 into two is justified only when routing evidence shows the single router picking wrong.

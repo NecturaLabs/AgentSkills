@@ -1,7 +1,7 @@
 {
   "name": "necturalabs",
-  "description": "Five Agent Skills for coding agents: instruction-file maintenance, independent code review, security review, test engineering, and project documentation.",
-  "version": "2.0.0",
+  "description": "Six Agent Skills for coding agents: instruction-file maintenance, agent orchestration, independent review, threat review, test engineering, and project documentation.",
+  "version": "3.0.0",
   "author": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"

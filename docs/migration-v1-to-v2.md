@@ -1,5 +1,8 @@
 # Migration: v1 to v2
 
+Superseded for current installs by `docs/migration-v2-to-v3.md`; the skill names below are the v2
+names as they were at the time.
+
 v2 is a rebuild, not a refactor. The working tree was treated as greenfield; git history is the
 archive, so there is no `legacy/` directory and no compatibility layer for a version nobody is
 running.

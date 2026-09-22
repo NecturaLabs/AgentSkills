@@ -26,9 +26,11 @@ Strong behavior should be cheap, rather than every agent carrying every procedur
 It earns its place only if its absence would make a current frontier agent decide materially worse,
 often enough to justify the repeated cost. That makes it the right home for scope boundaries,
 environment facts that change what a command must look like, correctness and completion invariants,
-orchestration principles, essential security boundaries, and routing to everything else. It is the
-wrong home for review methodology, testing doctrine, security checklists, per-language examples, and
-anything derivable from the code or the tooling.
+the decision whether to delegate at all, essential security boundaries, and routing by requirement
+to everything else. It is the wrong home for review methodology, testing doctrine, security
+checklists, delegation procedure, per-language examples, and anything derivable from the code or the
+tooling. The shipped global example holds to that at about 10 KB; its predecessor carried the full
+delegation procedure and reached 27 KB.
 
 It is also the only maintained policy source: no competing CLAUDE policy layer, no context-loader
 skill, no session-start hook that reinjects text. A repository `CLAUDE.md` is forbidden here — a
@@ -110,8 +112,38 @@ The two harnesses discover `AGENTS.md` differently, and both behaviors matter wh
 `scripts/doctor.sh` reports both, including the byte size of the resolved global file against the
 Codex budget.
 
-## Orchestration is not a layer
+## Native capabilities first
+
+Both harnesses now ship capabilities that overlap these skills: Claude Code bundles `/code-review`
+(run in a forked context, from a quick pass up to a multi-agent cloud review) and
+`/security-review`, and Codex ships `/review` backed by a `review-agent` system skill. A harness's
+own capability is maintained with it and tuned to its models, so where one exists and fits, it does
+the job. That sets two rules for this repository:
+
+- **A skill is the procedure around a native capability, and the fallback where none exists.**
+  `independent-review` owns scope, the uncontaminated brief, the evidence standard, adjudication and
+  the stop rule, and uses the harness's reviewer as its review pass when one runs in a separate
+  context. `threat-review` defers to a native security review for what it covers and keeps the
+  surfaces it excludes, such as dependency changes. The routing evals accept either route where
+  both satisfy the request, and require this plugin's skill only where it alone adds something.
+- **No skill takes a native name.** In Claude Code a personal or project skill replaces a bundled
+  one of the same name but not its aliases; Codex lists two same-named skills side by side with no
+  precedence. Either way the user silently loses the native capability, so the validator fails on
+  any name in `scripts/native-names.tsv`. The list is maintained by hand because neither harness
+  exposes its bundled names to a script: Claude Code compiles them into the binary under minified
+  identifiers that change between releases. `doctor.sh` reads Codex's system skills live from disk
+  and checks Claude Code against the list.
+
+Routing belongs to the policy layer, and it routes by requirement. The global example states what
+must happen — an independent review, a security pass before it — and lets a native command or a
+portable skill satisfy it, instead of naming this plugin's skill as the only acceptable route.
+
+## Orchestration is a skill, not a layer
 
 Subagents and workflow graphs execute work across these layers; they are not a fifth knowledge
-store. A skill is a node capability. Which topology runs, how many nodes, and what context each one
-receives is the caller's decision, and belongs in the caller's `AGENTS.md` — not here.
+store. The decision whether to delegate at all is made on every task, so it stays in `AGENTS.md` as
+one rule with the few invariants that must hold before anything else loads. How to delegate —
+topology, width, context packets, write ownership, model and effort per node, failure and
+escalation — matters only on delegated tasks, so it lives in `agent-orchestration`. The skill names
+no harness API: it decides whether and how to delegate, and uses whatever mechanism the harness
+provides.

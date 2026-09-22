@@ -1,6 +1,7 @@
 # Installation
 
-Verified against Claude Code 2.1.278 and Codex CLI 0.155.1 on Linux. Where a claim below was not
+Verified against Claude Code 2.1.278 (skill precedence and bundled names re-checked on 2.1.280)
+and Codex CLI 0.155.1 on Linux. Where a claim below was not
 confirmed by running it, that is stated.
 
 ## Recommended: link the checkout
@@ -56,6 +57,16 @@ remove is printed with the reason. `--include-legacy` extends it to v1 skill nam
 
 Both take `--dry-run` and `--prefix <dir>`; `--prefix` overrides the home base, which is how the
 scripts are tested without touching a real home directory.
+
+### Upgrading across a rename
+
+3.0.0 renamed `change-review` to `independent-review` and `security-review` to `threat-review`.
+After `git pull`, rerun `install.sh`: it links the new names and retires a link left under an old
+name when that link provably belongs to an AgentSkills checkout — outright when it points into this
+checkout or no longer resolves, and only with `--force` when a different checkout still carries the
+old skill. A real directory or a foreign link under an old name is reported and never touched.
+`uninstall.sh` removes old-name links too, and `doctor.sh` reports any that remain. Plugin installs
+pick up the rename on the next plugin update. See `docs/migration-v2-to-v3.md`.
 
 ## Optional: bootstrap the global working agreement
 
@@ -161,6 +172,24 @@ names that would shadow each other.
 The skills follow the open Agent Skills specification and their frontmatter is restricted to the six
 spec keys, so any conforming harness can load them. Point it at `skills/<name>/`. Claude Code and
 Codex are the two that are tested here.
+
+## Native skill names
+
+A skill that shares a name with a harness's own capability displaces it. In Claude Code a personal
+or project skill replaces a bundled skill of the same name — but not its aliases, so `/review`
+would still reach the bundled `/code-review` — while plugin skills are namespaced `plugin:name` and
+never collide. Codex lists two same-named skills side by side with no precedence. No skill here
+reuses a native name: the validator checks every name against `scripts/native-names.tsv`, and
+`doctor.sh` reports a collision on the installed checkout, reading Codex's system skills live from
+`$CODEX_HOME/skills/.system` and checking Claude Code against the list. Claude Code keeps its bundled
+skills inside the binary, materialized lazily, so no directory lists them and the list is maintained
+by hand; `doctor.sh` notes when the installed version is newer than the one it was verified on.
+
+Either harness can switch off a native skill you do not want. Claude Code: `skillOverrides` in
+`settings.json` (`{"skillOverrides": {"<name>": "off"}}`), or `disableBundledSkills: true` for all of
+them. Codex: a `[[skills.config]]` entry in `config.toml` with the skill's `path` and
+`enabled = false` — verified on 0.155.1 to hide system skills as well — confirmed with
+`codex debug prompt-input`, which prints the skill list the model sees.
 
 ## Instruction files
 

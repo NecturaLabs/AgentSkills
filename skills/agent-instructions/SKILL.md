@@ -78,6 +78,11 @@ These hold across all four modes.
 7. **Measure the file's real cost — don't guess it.** Line count, word count and byte size are one
    command away; use them, especially against the harness budgets in
    `references/harness-loading.md`, rather than eyeballing whether a file "feels big."
+8. **Route by requirement, not by product.** A routing entry states what must happen — a review, a
+   security pass — and prefers the harness's own capability where it fits, naming a portable skill
+   as the fallback. An entry that makes an installed skill "always win" over a native capability
+   denies the harness its own maintained tool; treat it as a defect. Skill precedence and name
+   collisions per harness are in `references/harness-loading.md`.
 
 ## Harness loading
 
