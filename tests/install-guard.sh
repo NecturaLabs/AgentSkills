@@ -596,5 +596,19 @@ bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
 check "uninstall-removes-retired-link" "no" "$([ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
 check "uninstall-keeps-foreign-retired-name" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.claude/skills/security-review")"
 
+# 30. doctor reads Codex's system skills live and reports one sharing a name with ours; a clean
+#     home reports no collision
+H=$(new_home)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "native-doctor-clean" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'no skill of this plugin reuses a harness-native name')"
+mkdir -p "$H/.codex/skills/.system/testing" "$H/.codex/skills/.system/imagegen"
+printf -- '---\nname: "testing"\ndescription: x\n---\n' > "$H/.codex/skills/.system/testing/SKILL.md"
+printf -- '---\nname: imagegen\ndescription: x\n---\n' > "$H/.codex/skills/.system/imagegen/SKILL.md"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "native-doctor-detects-codex-system" "1" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\] testing is also a Codex system skill')"
+check "native-doctor-counts-codex-system" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'read 2 Codex system skill(s)')"
+check "native-doctor-no-false-codex" "0" "$(printf '%s\n' "$doctor_out" | grep -c 'imagegen is also')"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

@@ -127,6 +127,24 @@ mutate_duplicate_name() {
   sed -i "s/^name:.*/name: $s1/" "$wd/skills/$s2/SKILL.md"
 }
 
+# Reusing a harness-native name displaces that harness's own capability, so it must not validate.
+mutate_native_name_collision() {
+  local wd="$1" s
+  s="$(pick_skill "$wd" 1)"
+  [[ -n "$s" && -f "$wd/skills/$s/SKILL.md" ]] || return 1
+  mv "$wd/skills/$s" "$wd/skills/code-review"
+  sed -i 's/^name:.*/name: code-review/' "$wd/skills/code-review/SKILL.md"
+}
+
+# An alias counts: Claude Code keeps routing a bundled alias to the bundled skill.
+mutate_native_alias_collision() {
+  local wd="$1" s
+  s="$(pick_skill "$wd" 1)"
+  [[ -n "$s" && -f "$wd/skills/$s/SKILL.md" ]] || return 1
+  mv "$wd/skills/$s" "$wd/skills/review"
+  sed -i 's/^name:.*/name: review/' "$wd/skills/review/SKILL.md"
+}
+
 mutate_description_length() {
   local wd="$1" s
   s="$(pick_skill "$wd" 1)"
@@ -267,6 +285,8 @@ assert_check_fails "frontmatter-unknown-key" "frontmatter-unknown-key" mutate_fr
 assert_check_fails "name-format"            "name-format"            mutate_name_format
 assert_check_fails "name-dir-mismatch"      "name-dir-mismatch"      mutate_name_dir_mismatch
 assert_check_fails "duplicate-name"         "duplicate-name"         mutate_duplicate_name
+assert_check_fails "native-name-collision"  "native-name-collision"  mutate_native_name_collision
+assert_check_fails "native-alias-collision" "native-name-collision"  mutate_native_alias_collision
 assert_check_fails "description-length"     "description-length"    mutate_description_length
 assert_check_fails "compatibility-length"   "compatibility-length"  mutate_compatibility_length
 assert_check_fails "body-length"            "body-length"            mutate_body_length

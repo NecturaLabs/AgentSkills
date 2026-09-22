@@ -323,6 +323,60 @@ done
 [ "$shadow_found" -eq 0 ] && ok "no skill name resolves to conflicting targets across roots"
 printf '\n'
 
+printf 'Native names\n'
+# A skill sharing a name with a harness's own capability displaces it where installed unnamespaced:
+# Claude Code runs a personal skill in place of the bundled one (aliases still reach the bundled
+# one), and Codex lists both under the one name. Codex keeps its system skills on disk, so those are
+# read live; Claude Code compiles its bundled skills into the binary and exposes no list a script
+# can read, so its side is checked against the maintained native-names.tsv, which can lag a release.
+native_list=$SCRIPT_DIR/native-names.tsv
+native_found=0
+codex_system=$CODEX_HOME_DIR/skills/.system
+if [ -d "$codex_system" ]; then
+  system_count=0
+  for skill_md in "$codex_system"/*/SKILL.md; do
+    [ -f "$skill_md" ] || continue
+    system_count=$((system_count + 1))
+    sys_name=$(sed -n '2,/^---/{s/^name:[[:space:]]*//p;}' "$skill_md" | head -n 1 | tr -d "\"'" | tr -d '[:space:]')
+    if [ -z "$sys_name" ]; then
+      sys_name=${skill_md%/SKILL.md}
+      sys_name=${sys_name##*/}
+    fi
+    for name in "${SKILLS[@]}"; do
+      if [ "$name" = "$sys_name" ]; then
+        native_found=1
+        err "$name is also a Codex system skill ($skill_md); Codex lists both under one name"
+      fi
+    done
+  done
+  info "read $system_count Codex system skill(s) from $codex_system"
+else
+  info "no Codex system skills at $codex_system"
+fi
+if [ -f "$native_list" ]; then
+  list_version=''
+  while IFS=$'\t' read -r harness kind nname ver || [ -n "$harness" ]; do
+    case $harness in ''|'#'*) continue ;; esac
+    [ "$harness" = claude-code ] && list_version=$ver
+    for name in "${SKILLS[@]}"; do
+      if [ "$name" = "$nname" ]; then
+        native_found=1
+        err "$name is a $harness $kind name (verified on $ver); installed unnamespaced it displaces the harness's own capability"
+      fi
+    done
+  done < "$native_list"
+  if command -v claude >/dev/null 2>&1 && [ -n "$list_version" ]; then
+    claude_now=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+    if [ -n "$claude_now" ] && [ "$claude_now" != "$list_version" ]; then
+      info "Claude Code bundled names were last verified on $list_version and this is $claude_now; a newer release can add names the list lacks (refresh steps are in $native_list)"
+    fi
+  fi
+else
+  warn "no $native_list; Claude Code bundled names cannot be checked"
+fi
+[ "$native_found" -eq 0 ] && ok "no skill of this plugin reuses a harness-native name"
+printf '\n'
+
 printf 'AGENTS.md health\n'
 
 # The canonical global policy lives in neither harness's directory: both are peer consumers and

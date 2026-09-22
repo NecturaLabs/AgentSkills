@@ -1,0 +1,65 @@
+# Names a harness already gives its own maintained capability. No skill in this repository may
+# reuse one: validate.sh fails the build on a match, and doctor.sh reports a match on the installed
+# checkout. Tab-separated: harness, kind, name, version the entry was verified on.
+#
+# Why a hand-kept list: neither harness offers a stable interface a script can query for its
+# bundled names. Claude Code compiles its bundled skills into the binary and materializes them
+# lazily, so no directory ever holds the full set. Codex keeps its system skills on disk under
+# $CODEX_HOME/skills/.system, which doctor.sh reads live on top of this list. A release can add a
+# name this list lacks; refresh it against each new harness version:
+#
+#   Claude Code  run /skills or /context in a session; every entry whose source is "Built-in" is
+#                bundled. The documented precedence (code.claude.com/docs/en/skills) is that a
+#                personal or project skill replaces a bundled one of the same name but not its
+#                aliases, so aliases are listed too.
+#   Codex        ls "${CODEX_HOME:-$HOME/.codex}/skills/.system"
+#
+# kind: skill (bundled skill), alias (a bundled skill's alias), reserved (a name the harness
+# refuses for user skills), system-skill (Codex system skill).
+claude-code	skill	artifact-capabilities	2.1.280
+claude-code	skill	artifact-components	2.1.280
+claude-code	skill	artifact-design	2.1.280
+claude-code	skill	artifact-diagramming	2.1.280
+claude-code	skill	artifact-pr-review	2.1.280
+claude-code	skill	batch	2.1.280
+claude-code	skill	claude-api	2.1.280
+claude-code	skill	claude-in-chrome	2.1.280
+claude-code	skill	code-review	2.1.280
+claude-code	skill	commit	2.1.280
+claude-code	skill	commit-push-pr	2.1.280
+claude-code	skill	cowork-plugin	2.1.280
+claude-code	skill	dataviz	2.1.280
+claude-code	skill	debug	2.1.280
+claude-code	skill	design	2.1.280
+claude-code	skill	design-sync	2.1.280
+claude-code	skill	doctor	2.1.280
+claude-code	skill	explain-usage	2.1.280
+claude-code	skill	fewer-permission-prompts	2.1.280
+claude-code	skill	go	2.1.280
+claude-code	skill	init	2.1.280
+claude-code	skill	keybindings-help	2.1.280
+claude-code	skill	loop	2.1.280
+claude-code	skill	memory-types	2.1.280
+claude-code	skill	pr	2.1.280
+claude-code	skill	prototype	2.1.280
+claude-code	skill	run	2.1.280
+claude-code	skill	run-skill-generator	2.1.280
+claude-code	skill	schedule	2.1.280
+claude-code	skill	security-review	2.1.280
+claude-code	skill	setup-claude	2.1.280
+claude-code	skill	simplify	2.1.280
+claude-code	skill	update-config	2.1.280
+claude-code	skill	verify	2.1.280
+claude-code	skill	whiteboard	2.1.280
+claude-code	skill	workflow-authoring	2.1.280
+claude-code	skill	workshop	2.1.280
+claude-code	alias	checkup	2.1.280
+claude-code	alias	review	2.1.280
+claude-code	alias	setup-cowork	2.1.280
+claude-code	reserved	synced	2.1.280
+codex	system-skill	imagegen	0.155.1
+codex	system-skill	openai-docs	0.155.1
+codex	system-skill	plugin-creator	0.155.1
+codex	system-skill	review-agent	0.155.1
+codex	system-skill	skill-creator	0.155.1
+codex	system-skill	skill-installer	0.155.1

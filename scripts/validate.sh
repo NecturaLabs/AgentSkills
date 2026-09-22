@@ -18,6 +18,10 @@ LEGACY_SKILL_NAMES=(using-necturalabs agent-context-loader iterative-code-review
   iterative-security-audit test-manager unit-test-manager integration-test-manager
   e2e-test-manager agents-md-manager docs-manager git-workflow comment-manager update-plugins)
 
+# Read from beside this script rather than from the repo root under validation, so a sandboxed
+# copy of skills/ is checked against the same list the real repository is.
+NATIVE_NAMES_FILE="$SCRIPT_DIR/native-names.tsv"
+
 STRICT=0
 QUIET=0
 repo_root=""
@@ -27,6 +31,7 @@ FAIL_COUNT=0
 WARN_COUNT=0
 
 declare -A NAME_SEEN=()
+declare -A NATIVE_NAME=()
 declare -a FM_KEYS=()
 declare -A FM_LINE=()
 declare -A FM_VALUE=()
@@ -45,6 +50,28 @@ record() {
   else
     WARN_COUNT=$((WARN_COUNT + 1))
   fi
+}
+
+# A skill that reuses a harness-native name silently displaces that harness's own maintained
+# capability wherever it is installed unnamespaced -- in Claude Code it replaces the bundled command
+# but not its aliases, and Codex lists both under one name. The list and its provenance live in
+# native-names.tsv.
+load_native_names() {
+  local harness kind name ver
+  if [[ ! -f "$NATIVE_NAMES_FILE" ]]; then
+    record FAIL "native-name-list" "list of harness-native names not found" "$NATIVE_NAMES_FILE"
+    return
+  fi
+  while IFS=$'\t' read -r harness kind name ver || [[ -n "$harness" ]]; do
+    if [[ -z "$harness" || "$harness" == \#* ]]; then
+      continue
+    fi
+    if [[ -z "$kind" || -z "$name" || -z "$ver" ]]; then
+      record FAIL "native-name-list" "malformed entry '$harness $kind $name $ver' (want harness, kind, name, version)" "$NATIVE_NAMES_FILE"
+      continue
+    fi
+    NATIVE_NAME["$name"]="$harness $kind, verified on $ver"
+  done < "$NATIVE_NAMES_FILE"
 }
 
 rel_path() {
@@ -308,6 +335,9 @@ check_skill() {
     if [[ "$name_val" != "$skill_dir_name" ]]; then
       record FAIL "name-dir-mismatch" "name '$name_val' does not match directory '$skill_dir_name'" "$rel:${FM_LINE[name]}"
     fi
+    if [[ -n "${NATIVE_NAME[$name_val]:-}" ]]; then
+      record FAIL "native-name-collision" "name '$name_val' is already a harness-native capability (${NATIVE_NAME[$name_val]}); name the guarantee this skill adds instead" "$rel:${FM_LINE[name]}"
+    fi
     if [[ -n "${NAME_SEEN[$name_val]:-}" ]]; then
       record FAIL "duplicate-name" "name '$name_val' also declared by ${NAME_SEEN[$name_val]}" "$rel"
     else
@@ -549,6 +579,7 @@ main() {
   fi
   repo_root="$(cd -- "$repo_root" && pwd)"
 
+  load_native_names
   check_shell_syntax
   check_version_consistency
   check_legacy_artifacts
