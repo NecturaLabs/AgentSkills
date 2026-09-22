@@ -209,3 +209,79 @@ fn a_failed_download_removes_the_empty_directories_it_created() {
         "a directory that existed before must stay"
     );
 }
+
+#[test]
+fn an_owned_asset_with_several_engine_versions_downloads_the_newest_by_default() {
+    let harness = Harness::new("base");
+    let library = std::fs::read_to_string(harness.fixtures().join("library.json"))
+        .unwrap()
+        .replace(r#"["UE_5.4"]"#, r#"["UE_5.2", "UE_5.10", "UE_5.4"]"#);
+    assert!(library.contains("UE_5.10"), "fixture rewrite did not apply");
+    harness.write_fixture("library.json", &library);
+    const KEEP: &str = "33333333-3333-4333-8333-333333333333";
+
+    let (value, output) = harness.json(&["download", KEEP, "--out", "keep"]);
+    assert_eq!(code(&output), 0, "{value}");
+    assert!(
+        harness
+            .calls()
+            .iter()
+            .any(|c| c.contains("--engine=UE_5.10")),
+        "{:?}",
+        harness.calls()
+    );
+    assert!(
+        value["warnings"].to_string().contains("UE_5.10"),
+        "the choice is reported: {value}"
+    );
+
+    // An explicit choice is never overridden.
+    let (value, output) = harness.json(&[
+        "download",
+        KEEP,
+        "--out",
+        "keep-52",
+        "--engine-version",
+        "5.2",
+    ]);
+    assert_eq!(code(&output), 0, "{value}");
+    assert!(harness
+        .calls()
+        .iter()
+        .any(|c| c.contains("--engine=UE_5.2")));
+}
+
+#[test]
+fn an_owned_asset_for_several_platforms_downloads_this_machines_by_default() {
+    let harness = Harness::new("base");
+    // The corridor kit ships for Windows and Mac.
+    const CORRIDOR: &str = "44444444-4444-4444-8444-444444444444";
+    let expected = if cfg!(target_os = "macos") {
+        "Mac"
+    } else {
+        "Windows"
+    };
+
+    let (value, output) = harness.json(&["download", CORRIDOR, "--out", "corridor"]);
+    assert_eq!(code(&output), 0, "{value}");
+    assert!(
+        harness
+            .calls()
+            .iter()
+            .any(|c| c.contains(&format!("--platform={expected}"))),
+        "{:?}",
+        harness.calls()
+    );
+    assert!(value["warnings"].to_string().contains(expected), "{value}");
+
+    let (_, output) = harness.json(&[
+        "download",
+        CORRIDOR,
+        "--out",
+        "corridor-mac",
+        "--platform",
+        "Mac",
+    ]);
+    assert_eq!(code(&output), 0);
+    assert!(harness.calls().iter().any(|c| c.contains("--platform=Mac")));
+}

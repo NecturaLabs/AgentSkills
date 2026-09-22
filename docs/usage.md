@@ -15,11 +15,19 @@ necturalabs-fab search "castle" --hydrate 5 --engine-version 5.4   # verify vers
 ## Owned assets
 
 ```bash
-necturalabs-fab library
+necturalabs-fab library                      # page 1: title, link, engines, download command
+necturalabs-fab library --page 2             # next page (100 per page; --limit up to 500)
+necturalabs-fab library "cathedral"          # search titles, descriptions, tags and ids
+necturalabs-fab library aa08c781             # by listing id, or its first segment
+necturalabs-fab library --details            # fetch each entry's description for this page
 necturalabs-fab library "castle" --engine-version 5.4 --json
 necturalabs-fab search "castle" --owned-only
 necturalabs-fab ownership 1a2b3c4d-… 5e6f7a8b-… --json
 ```
+
+Fab's library listing repeats the title in place of a description, so real descriptions come
+from each listing's page: automatically when 10 or fewer entries match, for a whole page with
+`--details`. Each page ends with the command for the next one.
 
 ## Free assets
 
@@ -48,9 +56,14 @@ necturalabs-fab inspect 1a2b3c4d-… --ownership
 ## Download
 
 ```bash
+necturalabs-fab download 1a2b3c4d-…                                  # newest version, this machine's platform
 necturalabs-fab download 1a2b3c4d-… --out Content/Fab/Castle --dry-run --json
 necturalabs-fab download 1a2b3c4d-… --out Content/Fab/Castle --engine-version 5.4 --json
 ```
+
+When an owned asset ships several engine versions or platforms and none is given, `download` takes
+the configured engine version if the asset ships it, else the newest, and this machine's platform
+(Windows on Linux, where Fab publishes no Linux builds for content). A warning names each choice.
 
 The response's `data.outputDir` is the absolute path written; `data.sidecar` points at
 `necturalabs-fab.asset.json` inside it.

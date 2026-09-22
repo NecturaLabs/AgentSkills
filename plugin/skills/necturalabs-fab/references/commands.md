@@ -55,7 +55,7 @@ Fields that are unknown are **omitted**, not null. `coverage` says why:
 | `search "<query>"` | Marketplace retrieval in marketplace order. `--hydrate N` fetches detail for the first N rows. `--cursor` pages. |
 | `find "<need>"` | Search + enrich top `--hydrate` (default 6) + deterministic ranking; returns `--top` (default 5). |
 | `recommend "<need>"` | `find` with top 3 and a `recommendation` object (`listingId`, `confidence`, `why`, `blockers`, `requiresApproval`). |
-| `library ["<words>"]` | Owned assets, filtered client-side by words, `--engine`, `--engine-version`, `--limit`. |
+| `library ["<words or id>"]` | Owned assets, matched client-side on title, description, tags, listing id (or its first segment) and link; `--engine`, `--engine-version`. Paged: `--limit` (default 100, max 500), `--page N`; data has `matched`, `page`, `pages`, `pageSize`, `nextPage`. Real descriptions are fetched from listings when 10 or fewer match, or for the page with `--details`; `--no-details` never. Entries without `url` are engine builds or Epic plugins, not Fab listings. |
 
 Filters shared by `search`/`find`/`recommend`:
 
@@ -95,7 +95,7 @@ Filters shared by `search`/`find`/`recommend`:
 
 | Command | Class | Notes |
 |---|---|---|
-| `download <id> --out DIR` | local-write | `--engine-version`, `--platform`, `--overwrite refuse\|force\|require-empty` (default refuse), `--jobs N`, `--dry-run`, `--no-sidecar`. Without `--out`, writes to `<download.directory>/<id>`. |
+| `download <id> --out DIR` | local-write | `--engine-version`, `--platform`, `--overwrite refuse\|force\|require-empty` (default refuse), `--jobs N`, `--dry-run`, `--no-sidecar`. Without `--out`, writes to `<download.directory>/<id>`. For an owned asset with several engine versions or platforms and none given, picks the configured engine version if shipped, else the newest, and this machine's platform (Windows on Linux); each choice is a warning. |
 | `claim <id>` | account-mutation | Refused unless `--approve` (default policy). `--dry-run` returns the plan. Paid or unknown-price listings are always refused. |
 | `promos` | read | Fab's current limited-time free listings: `promos[]` of `{id, title, url, owned, listPrice, currency, freeUntil, publisher}`, `count`. A discount the search omits is confirmed from the listing detail. |
 | `promos claim [<id>...]` | account-mutation | Claims every current promo not yet owned (or only the ids given; others land in `skipped`). One approval covers the listed batch; `--dry-run` returns `plan`, `toClaim`, `skipped`. Each listing is re-checked as free right before its claim; per-item failures are in `results`. |

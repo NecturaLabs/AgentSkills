@@ -90,7 +90,7 @@ pub fn listing_detail(value: &Value, include_raw: bool) -> Result<Asset> {
     asset.description = value
         .get("description")
         .and_then(Value::as_str)
-        .and_then(|d| sanitize::text(d, sanitize::DESCRIPTION_LIMIT));
+        .and_then(description_text);
     asset.created_at = value
         .get("createdAt")
         .and_then(Value::as_str)
@@ -450,6 +450,15 @@ fn merge_structured(into: &mut TechnicalMetadata, block: &Value) {
 
 /// Seller text arrives as HTML. Drop the tags and decode the handful of
 /// entities Fab emits, leaving plain text for parsing and display.
+/// Descriptions are seller-authored HTML; agents and terminals get the text.
+fn description_text(raw: &str) -> Option<String> {
+    let text = strip_html(raw)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    sanitize::text(&text, sanitize::DESCRIPTION_LIMIT)
+}
+
 fn strip_html(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut in_tag = false;
@@ -730,10 +739,13 @@ fn library_asset(row: &Value, include_raw: bool) -> Option<Asset> {
         .get("title")
         .and_then(Value::as_str)
         .and_then(sanitize::short);
+    // The library endpoint fills `description` with the title for almost
+    // every entry; a copy of the title is no description at all.
     asset.description = row
         .get("description")
         .and_then(Value::as_str)
-        .and_then(|d| sanitize::text(d, sanitize::DESCRIPTION_LIMIT));
+        .and_then(description_text)
+        .filter(|d| Some(d) != asset.title.as_ref());
     asset.url = row
         .get("url")
         .and_then(Value::as_str)
@@ -1216,6 +1228,37 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[1].owned, Some(false));
         assert!(rows[1].licenses.is_empty());
+    }
+
+    #[test]
+    fn listing_descriptions_arrive_as_plain_text() {
+        let raw = json!({
+            "uid": "listing-1",
+            "title": "Cathedral",
+            "description": "<h4><strong>Watch </strong><a href=\"https://youtu.be/x\">Trailer</a></h4><p>Modular &amp; <u>easy</u> to assemble.</p>"
+        });
+        let asset = listing_detail(&raw, false).unwrap();
+        let description = asset.description.unwrap();
+        assert!(!description.contains('<'), "{description}");
+        assert!(description.contains("Watch Trailer"), "{description}");
+        assert!(
+            description.contains("Modular & easy to assemble."),
+            "{description}"
+        );
+    }
+
+    #[test]
+    fn library_descriptions_arrive_as_plain_text() {
+        let raw = json!({"results": [{
+            "assetId": "a", "title": "Rocks",
+            "description": "<p>Hand-painted <b>rocks</b> &amp; cliffs</p>",
+            "customAttributes": [{"ListingIdentifier": "listing-1"}]
+        }]});
+        let assets = library_assets(&raw, false).unwrap();
+        assert_eq!(
+            assets[0].description.as_deref(),
+            Some("Hand-painted rocks & cliffs")
+        );
     }
 
     #[test]

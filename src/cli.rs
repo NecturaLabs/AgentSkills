@@ -290,9 +290,22 @@ pub struct LibraryArgs {
     #[arg(long, value_name = "VERSION")]
     pub engine_version: Option<String>,
 
-    /// Maximum entries to return.
+    /// Entries per page (default 100, at most 500).
     #[arg(long, value_name = "N")]
     pub limit: Option<u32>,
+
+    /// Page to show, starting at 1.
+    #[arg(long, value_name = "N", default_value_t = 1)]
+    pub page: u32,
+
+    /// Fetch each entry's real description from its listing (up to 100).
+    /// Automatic when 10 or fewer entries match.
+    #[arg(long, conflicts_with = "no_details")]
+    pub details: bool,
+
+    /// Never fetch listing descriptions.
+    #[arg(long)]
+    pub no_details: bool,
 }
 
 /// `download` arguments.

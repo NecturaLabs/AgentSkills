@@ -85,11 +85,12 @@ pub fn run(ctx: &Ctx, args: &DownloadArgs) -> Result<Outcome> {
         true,
     )?;
 
+    let variant = resolve_variant(ctx, args, &listing_id);
     let request = DownloadRequest {
         listing_id: listing_id.clone(),
         output_dir: output_dir.clone(),
-        engine_version: args.engine_version.clone(),
-        platform: args.platform.clone(),
+        engine_version: variant.engine_version,
+        platform: variant.platform,
         overwrite,
         jobs: args.jobs.or(ctx.config.download.jobs),
         dry_run: args.dry_run,
@@ -121,7 +122,9 @@ pub fn run(ctx: &Ctx, args: &DownloadArgs) -> Result<Outcome> {
                 OverwritePolicy::RequireEmpty => "require-empty",
             }
         );
-        return Ok(Outcome::read("download", data, human).with_action(plan));
+        let mut outcome = Outcome::read("download", data, human).with_action(plan);
+        outcome.warnings.extend(variant.notes);
+        return Ok(outcome);
     }
 
     let created = ensure_writable(&output_dir)?;
@@ -139,7 +142,7 @@ pub fn run(ctx: &Ctx, args: &DownloadArgs) -> Result<Outcome> {
         }
     };
 
-    let mut warnings = Vec::new();
+    let mut warnings = variant.notes;
     let sidecar_path = if args.no_sidecar {
         None
     } else {
@@ -174,6 +177,92 @@ pub fn run(ctx: &Ctx, args: &DownloadArgs) -> Result<Outcome> {
     let mut outcome = Outcome::read("download", data, human).with_action(plan);
     outcome.warnings = warnings;
     Ok(outcome)
+}
+
+/// Which build of a listing to fetch.
+struct Variant {
+    engine_version: Option<String>,
+    platform: Option<String>,
+    /// What was chosen on the caller's behalf, and why.
+    notes: Vec<String>,
+}
+
+/// Pick the build to fetch so a person never has to know the options first.
+/// Explicit `--engine-version` / `--platform` always win. Otherwise, for an
+/// owned asset that ships several: the configured engine version when the
+/// asset ships it, else the newest; this machine's platform when shipped,
+/// else Windows (Fab lists no Linux builds for content). Each choice is
+/// reported.
+fn resolve_variant(ctx: &Ctx, args: &DownloadArgs, listing_id: &str) -> Variant {
+    let mut variant = Variant {
+        engine_version: args.engine_version.clone(),
+        platform: args.platform.clone(),
+        notes: Vec::new(),
+    };
+    if variant.engine_version.is_some() && variant.platform.is_some() {
+        return variant;
+    }
+    let Ok(library) = ctx.provider.library() else {
+        return variant;
+    };
+    let Some(entry) = library.iter().find(|a| a.id == listing_id) else {
+        return variant;
+    };
+
+    let versions = &entry.engine_versions;
+    if variant.engine_version.is_none() && versions.len() > 1 {
+        let configured = ctx
+            .config
+            .defaults
+            .engine_version
+            .as_deref()
+            .and_then(|want| {
+                versions
+                    .iter()
+                    .find(|v| version_key(v) == version_key(want))
+            });
+        let chosen = match configured {
+            Some(version) => Some((version, "the configured engine version")),
+            None => versions
+                .iter()
+                .max_by_key(|v| version_key(v))
+                .map(|version| (version, "the newest")),
+        };
+        if let Some((version, why)) = chosen {
+            variant.notes.push(format!(
+                "{listing_id} ships {} engine versions; downloading {why}, {version} (choose with --engine-version)",
+                versions.len()
+            ));
+            variant.engine_version = Some(version.clone());
+        }
+    }
+
+    let platforms = &entry.platforms;
+    if variant.platform.is_none() && platforms.len() > 1 {
+        let host = if cfg!(target_os = "macos") {
+            "Mac"
+        } else {
+            "Windows"
+        };
+        let chosen = platforms
+            .iter()
+            .find(|p| p.eq_ignore_ascii_case(host))
+            .unwrap_or(&platforms[0]);
+        variant.notes.push(format!(
+            "{listing_id} ships for {}; downloading {chosen} (choose with --platform)",
+            platforms.join(", ")
+        ));
+        variant.platform = Some(chosen.clone());
+    }
+    variant
+}
+
+/// Numeric parts of an engine version label: `UE_5.10` → `[5, 10]`.
+fn version_key(label: &str) -> Vec<u64> {
+    label
+        .split(|c: char| !c.is_ascii_digit())
+        .filter_map(|part| part.parse().ok())
+        .collect()
 }
 
 /// Where the files go: `--out` verbatim, otherwise a per-listing directory

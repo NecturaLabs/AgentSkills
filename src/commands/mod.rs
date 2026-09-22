@@ -300,6 +300,8 @@ pub fn matches_tokens(asset: &Asset, tokens: &[String]) -> bool {
     }
     let mut haystack = String::new();
     for part in [
+        Some(asset.id.as_str()),
+        asset.url.as_deref(),
         asset.title.as_deref(),
         asset.description.as_deref(),
         asset.category.as_ref().and_then(|c| c.name.as_deref()),

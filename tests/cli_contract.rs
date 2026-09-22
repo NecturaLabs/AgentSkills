@@ -208,3 +208,108 @@ fn auth_login_prints_the_command_instead_of_opening_a_window() {
         "login must not run anything by itself"
     );
 }
+
+/// Fab's library endpoint repeats the title as the description; the real one
+/// is on the listing. A short result fetches it without being asked.
+fn library_with_title_as_description() -> Harness {
+    let harness = Harness::new("base");
+    let library = std::fs::read_to_string(harness.fixtures().join("library.json"))
+        .unwrap()
+        .replace("\"Props for ruined keeps.\"", "\"Ruined Keep Props\"");
+    assert!(
+        library.contains("\"description\": \"Ruined Keep Props\""),
+        "fixture rewrite did not apply"
+    );
+    harness.write_fixture("library.json", &library);
+    harness.write_fixture(
+        "listing-33333333-3333-4333-8333-333333333333.json",
+        r#"{"uid": "33333333-3333-4333-8333-333333333333", "title": "Ruined Keep Props",
+            "description": "Forty modular props for ruined keeps, with LODs.", "listingType": "3d-model"}"#,
+    );
+    harness
+}
+
+#[test]
+fn library_fetches_real_descriptions_for_a_short_result() {
+    let harness = library_with_title_as_description();
+    let (value, output) = harness.json(&["library", "keep"]);
+    assert_eq!(code(&output), 0, "{value}");
+    let entry = &value["data"]["results"][0];
+    assert_eq!(
+        entry["description"],
+        "Forty modular props for ruined keeps, with LODs."
+    );
+    assert_eq!(
+        entry["url"],
+        "https://www.fab.com/listings/33333333-3333-4333-8333-333333333333"
+    );
+}
+
+#[test]
+fn library_never_passes_the_title_off_as_a_description() {
+    let harness = library_with_title_as_description();
+    let (value, output) = harness.json(&["library", "keep", "--no-details"]);
+    assert_eq!(code(&output), 0, "{value}");
+    assert_eq!(value["data"]["results"][0]["title"], "Ruined Keep Props");
+    assert!(
+        value["data"]["results"][0].get("description").is_none(),
+        "{value}"
+    );
+    assert!(!harness.called("listing"));
+}
+
+#[test]
+fn library_human_view_shows_title_link_description_and_download_command() {
+    let harness = library_with_title_as_description();
+    let output = harness.run(&["--human", "library", "keep"]);
+    assert_eq!(code(&output), 0);
+    let text = stdout(&output);
+    for expected in [
+        "Ruined Keep Props",
+        "https://www.fab.com/listings/33333333-3333-4333-8333-333333333333",
+        "Forty modular props for ruined keeps, with LODs.",
+        "necturalabs-fab download 33333333-3333-4333-8333-333333333333",
+    ] {
+        assert!(text.contains(expected), "missing {expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn library_pages_through_every_entry() {
+    let harness = Harness::new("base");
+    let (first, output) = harness.json(&["library", "--limit", "1", "--no-details"]);
+    assert_eq!(code(&output), 0, "{first}");
+    assert_eq!(first["data"]["page"], 1);
+    assert_eq!(first["data"]["pages"], 2);
+    assert_eq!(first["data"]["matched"], 2);
+    assert_eq!(first["data"]["nextPage"], 2);
+    let (second, _) = harness.json(&["library", "--limit", "1", "--page", "2", "--no-details"]);
+    assert_eq!(second["data"]["returned"], 1);
+    assert!(second["data"]["nextPage"].is_null());
+    assert_ne!(
+        first["data"]["results"][0]["id"],
+        second["data"]["results"][0]["id"]
+    );
+
+    let text = stdout(&harness.run(&["--human", "library", "--limit", "1", "--no-details"]));
+    let next = text
+        .lines()
+        .find_map(|l| l.split_once("Next: ").map(|(_, c)| c))
+        .unwrap_or_else(|| panic!("no next-page command in:\n{text}"));
+    assert!(next.starts_with("necturalabs-fab library"), "{next}");
+    assert!(
+        next.contains("--limit 1") && next.ends_with("--page 2"),
+        "{next}"
+    );
+}
+
+#[test]
+fn library_finds_an_entry_by_its_listing_id_or_a_prefix_of_it() {
+    let harness = Harness::new("base");
+    for query in ["44444444-4444-4444-8444-444444444444", "44444444"] {
+        let (value, output) = harness.json(&["library", query, "--no-details"]);
+        assert_eq!(code(&output), 0, "{value}");
+        assert_eq!(value["data"]["matched"], 1, "{query}: {value}");
+        assert_eq!(value["data"]["results"][0]["title"], "Sci-Fi Corridor Kit");
+    }
+}

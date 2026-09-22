@@ -21,8 +21,8 @@ Always pass `--json` and read the envelope: `ok`, `data`, `warnings`, `error.cod
    budget. Read the project to learn the engine and version (`*.uproject` `EngineAssociation`,
    `ProjectSettings/ProjectVersion.txt`, `project.godot`, `.blend` use) rather than guessing. If a
    `.necturalabs-fab.toml` exists, its defaults already carry the engine — don't restate them.
-2. **Check the library first.** `necturalabs-fab library "<words>" --json`. An owned asset that fits
-   costs nothing and needs no approval.
+2. **Check the library first.** `necturalabs-fab library "<words>" --json` (pages of 100; follow
+   `data.nextPage`). An owned asset that fits costs nothing and needs no approval.
 3. **Discover.** `necturalabs-fab find "<need in plain words>" --engine <e> --json`. It searches,
    enriches the top candidates with listing detail, and ranks deterministically. Add
    `--engine-version`, `--feature rigged`, `--style lowpoly`, `--max-price`, `--free either` as
