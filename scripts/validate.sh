@@ -8,15 +8,14 @@ DEFAULT_REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 PERMITTED_KEYS=" name description license compatibility metadata allowed-tools "
 EVAL_SUFFIXES=(explicit implicit contextual negative ambiguous)
-LEGACY_FILES=(CLAUDE.md CLAUDE.local.md GEMINI.md gemini-extension.json)
+# A second always-loaded instruction file competes with AGENTS.md; a hooks/ directory is how a
+# session-start hook that reinjects instruction text would arrive. Neither belongs in this repo.
+FORBIDDEN_FILES=(CLAUDE.md CLAUDE.local.md GEMINI.md)
+FORBIDDEN_DIRS=(hooks)
 EXAMPLE_FILES=(global-agents.md project-agents.md nested-agents.md)
 # Names a harness discovers as instruction files. Under examples/ any of these would stop being an
 # example and start being scoped instructions for an agent whose working directory is in there.
 EXAMPLE_FORBIDDEN_NAMES=(AGENTS.md AGENTS.override.md .cursorrules)
-LEGACY_DIRS=(hooks .cursor-plugin .opencode .codex)
-LEGACY_SKILL_NAMES=(using-necturalabs agent-context-loader iterative-code-review
-  iterative-security-audit test-manager unit-test-manager integration-test-manager
-  e2e-test-manager agents-md-manager docs-manager git-workflow comment-manager update-plugins)
 
 # Read from beside this script rather than from the repo root under validation, so a sandboxed
 # copy of skills/ is checked against the same list the real repository is.
@@ -438,54 +437,25 @@ check_version_consistency() {
   return 0
 }
 
-check_legacy_artifacts() {
+check_forbidden_artifacts() {
   local prune=( \( -path "$repo_root/.git" \
     -o -path "$repo_root/.claude/worktrees" \
     -o -path "$repo_root/node_modules" \
-    -o -path "$repo_root/evals/results" \
-    -o -name '*.log' \) -prune -o )
+    -o -path "$repo_root/evals/results" \) -prune -o )
   local name f
 
-  for name in "${LEGACY_FILES[@]}"; do
+  # -type l as well: a symlinked CLAUDE.md loads just the same.
+  for name in "${FORBIDDEN_FILES[@]}"; do
     while IFS= read -r -d '' f; do
-      record FAIL "legacy-artifact" "legacy file '$name' present" "$(rel_path "$f")"
-    done < <(find "$repo_root" "${prune[@]}" -type f -name "$name" -print0)
+      record FAIL "forbidden-artifact" "competing instruction file '$name' present" "$(rel_path "$f")"
+    done < <(find "$repo_root" "${prune[@]}" \( -type f -o -type l \) -name "$name" -print0)
   done
 
-  for name in "${LEGACY_DIRS[@]}"; do
+  for name in "${FORBIDDEN_DIRS[@]}"; do
     while IFS= read -r -d '' f; do
-      record FAIL "legacy-artifact" "legacy directory '$name' present" "$(rel_path "$f")"
+      record FAIL "forbidden-artifact" "session hook directory '$name' present" "$(rel_path "$f")"
     done < <(find "$repo_root" "${prune[@]}" -type d -name "$name" -print0)
   done
-
-  for name in "${LEGACY_SKILL_NAMES[@]}"; do
-    if [[ -d "$repo_root/skills/$name" ]]; then
-      record FAIL "legacy-artifact" "legacy skill directory '$name' present" "skills/$name"
-    fi
-  done
-
-  # The migration doc discusses v1 by name, and this validator's own source
-  # and guard necessarily contain the literal string to check for it.
-  local -a allow=(
-    "$repo_root/docs/migration-v1-to-v2.md"
-    "$repo_root/scripts/validate.sh"
-    "$repo_root/tests/validator-guard.sh"
-  )
-  while IFS= read -r -d '' f; do
-    local skip=0 a
-    for a in "${allow[@]}"; do
-      if [[ "$f" == "$a" ]]; then
-        skip=1
-        break
-      fi
-    done
-    if [[ $skip -eq 1 ]]; then
-      continue
-    fi
-    if grep -qiI "superpowers" "$f" 2>/dev/null; then
-      record FAIL "legacy-artifact" "contains forbidden string 'superpowers'" "$(rel_path "$f")"
-    fi
-  done < <(find "$repo_root" "${prune[@]}" -type f -print0)
 }
 
 # examples/ ships finished instruction files for users to copy. Two properties matter: they exist
@@ -606,7 +576,7 @@ main() {
   load_native_names
   check_shell_syntax
   check_version_consistency
-  check_legacy_artifacts
+  check_forbidden_artifacts
   check_examples
   check_skills_and_evals
   check_skill_lists

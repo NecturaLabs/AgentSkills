@@ -222,10 +222,17 @@ mutate_version_mismatch() {
   sed -i -E 's/"version"[[:space:]]*:[[:space:]]*"[^"]*"/"version": "0.0.1-bad"/' "$wd/package.json"
 }
 
-mutate_legacy_artifact() {
+mutate_session_hook_dir() {
   local wd="$1"
   mkdir -p "$wd/hooks"
   printf '#!/bin/sh\n' > "$wd/hooks/dummy.sh"
+}
+
+# A symlink counts: Claude Code loads a CLAUDE.md link exactly as it loads the file.
+mutate_competing_instructions() {
+  local wd="$1"
+  mkdir -p "$wd/skills"
+  ln -s ../README.md "$wd/skills/CLAUDE.md"
 }
 
 mutate_shell_syntax() {
@@ -303,7 +310,8 @@ assert_check_fails "reference-depth"        "reference-depth"        mutate_refe
 assert_check_fails "eval-case-missing"      "eval-case-missing"      mutate_eval_case_missing
 assert_check_fails "eval-frontmatter"       "eval-frontmatter"       mutate_eval_frontmatter
 assert_check_fails "version-mismatch"       "version-mismatch"       mutate_version_mismatch
-assert_check_fails "legacy-artifact"        "legacy-artifact"        mutate_legacy_artifact
+assert_check_fails "session-hook-dir"       "forbidden-artifact"     mutate_session_hook_dir
+assert_check_fails "competing-instructions" "forbidden-artifact"     mutate_competing_instructions
 assert_check_fails "shell-syntax"           "shell-syntax"           mutate_shell_syntax
 assert_check_fails "skill-list-drift"       "skill-list-drift"       mutate_skill_list_drift
 assert_check_fails "example-missing"        "example-missing"        mutate_example_missing
