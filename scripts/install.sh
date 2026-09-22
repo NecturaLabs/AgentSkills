@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-V2_SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+# Names this project used to install, as old:new. A link under an old name that resolves into an
+# AgentSkills checkout is ours, and after the rename it either dangles or loads a stale copy, so
+# install retires it. Anything else under an old name belongs to someone else and is left alone.
+RETIRED_SKILLS=(change-review:independent-review security-review:threat-review)
 
 usage() {
   cat <<'USAGE'
 Usage: install.sh [--force] [--dry-run] [--prefix <dir>]
                   [--global-agents [<file>]] [--replace-global]
 
-Links this checkout's v2 skills into the Claude Code and Codex skill roots.
+Links this checkout's skills into the Claude Code and Codex skill roots.
 Installing skills and installing a global operating policy are separate
 operations: without --global-agents this script touches no instruction file.
 
   --force       Replace a skill link that points into a different AgentSkills
-                checkout. Never replaces a real directory, and never replaces a
-                link whose target lies outside an AgentSkills checkout.
+                checkout, and retire an old-name link into another checkout
+                that still carries the old skill. Never replaces a real
+                directory, and never touches a link whose target lies outside
+                an AgentSkills checkout.
   --dry-run     Print every action; change nothing.
   --prefix DIR  Use DIR instead of $HOME as the base holding .claude, .agents
                 and .codex.
@@ -133,6 +139,7 @@ checkout_root_of() {
 CREATED=()
 CORRECT=()
 UPDATED=()
+RETIRED=()
 SKIPPED=()
 FAILED=()
 
@@ -141,6 +148,7 @@ record() {
     created) CREATED+=("$2") ;;
     correct) CORRECT+=("$2") ;;
     updated) UPDATED+=("$2") ;;
+    retired) RETIRED+=("$2") ;;
     skipped) SKIPPED+=("$2") ;;
     failed)  FAILED+=("$2") ;;
   esac
@@ -229,6 +237,42 @@ install_one() {
   link_into_place "$src" "$dst" "$root" created
 }
 
+# Removes a link left under a retired name, but only one this project provably created: a symlink
+# whose target resolves inside an AgentSkills checkout. A link into this checkout, or one that no
+# longer resolves to anything, is retired outright. A link into a different checkout that still
+# carries the old skill is that checkout's live install, so it needs --force, exactly as repointing
+# one does. Real directories and foreign links under an old name are never touched.
+retire_one() {
+  local root=$1 old=$2 new=$3
+  local dst=$root/$old cur owner
+  [ -e "$dst" ] || [ -L "$dst" ] || return 0
+  if [ ! -L "$dst" ]; then
+    record skipped "$dst (retired name '$old', but a real entry rather than our link; never removed)"
+    return 0
+  fi
+  cur=$(readlink -f -- "$dst" 2>/dev/null || true)
+  owner=''
+  [ -n "$cur" ] && owner=$(checkout_root_of "$cur" || true)
+  if [ -z "$owner" ]; then
+    record skipped "$dst (retired name '$old', but -> ${cur:-unresolvable} is outside any AgentSkills checkout; never removed)"
+    return 0
+  fi
+  if [ "$owner" != "$REPO_ROOT" ] && [ -e "$dst" ] && [ "$FORCE" -eq 0 ]; then
+    record skipped "$dst (retired name '$old', still live in another AgentSkills checkout: $cur; rerun with --force to retire it)"
+    return 1
+  fi
+  if [ "$DRY_RUN" -eq 1 ]; then
+    record retired "$dst -> $cur (would remove; renamed to '$new')"
+    return 0
+  fi
+  if [ ! -L "$dst" ]; then
+    record failed "$dst (changed type before removal; left alone)"
+    return 1
+  fi
+  rm -- "$dst" || { record failed "$dst (could not be unlinked; left alone)"; return 1; }
+  record retired "$dst -> $cur (renamed to '$new')"
+}
+
 CLAUDE_ROOT=$PREFIX/.claude/skills
 AGENTS_ROOT=$PREFIX/.agents/skills
 # $CODEX_HOME relocates Codex's whole config root, skills included, but only the report-only
@@ -273,7 +317,7 @@ fi
 printf '\n'
 
 status=0
-for name in "${V2_SKILLS[@]}"; do
+for name in "${SKILLS[@]}"; do
   if [ "$claude_present" -eq 1 ]; then
     install_one "$CLAUDE_ROOT" "$name" || status=1
   fi
@@ -291,6 +335,13 @@ for name in "${V2_SKILLS[@]}"; do
       install_one "$CODEX_ROOT" "$name" || status=1
     fi
   fi
+done
+
+for entry in "${RETIRED_SKILLS[@]}"; do
+  for root in "$CLAUDE_ROOT" "$AGENTS_ROOT" "$CODEX_ROOT"; do
+    [ -d "$root" ] || continue
+    retire_one "$root" "${entry%%:*}" "${entry#*:}" || status=1
+  done
 done
 
 # --- global policy bootstrap -------------------------------------------------
@@ -647,10 +698,11 @@ printf 'Summary\n'
 print_group "created:" ${CREATED[@]+"${CREATED[@]}"}
 print_group "already correct:" ${CORRECT[@]+"${CORRECT[@]}"}
 print_group "replaced:" ${UPDATED[@]+"${UPDATED[@]}"}
+print_group "retired:" ${RETIRED[@]+"${RETIRED[@]}"}
 print_group "skipped:" ${SKIPPED[@]+"${SKIPPED[@]}"}
 print_group "failed:" ${FAILED[@]+"${FAILED[@]}"}
 if [ "${#CREATED[@]}" -eq 0 ] && [ "${#CORRECT[@]}" -eq 0 ] && [ "${#UPDATED[@]}" -eq 0 ] \
-   && [ "${#SKIPPED[@]}" -eq 0 ] && [ "${#FAILED[@]}" -eq 0 ]; then
+   && [ "${#RETIRED[@]}" -eq 0 ] && [ "${#SKIPPED[@]}" -eq 0 ] && [ "${#FAILED[@]}" -eq 0 ]; then
   printf '  nothing to do\n'
 fi
 printf '\n'

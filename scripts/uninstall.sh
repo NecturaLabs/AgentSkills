@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-V2_SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+# Names earlier releases installed. Still this project's links, so removed by default.
+RETIRED_SKILLS=(change-review security-review)
 
 V1_SKILLS=(using-necturalabs agent-context-loader iterative-code-review \
            iterative-security-audit test-manager unit-test-manager \
@@ -13,8 +15,8 @@ usage() {
 Usage: uninstall.sh [--include-legacy] [--dry-run] [--prefix <dir>]
 
 Removes only the skill symlinks this project created: a symlink in a skills
-root whose name is one of this plugin's skills and whose target resolves
-inside an AgentSkills checkout. Real directories, foreign links, unrelated
+root whose name is one of this plugin's skills, current or retired, and whose
+target resolves inside an AgentSkills checkout. Real directories, foreign links, unrelated
 entries and the skills directories themselves are never touched.
 
   --include-legacy  Also remove links left by the v1 skill names.
@@ -94,7 +96,7 @@ checkout_root_of() {
   return 1
 }
 
-MANAGED=("${V2_SKILLS[@]}")
+MANAGED=("${SKILLS[@]}" "${RETIRED_SKILLS[@]}")
 [ "$INCLUDE_LEGACY" -eq 1 ] && MANAGED+=("${V1_SKILLS[@]}")
 
 is_managed_name() {

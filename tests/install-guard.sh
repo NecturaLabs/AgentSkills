@@ -541,5 +541,60 @@ for tgt in .agents/AGENTS.md .claude/CLAUDE.md .claude/AGENTS.md .codex/AGENTS.m
   check "dirblock-$label-no-backup" "0" "$(backup_count "$H")"
 done
 
+# 29. upgrading from the names earlier releases installed. A link under a retired name that
+#     resolves into an AgentSkills checkout is ours and is retired; anything else under that name
+#     belongs to someone else and survives.
+tree_snapshot() { find "$1" -printf '%y %p -> %l\n' 2>/dev/null | sort; }
+H=$(new_home)
+mkdir -p "$H/.claude/skills" "$H/.agents/skills"
+ln -s "$REPO_ROOT/skills/change-review" "$H/.claude/skills/change-review"
+ln -s "$REPO_ROOT/skills/security-review" "$H/.agents/skills/security-review"
+ln -s "$SANDBOX/unrelated/some-skill" "$H/.claude/skills/security-review"
+mkdir -p "$H/.agents/skills/change-review"
+printf 'hand written\n' > "$H/.agents/skills/change-review/SKILL.md"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "retired-doctor-reports-ours" "2" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\].*renamed to')"
+snap=$(tree_snapshot "$H")
+bash "$INSTALL" --prefix "$H" --dry-run >/dev/null 2>&1
+check "retired-dry-run-writes-nothing" "$snap" "$(tree_snapshot "$H")"
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "retired-claude-link-removed" "no" "$([ -e "$H/.claude/skills/change-review" ] || [ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
+check "retired-agents-link-removed" "no" "$([ -e "$H/.agents/skills/security-review" ] || [ -L "$H/.agents/skills/security-review" ] && echo yes || echo no)"
+check "retired-foreign-link-survives" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.claude/skills/security-review")"
+check "retired-real-dir-survives" "hand written" "$(cat "$H/.agents/skills/change-review/SKILL.md" 2>/dev/null)"
+missing=''
+for s in independent-review threat-review; do
+  for root in .claude .agents; do
+    [ "$(readlink -f -- "$H/$root/skills/$s" 2>/dev/null)" = "$REPO_ROOT/skills/$s" ] || missing="$missing $root/$s"
+  done
+done
+check "retired-new-names-installed" "" "$missing"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "retired-doctor-clean-after-install" "0" "$(printf '%s\n' "$doctor_out" | grep -c '\[error\].*renamed to')"
+
+# 29b. an old-name link into a different checkout that still carries the old skill is that
+#      checkout's live install: it needs --force, like repointing, and its target is never touched
+mkdir -p "$SANDBOX/old-checkout/skills/change-review" "$SANDBOX/old-checkout/.claude-plugin"
+printf 'old release\n' > "$SANDBOX/old-checkout/skills/change-review/SKILL.md"
+printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$SANDBOX/old-checkout/.claude-plugin/plugin.json"
+H=$(new_home)
+mkdir -p "$H/.claude/skills"
+ln -s "$SANDBOX/old-checkout/skills/change-review" "$H/.claude/skills/change-review"
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "retired-other-checkout-exit" "1" "$?"
+check "retired-other-checkout-kept-without-force" "$SANDBOX/old-checkout/skills/change-review" "$(readlink -- "$H/.claude/skills/change-review")"
+bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
+check "retired-other-checkout-removed-with-force" "no" "$([ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
+check "retired-other-checkout-target-intact" "old release" "$(cat "$SANDBOX/old-checkout/skills/change-review/SKILL.md" 2>/dev/null)"
+
+# 29c. uninstall treats retired names as this project's own
+H=$(new_home)
+mkdir -p "$H/.claude/skills"
+ln -s "$REPO_ROOT/skills/change-review" "$H/.claude/skills/change-review"
+ln -s "$SANDBOX/unrelated/some-skill" "$H/.claude/skills/security-review"
+bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
+check "uninstall-removes-retired-link" "no" "$([ -L "$H/.claude/skills/change-review" ] && echo yes || echo no)"
+check "uninstall-keeps-foreign-retired-name" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.claude/skills/security-review")"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

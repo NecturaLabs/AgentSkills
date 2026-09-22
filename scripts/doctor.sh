@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-V2_SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+# Names earlier releases installed, as old:new.
+RETIRED_SKILLS=(change-review:independent-review security-review:threat-review)
 
 V1_SKILLS=(using-necturalabs agent-context-loader iterative-code-review \
            iterative-security-audit test-manager unit-test-manager \
@@ -195,7 +197,7 @@ check_root() {
     printf '\n'
     return 0
   fi
-  for name in "${V2_SKILLS[@]}"; do
+  for name in "${SKILLS[@]}"; do
     line=$(entry_state "$root/$name")
     state=${line%%$'\t'*}
     target=${line#*$'\t'}
@@ -269,9 +271,36 @@ done
 [ "$legacy_found" -eq 0 ] && ok "none installed"
 printf '\n'
 
+printf 'Retired names\n'
+retired_found=0
+for root in "$CLAUDE_ROOT" "$AGENTS_ROOT" "$CODEX_ROOT"; do
+  [ -d "$root" ] || continue
+  for entry in "${RETIRED_SKILLS[@]}"; do
+    old=${entry%%:*}
+    new=${entry#*:}
+    path=$root/$old
+    [ -e "$path" ] || [ -L "$path" ] || continue
+    retired_found=1
+    if [ -L "$path" ]; then
+      target=$(readlink -f -- "$path" 2>/dev/null || true)
+      owner=''
+      [ -n "$target" ] && owner=$(checkout_root_of "$target" || true)
+      if [ -n "$owner" ]; then
+        err "$path -> $target (renamed to '$new'; rerun install.sh to retire this link)"
+      else
+        info "$path -> ${target:-unresolvable} (a retired AgentSkills name, but not an AgentSkills link; left alone)"
+      fi
+    else
+      info "$path (a retired AgentSkills name, but a real entry rather than our link; left alone)"
+    fi
+  done
+done
+[ "$retired_found" -eq 0 ] && ok "no links under retired names"
+printf '\n'
+
 printf 'Shadowing\n'
 shadow_found=0
-for name in "${V2_SKILLS[@]}"; do
+for name in "${SKILLS[@]}"; do
   seen=''
   distinct=0
   where=''
