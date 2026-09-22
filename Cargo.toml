@@ -1,0 +1,43 @@
+[package]
+name = "necturalabs-fab"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Stable, agent-oriented CLI for the Fab marketplace. Provider-backed; FabCLI is one implementation."
+license = "MIT"
+repository = "https://github.com/NecturaLabs/FabCLI"
+readme = "README.md"
+keywords = ["fab", "marketplace", "agents", "gamedev", "assets"]
+categories = ["command-line-utilities"]
+
+[lib]
+name = "necturalabs_fab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "necturalabs-fab"
+path = "src/main.rs"
+
+[[bin]]
+name = "mock-fabcli"
+path = "src/bin/mock-fabcli.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "wrap_help"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+toml = "0.8"
+semver = "1"
+dirs = "5"
+wait-timeout = "0.2"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1

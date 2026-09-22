@@ -1,0 +1,16 @@
+[
+  {
+    "assetFormatType": {"code": "unreal-engine", "icon": "unreal-engine", "name": "Unreal Engine"},
+    "distributionMethod": "asset-pack",
+    "developmentPlatforms": ["Windows"],
+    "technicalDetails": "Triangles: 184,000 Vertices: 96,500 LODs: 3 Textures: 4096x4096 and 2048x2048. Meshes are not rigged. Static mesh only.",
+    "versions": [
+      {"uid": "v1", "artifactId": "art-1", "name": "Castle 5.4", "fileType": "asset", "engineVersions": ["UE_5.4", "UE_5.5"], "targetPlatforms": ["Windows", "Linux"]}
+    ]
+  },
+  {
+    "assetFormatType": {"code": "fbx", "icon": "cube", "name": "FBX"},
+    "distributionMethod": "file",
+    "versions": []
+  }
+]

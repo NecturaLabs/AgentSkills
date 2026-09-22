@@ -1,0 +1,37 @@
+{
+  "cursors": {"next": null},
+  "results": [
+    {
+      "assetId": "epic-asset-1",
+      "assetNamespace": "ns",
+      "title": "Ruined Keep Props",
+      "description": "Props for ruined keeps.",
+      "url": "https://www.fab.com/listings/33333333-3333-4333-8333-333333333333",
+      "distributionMethod": "ASSET_PACK",
+      "source": "fab",
+      "legacyItemId": null,
+      "categories": [{"id": "props", "name": "Props"}],
+      "customAttributes": [{"ListingIdentifier": "33333333-3333-4333-8333-333333333333"}],
+      "images": [{"url": "https://media.fab.com/keep.jpg", "height": "480", "width": "640", "type": "Thumbnail", "uploadedDate": "2026-01-01T00:00:00Z", "md5": null}],
+      "projectVersions": [
+        {"artifactId": "art-9", "buildVersions": [], "engineVersions": ["UE_5.4"], "targetPlatforms": ["Windows"]}
+      ]
+    },
+    {
+      "assetId": "epic-asset-2",
+      "assetNamespace": "ns",
+      "title": "Sci-Fi Corridor Kit",
+      "description": "Modular sci-fi corridors.",
+      "url": "https://www.fab.com/listings/44444444-4444-4444-8444-444444444444",
+      "distributionMethod": "ASSET_PACK",
+      "source": "fab",
+      "legacyItemId": null,
+      "categories": [{"id": "environments", "name": "Environments"}],
+      "customAttributes": [{"ListingIdentifier": "44444444-4444-4444-8444-444444444444"}],
+      "images": [],
+      "projectVersions": [
+        {"artifactId": "art-10", "buildVersions": [], "engineVersions": ["UE_4.27"], "targetPlatforms": ["Windows", "Mac"]}
+      ]
+    }
+  ]
+}

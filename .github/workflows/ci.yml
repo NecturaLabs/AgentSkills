@@ -1,0 +1,105 @@
+name: CI
+
+# Runs only on NecturaLabs self-hosted runners, so it must never run code from
+# an untrusted branch. For `pull_request` events GitHub executes the workflow
+# file from the pull request itself, so no condition written in this file can
+# keep a fork's code off the runners. There is therefore no `pull_request`
+# trigger: pushes to main (which already passed review) and manual dispatch
+# only. The runner group must additionally be restricted to this workflow file
+# on refs/heads/main (docs/security.md, "CI").
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            runner: [self-hosted, Linux, X64]
+          - name: windows
+            runner: [self-hosted, Windows, X64]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      # Actions are pinned to commits, not mutable tags. Bump the SHA and its comment together.
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.98"
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  msrv:
+    name: Minimum supported Rust (1.85)
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.85"
+      - run: cargo check --all-targets --locked
+
+  installer:
+    name: Installer round trip (linux)
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.98"
+      - run: sh scripts/test-installer.sh
+
+  installer-windows:
+    name: Installer round trip (windows)
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: "1.98"
+      # Windows PowerShell 5.1 on purpose: it is what `irm | iex` runs on a stock machine.
+      - name: Install, verify, uninstall, check for leftovers
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sandbox = Join-Path $env:RUNNER_TEMP ("nf-" + [guid]::NewGuid())
+          $env:LOCALAPPDATA = Join-Path $sandbox 'local'
+          $env:APPDATA = Join-Path $sandbox 'roaming'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA, $env:APPDATA | Out-Null
+          $bin = Join-Path $sandbox 'bin'
+          .\scripts\install.ps1 -Source . -BinDir $bin -NoPlugin -NoLogin -NoModifyPath
+          foreach ($exe in 'necturalabs-fab.exe', 'fabcli.exe') {
+            if (-not (Test-Path (Join-Path $bin $exe))) { throw "$exe was not installed" }
+          }
+          & (Join-Path $bin 'necturalabs-fab.exe') --json --fabcli-path (Join-Path $bin 'fabcli.exe') doctor
+          if ($LASTEXITCODE -ne 0) { throw 'doctor failed' }
+          .\scripts\install.ps1 -Uninstall
+          $left = Get-ChildItem -Recurse -Force $sandbox | Where-Object { $_.Name -match 'nectura|fabcli' }
+          if ($left) { $left | ForEach-Object { $_.FullName }; throw 'uninstall left files behind' }
+          Remove-Item -Recurse -Force $sandbox
