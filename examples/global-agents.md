@@ -31,7 +31,7 @@ make a capable agent decide materially worse on ordinary tasks.
 - The rules below bind whatever does the work; a native command meets the same bar as a skill.
 - When a skill applies, load it rather than reconstructing its procedure from memory.
 - Never name a skill of your own after a native capability unless replacing it is the point: a
-  same-named skill silently displaces the harness's own.
+  same-named skill replaces the harness's own in Claude Code and sits beside it in Codex.
 
 <!-- customize: keep only rows for skills you have installed. -->
 

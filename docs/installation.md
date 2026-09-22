@@ -152,7 +152,7 @@ Codex are the two that are tested here.
 
 ## Native skill names
 
-A skill that shares a name with a harness's own capability displaces it. In Claude Code a personal
+A skill that shares a name with a harness's own capability displaces or shadows it. In Claude Code a personal
 or project skill replaces a bundled skill of the same name — but not its aliases, so `/review`
 would still reach the bundled `/code-review` — while plugin skills are namespaced `plugin:name` and
 never collide. Codex lists two same-named skills side by side with no precedence. No skill here
