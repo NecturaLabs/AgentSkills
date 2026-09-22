@@ -70,8 +70,8 @@ plan exits zero.
 - **Never**: run `apply`, `destroy`, `taint`, `import`, `state rm` or `state mv`; commit a
   `.tfvars` file containing a secret; hand-edit the lockfile or any state file; move a resource
   between environments by editing state.
-- **Security-sensitive**: `modules/network/` and `modules/iam/`. Route through `threat-review`
-  before `independent-review`. An IAM policy widened by a wildcard is the failure mode to look for, and
+- **Security-sensitive**: `modules/network/` and `modules/iam/`. Changes there get a security pass
+  before the general review. An IAM policy widened by a wildcard is the failure mode to look for, and
   `tfsec` does not catch all of them.
 
 ## Secrets

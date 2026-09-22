@@ -78,8 +78,9 @@ Route test work through the `testing` skill. Project-specific:
 - **Never**: hand-edit `internal/pb/` or `console/src/api/generated/`; log a card number, CVV or
   full PAN anywhere, at any level, including debug; weaken an idempotency check to make a test
   pass.
-- **Security-sensitive**: `adapters/cardnet/` and `internal/auth/`. Changes there go through
-  `threat-review` before `independent-review`. Never log request or response bodies in either.
+- **Security-sensitive**: `adapters/cardnet/` and `internal/auth/`. Changes there get a security
+  pass before the general review, whichever harness or skill runs it. Never log request or response
+  bodies in either.
 
 ## Authoritative docs
 
