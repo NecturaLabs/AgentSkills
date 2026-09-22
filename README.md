@@ -174,6 +174,7 @@ claude plugin eval .                # routing evals — spends tokens, needs cre
 Each skill ships five routing eval cases under `evals/`: explicit, implicit, contextual, negative and
 ambiguous. The negative cases are the valuable ones — they catch a description broad enough to fire
 on a neighbour's work. CI validates that the case files exist and parse; it never executes them.
+Each release's run is recorded in [docs/evals.md](docs/evals.md).
 
 ## Compatibility
 

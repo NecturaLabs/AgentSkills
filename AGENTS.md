@@ -22,7 +22,8 @@ Two official tools exist alongside the suite and are for humans to run, not CI:
 
 - `claude plugin validate . --strict` — Anthropic's own manifest and frontmatter validator.
 - `claude plugin eval .` — runs the routing evals under `evals/`. It spends tokens and needs
-  credentials, which is why CI validates the eval *files* and never executes them.
+  credentials, which is why CI validates the eval *files* and never executes them. Run it once per
+  release and record the result in `docs/evals.md`.
 
 ## Architecture
 
