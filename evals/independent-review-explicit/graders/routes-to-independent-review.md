@@ -6,5 +6,6 @@ min: 1
 weight: 1
 ---
 
-The independent-review skill must fire: the user asked for a finished, uncommitted, multi-file
-behavioral diff to be reviewed before merge.
+The user asked for exactly what this skill adds around any reviewer — independence from the
+implementer's reasoning, an evidence standard and adjudication of a disputed finding — so this
+skill must fire, whether or not a native reviewer also runs the pass.

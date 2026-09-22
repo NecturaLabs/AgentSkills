@@ -1,6 +1,6 @@
 ---
 name: threat-review
-description: Assess a change for security defects when it touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies. Use before the general code review on such changes. Not for changes with no threat surface, and not for generic code-quality review.
+description: Review a change against the threat surfaces it actually touches — triage first, then depth from per-surface references for input and injection, identity and access, secrets and cryptography, and file, process, network and supply-chain boundaries. Use when a change touches authentication, authorization, sessions, tokens, cryptography, secrets, external input, deserialization, file or network boundaries, permissions, or dependencies, before the general review. Not for changes with no threat surface, and not for generic code-quality review.
 ---
 
 # Threat review
@@ -21,6 +21,15 @@ Do not run the general review checklist here, and do not restate a design, namin
 test-structure finding as a security finding — hand those to `independent-review` instead. Do not chain
 into `independent-review` automatically either; report, and let the caller decide what runs next. A
 change with no threat surface skips this skill entirely and goes straight to `independent-review`.
+
+## Relationship to a native security review
+
+Where the harness has its own security-review command, prefer it for the pass it covers: it is
+maintained with the harness. Find out what it covers before relying on it. A native pass
+commonly reports only high-confidence exploitable defects and excludes classes such as dependency
+versions, resource exhaustion and hardening — every surface it excludes stays with this skill.
+When one has already run on the change, do not repeat it: triage as below, then review only the
+surfaces it did not cover, and apply Step 4's standing policies to its findings as well.
 
 ## Step 1 — Fix the scope
 

@@ -1,6 +1,6 @@
 ---
 name: independent-review
-description: Independently review a finished non-trivial code change for correctness, design, compatibility and test gaps before it is committed or merged. Use when a behavioral, cross-file, schema, dependency or concurrency diff is complete and needs a reviewer that did not write it. Not for a typo, a formatting-only diff, or code that is still being written.
+description: Carry a finished non-trivial change through an independent review — exact diff scope, a reviewer briefed with requirements and facts but none of the implementer's reasoning, evidence-backed findings, adjudication of disputed ones, and re-verification of only what the fixes touched. Use when a behavioral, cross-file, schema, dependency or concurrency change is complete and needs a reviewer that did not write it, when a separate reviewer must be briefed, or when a disputed finding needs adjudicating. Not for a typo, a formatting-only diff, or code still being written.
 ---
 
 # Independent review
@@ -16,6 +16,21 @@ review of a moving target reports on a state that no longer exists.
 A change touching authentication, authorization, cryptography, input validation, sessions,
 secrets, dependency versions, file or network access, or deserialization gets a security
 pass first; this review follows it and does not replace it.
+
+## The reviewing pass: native first
+
+This skill is the procedure around a review, not a competitor to the harness's own reviewer.
+Where the harness has a review command of its own that runs in a separate context and takes
+an exact target, use it as the review pass in step 3: it is maintained with the harness and
+tuned to its models. Keep everything else here — the scope from step 1, the evidence
+standard, adjudication and the stop rule — because a native command guarantees none of those
+by itself, and brief it like any other reviewer: the exact target, never the implementer's
+reasoning.
+
+Where no such command exists, or it cannot take the exact scope, dispatch a fresh reader with
+the brief from step 2. Where no separate context is available at all, do the pass yourself
+only after writing down the scope and requirements first, and say plainly in the report that
+the review was not independent.
 
 ## The flow
 
