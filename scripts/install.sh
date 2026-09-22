@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
 # Names this project used to install, as old:new. A link under an old name that resolves into an
 # AgentSkills checkout is ours, and after the rename it either dangles or loads a stale copy, so
 # install retires it. Anything else under an old name belongs to someone else and is left alone.

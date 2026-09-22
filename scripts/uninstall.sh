@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
 # Names earlier releases installed. Still this project's links, so removed by default.
 RETIRED_SKILLS=(change-review security-review)
 

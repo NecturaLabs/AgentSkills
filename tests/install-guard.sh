@@ -13,7 +13,7 @@ REPO_ROOT=${SCRIPT_DIR%/*}
 INSTALL=$REPO_ROOT/scripts/install.sh
 UNINSTALL=$REPO_ROOT/scripts/uninstall.sh
 DOCTOR=$REPO_ROOT/scripts/doctor.sh
-SKILLS=(agent-instructions independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
 
 PASS=0
 FAIL=0
@@ -54,7 +54,7 @@ printf '=== install-guard ===\n'
 # 1. clean install links every skill into both scanned roots, and nowhere else
 H=$(new_home)
 bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
-check "clean-install-link-count" "10" "$(link_count "$H")"
+check "clean-install-link-count" "$(( ${#SKILLS[@]} * 2 ))" "$(link_count "$H")"
 missing=''
 for s in "${SKILLS[@]}"; do
   for root in .claude .agents; do
