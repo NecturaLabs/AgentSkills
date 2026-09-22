@@ -234,6 +234,13 @@ mutate_shell_syntax() {
   printf '#!/usr/bin/env bash\nif [ true; then\n' > "$wd/scripts/__broken.sh"
 }
 
+# A script whose skill list falls behind skills/ installs or removes the wrong set.
+mutate_skill_list_drift() {
+  local wd="$1"
+  mkdir -p "$wd/scripts"
+  printf '#!/usr/bin/env bash\nSKILLS=(testing)\n' > "$wd/scripts/install.sh"
+}
+
 mutate_example_missing() {
   local wd="$1"
   [[ -f "$wd/examples/nested-agents.md" ]] || return 1
@@ -298,6 +305,7 @@ assert_check_fails "eval-frontmatter"       "eval-frontmatter"       mutate_eval
 assert_check_fails "version-mismatch"       "version-mismatch"       mutate_version_mismatch
 assert_check_fails "legacy-artifact"        "legacy-artifact"        mutate_legacy_artifact
 assert_check_fails "shell-syntax"           "shell-syntax"           mutate_shell_syntax
+assert_check_fails "skill-list-drift"       "skill-list-drift"       mutate_skill_list_drift
 assert_check_fails "example-missing"        "example-missing"        mutate_example_missing
 assert_check_fails "example-not-inert"      "example-not-inert"      mutate_example_not_inert
 

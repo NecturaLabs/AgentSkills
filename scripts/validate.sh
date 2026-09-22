@@ -530,6 +530,30 @@ check_shell_syntax() {
   done < <(find "$repo_root/scripts" "$repo_root/tests" -type f -name '*.sh' -print0 2>/dev/null)
 }
 
+# install, uninstall and doctor each carry the skill list as a literal, and so does the install
+# guard. One that falls behind installs, reports or removes the wrong set without failing anything.
+check_skill_lists() {
+  local f line list want have
+  [[ -d "$repo_root/skills" ]] || return 0
+  want="$(find "$repo_root/skills" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | tr '\n' ' ')"
+  for f in "$repo_root/scripts/install.sh" "$repo_root/scripts/uninstall.sh" \
+    "$repo_root/scripts/doctor.sh" "$repo_root/tests/install-guard.sh"; do
+    [[ -f "$f" ]] || continue
+    line="$(grep -m1 -E '^SKILLS=\(' "$f" || true)"
+    if [[ -z "$line" ]]; then
+      record FAIL "skill-list-drift" "no SKILLS=(...) list found" "$(rel_path "$f")"
+      continue
+    fi
+    list="${line#SKILLS=(}"
+    list="${list%)}"
+    # shellcheck disable=SC2086 -- word splitting of the literal list is the point
+    have="$(printf '%s\n' $list | sort | tr '\n' ' ')"
+    if [[ "$have" != "$want" ]]; then
+      record FAIL "skill-list-drift" "lists '${have% }' but skills/ holds '${want% }'" "$(rel_path "$f")"
+    fi
+  done
+}
+
 check_skills_and_evals() {
   if [[ ! -d "$repo_root/skills" ]]; then
     record FAIL "skills-structure" "skills/ directory not found" "skills"
@@ -585,6 +609,7 @@ main() {
   check_legacy_artifacts
   check_examples
   check_skills_and_evals
+  check_skill_lists
 
   if [[ $QUIET -eq 0 ]]; then
     local entry
