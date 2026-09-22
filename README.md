@@ -57,7 +57,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 10 KB: native-first capability selection, scope, the delegation decision, standard of done, testing, review and security invariants, git and communication. Procedure lives in the skills. Every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 12 KB: autonomy and stop rules, native-first capability routing, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 
