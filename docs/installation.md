@@ -17,6 +17,20 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Nec
 The Windows command runs the installer in its own PowerShell process, so nothing it sets leaks into
 your session.
 
+**While the repository is private**, anonymous downloads return 404. Members of the NecturaLabs
+organisation install through the GitHub CLI instead (`gh auth login` first); the installer then
+also fetches the release through `gh`, and Claude Code and Codex clone the marketplace with your
+git credentials:
+
+```bash
+gh api -H 'Accept: application/vnd.github.raw' repos/NecturaLabs/FabCLI/contents/scripts/install.sh | sh
+gh api -H 'Accept: application/vnd.github.raw' repos/NecturaLabs/FabCLI/contents/scripts/install.sh | sh -s -- --uninstall
+```
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "gh api -H 'Accept: application/vnd.github.raw' repos/NecturaLabs/FabCLI/contents/scripts/install.ps1 | Out-String | iex"
+```
+
 The installer:
 
 1. installs **FabCLI 0.1.0**, the marketplace backend, after checking its SHA-256 against a value

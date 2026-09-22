@@ -31,6 +31,10 @@ curl -fsSL https://raw.githubusercontent.com/NecturaLabs/FabCLI/main/scripts/ins
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/NecturaLabs/FabCLI/main/scripts/install.ps1 | iex"
 ```
 
+While the repository is private, install through the GitHub CLI instead:
+`gh api -H 'Accept: application/vnd.github.raw' repos/NecturaLabs/FabCLI/contents/scripts/install.sh | sh`
+([details](docs/installation.md)).
+
 This installs FabCLI and necturalabs-fab, adds the skill to Claude Code and Codex through their plugin
 marketplaces, and offers to sign you in. Uninstalling is one command too, and removes everything it
 added: [`docs/installation.md`](docs/installation.md).

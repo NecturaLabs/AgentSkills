@@ -99,14 +99,29 @@ function Get-File([string]$Url, [string]$OutFile) {
   Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
 }
 
+# Download one asset of the pinned release: anonymously, or through a signed-in gh for a private
+# repository. Throws if neither works.
+function Get-ReleaseAsset([string]$Name, [string]$OutFile) {
+  try { Get-File "https://github.com/$Repo/releases/download/$($state.Version)/$Name" $OutFile; return } catch { }
+  if (-not (Have 'gh')) { throw "could not download $Name" }
+  if (-not (Invoke-Quiet { gh release download $state.Version -R $Repo -p $Name -O $OutFile --clobber })) { throw "could not download $Name" }
+}
+
 # The release every remote artifact comes from, so the binary and the skill always match.
 function Resolve-Tag {
   if ($state.Source -or $state.Version) { return }
   $ProgressPreference = 'SilentlyContinue'
-  $response = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing
-  # Windows PowerShell 5.1 and PowerShell 7 expose the final URL differently.
-  $final = if ($response.BaseResponse.PSObject.Properties['ResponseUri']) { $response.BaseResponse.ResponseUri.AbsoluteUri } else { $response.BaseResponse.RequestMessage.RequestUri.AbsoluteUri }
-  $tag = ($final -split '/')[-1]
+  $tag = ''
+  try {
+    $response = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing
+    # Windows PowerShell 5.1 and PowerShell 7 expose the final URL differently.
+    $final = if ($response.BaseResponse.PSObject.Properties['ResponseUri']) { $response.BaseResponse.ResponseUri.AbsoluteUri } else { $response.BaseResponse.RequestMessage.RequestUri.AbsoluteUri }
+    $tag = ($final -split '/')[-1]
+  } catch { $tag = '' }
+  # A private repository answers anonymous requests with 404; a signed-in gh can still see it.
+  if (-not ($tag -match '^v[0-9]') -and (Have 'gh')) {
+    $tag = (Get-NativeOutput { gh release view -R $Repo --json tagName -q .tagName }).Trim()
+  }
   if (-not ($tag -match '^v[0-9][A-Za-z0-9.+-]*$')) { throw "no release of $Repo found (got '$tag'); pass -Version" }
   $state.Version = $tag
 }
@@ -236,9 +251,9 @@ function Install-FabCli([string]$Work) {
   Expand-Archive -LiteralPath $zip -DestinationPath $Work -Force
   Initialize-BinDir
   # FabCLI's sign-in state that predates us belongs to the user: uninstall must then neither sign it
-  # out nor delete it.
+  # out nor delete it. State of a FabCLI this installer put here before is ours.
   if (-not (Recorded 'fabcli_state')) {
-    Record 'fabcli_state' $(if (Test-Path -LiteralPath $FabCliStateDir) { 'preexisting' } else { 'ours' })
+    Record 'fabcli_state' $(if ($ours -eq "installed:$target" -or -not (Test-Path -LiteralPath $FabCliStateDir)) { 'ours' } else { 'preexisting' })
   }
   Copy-Item -LiteralPath (Join-Path $Work "fabcli-v$FabCliVersion-windows64\fabcli.exe") -Destination $target -Force
   Record 'fabcli' "installed:$target"
@@ -258,11 +273,10 @@ function Install-NecturaLabsFab([string]$Work) {
     Copy-Item -LiteralPath (Join-Path $state.Source 'target\release\necturalabs-fab.exe') -Destination $target -Force
   } else {
     $asset = 'necturalabs-fab-x86_64-pc-windows-msvc.zip'
-    $base = "https://github.com/$Repo/releases/download/$($state.Version)"
     $zip = Join-Path $Work $asset
     $sums = Join-Path $Work 'SHA256SUMS'
     $released = $true
-    try { Get-File "$base/$asset" $zip; Get-File "$base/SHA256SUMS" $sums } catch { $released = $false }
+    try { Get-ReleaseAsset $asset $zip; Get-ReleaseAsset 'SHA256SUMS' $sums } catch { $released = $false }
     if ($released) {
       $expected = (Get-Content -LiteralPath $sums | Where-Object { ($_ -split '\s+')[1] -in @($asset, "*$asset") } | ForEach-Object { ($_ -split '\s+')[0] }) | Select-Object -First 1
       if (-not $expected) { throw "release SHA256SUMS has no entry for $asset" }

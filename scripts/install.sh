@@ -184,12 +184,26 @@ detect_checkout() {
 resolve_tag() {
   [ -n "$SOURCE" ] && return 0
   [ -n "$TAG" ] && return 0
-  have curl || die "curl is required to find the latest release (or pass --version)"
-  url=$(curl -fsSLI --proto '=https' --tlsv1.2 -o /dev/null -w '%{url_effective}' \
-    "https://github.com/$REPO/releases/latest") || die "could not reach GitHub to find the latest release"
+  url=""
+  if have curl; then
+    url=$(curl -fsSLI --proto '=https' --tlsv1.2 -o /dev/null -w '%{url_effective}' \
+      "https://github.com/$REPO/releases/latest" 2>/dev/null) || url=""
+  fi
   TAG=${url##*/}
+  # A private repository answers anonymous requests with 404; a signed-in gh can still see it.
+  case $TAG in
+    v[0-9]*) ;;
+    *) if have gh; then TAG=$(gh release view -R "$REPO" --json tagName -q .tagName 2>/dev/null || true); fi ;;
+  esac
   case $TAG in v[0-9]*) ;; *) die "no release of $REPO found (got '$TAG'); pass --version" ;; esac
   case $TAG in *[!A-Za-z0-9.+-]*) die "unexpected release tag '$TAG'" ;; esac
+}
+
+# Download one asset of the pinned release: anonymously, or through a signed-in gh for a private
+# repository.
+fetch_release_asset() {
+  fetch "https://github.com/$REPO/releases/download/$TAG/$1" "$2" 2>/dev/null && return 0
+  have gh && gh release download "$TAG" -R "$REPO" -p "$1" -O "$2" --clobber >/dev/null 2>&1
 }
 
 # Where both harnesses add the marketplace from: this checkout, or the pinned release tag.
@@ -236,9 +250,14 @@ install_fabcli() {
   tar -xzf "$WORK/$FABCLI_LINUX_ASSET" -C "$WORK"
   ensure_bin_dir
   # FabCLI keeps its sign-in state here. State that predates us belongs to the user: uninstall
-  # must then neither sign it out nor delete it.
+  # must then neither sign it out nor delete it. State of a FabCLI this installer put here before
+  # is ours.
   if [ -z "$(recorded fabcli_state)" ]; then
-    if [ -e "$CONFIG_HOME/fabcli" ]; then record fabcli_state preexisting; else record fabcli_state ours; fi
+    if [ "$ours" = "installed:$BIN_DIR/fabcli" ] || [ ! -e "$CONFIG_HOME/fabcli" ]; then
+      record fabcli_state ours
+    else
+      record fabcli_state preexisting
+    fi
   fi
   install -m 755 "$WORK/fabcli-v$FABCLI_VERSION-linux64/fabcli" "$BIN_DIR/fabcli"
   record fabcli "installed:$BIN_DIR/fabcli"
@@ -267,9 +286,8 @@ install_necturalabs_fab() {
       *) target="" ;;
     esac
     asset="necturalabs-fab-$target.tar.gz"
-    base="https://github.com/$REPO/releases/download/$TAG"
-    if [ -n "$target" ] && fetch "$base/$asset" "$WORK/$asset" 2>/dev/null \
-        && fetch "$base/SHA256SUMS" "$WORK/SHA256SUMS" 2>/dev/null; then
+    if [ -n "$target" ] && fetch_release_asset "$asset" "$WORK/$asset" \
+        && fetch_release_asset SHA256SUMS "$WORK/SHA256SUMS"; then
       expected=$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1 }' "$WORK/SHA256SUMS")
       [ -n "$expected" ] || die "release SHA256SUMS has no entry for $asset"
       [ "$(sha256_of "$WORK/$asset")" = "$expected" ] || die "necturalabs-fab checksum mismatch; refusing to install"
