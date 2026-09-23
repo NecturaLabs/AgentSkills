@@ -41,8 +41,9 @@ which looks like a code failure and is not.
 - `internal/pb/` — Protobuf output. Regenerate with `make proto`; never hand-edit.
 - `console/src/api/generated/` — OpenAPI client, generated from `openapi.yaml` by `make client`;
   never hand-edit.
-- `infra/` — Terraform for all environments. Has its own AGENTS.md; different toolchain and a
-  different safety boundary.
+- `infra/` — Terraform for all environments. Its own `AGENTS.md` governs it: a different
+  toolchain, verification command and safety boundary, so Commands, Testing and Boundaries here
+  stop at `infra/`.
 
 The `ledger/` and `adapters/` split is load-bearing, not cosmetic: the whole test suite depends on
 `ledger/` being deterministic. `make lint` rejects a database or HTTP import there, but not a call
@@ -69,8 +70,8 @@ to `time.Now()` or `uuid.New()` — take the injected clock and ID generator ins
 ## Boundaries
 
 - **Always**: run `make test` and `make lint` before claiming done. State what they printed.
-- **Ask first**: schema migrations, dependency additions, anything changing an API response shape,
-  anything under `infra/`.
+- **Ask first**: schema migrations, dependency additions, anything changing an API response
+  shape.
 - **Never**: hand-edit `internal/pb/` or `console/src/api/generated/`; log a card number, CVV or
   full PAN anywhere, at any level, including debug; weaken an idempotency check to make a test
   pass.

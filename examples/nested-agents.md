@@ -9,7 +9,7 @@ pagination. Every rule below would be false or actively harmful if applied to th
 TypeScript code at the repository root, which is exactly the test. The subtree has:
 
   - a different toolchain      — Terraform, Trivy and TFLint, not Go and pnpm
-  - a different command set    — plan/apply against live cloud state, not build/test
+  - a different command set    — a plan against live cloud state, not build/test
   - a different safety boundary— commands here can destroy production infrastructure
   - a different generated rule — lockfiles and state are machine-owned in a different way
   - a different architecture   — declarative desired state, not imperative code paths
@@ -38,7 +38,7 @@ Run from `infra/<env>/` — each environment is its own root with its own state 
   nothing here applies a saved plan, and a plan file holds every value in plaintext, sensitive
   ones included
 - Lint: `tflint --config=../.tflint.hcl`
-- Security scan: `trivy config .`
+- Security scan: `trivy config .`, run from `infra/` so it scans `modules/` and every environment
 
 `init` and `plan` need cloud credentials for that environment. Without them they fail on
 authentication, which is a missing prerequisite, not a code failure — report it rather than working
