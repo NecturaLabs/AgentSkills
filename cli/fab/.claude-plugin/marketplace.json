@@ -1,0 +1,15 @@
+{
+  "name": "necturalabs-fab",
+  "description": "NecturaLabs Fab marketplace integration",
+  "owner": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "plugins": [
+    {
+      "name": "necturalabs-fab",
+      "description": "Agent Skill for finding, comparing, claiming and downloading Fab marketplace assets through the necturalabs-fab CLI.",
+      "source": "./plugin"
+    }
+  ]
+}

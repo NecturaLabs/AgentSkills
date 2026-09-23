@@ -1,0 +1,15 @@
+{
+  "uid": "33333333-3333-4333-8333-333333333333",
+  "title": "Ruined Keep Props",
+  "description": "Props for ruined keeps.",
+  "listingType": "3d-model",
+  "isFree": false,
+  "isMature": false,
+  "createdAt": "2026-08-01T10:00:00Z",
+  "publishedAt": "2026-08-15T10:00:00Z",
+  "category": {"uid": "c2", "name": "Props", "slug": "props", "path": "props"},
+  "user": {"sellerName": "KeepWorks"},
+  "ratings": {"averageRating": 3.9, "total": 7},
+  "reviewCount": 3,
+  "startingPrice": {"price": 19.99, "discountedPrice": 0.0, "discountPercentage": 100, "currencyCode": "USD", "offerId": "offer-promo"}
+}

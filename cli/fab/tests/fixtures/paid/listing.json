@@ -1,0 +1,15 @@
+{
+  "uid": "22222222-2222-4222-8222-222222222222",
+  "title": "Dark Gothic Castle Environment (AAA)",
+  "description": "A premium castle environment.",
+  "listingType": "3d-model",
+  "isFree": false,
+  "isMature": false,
+  "createdAt": "2025-02-01T10:00:00Z",
+  "publishedAt": "2025-02-11T10:00:00Z",
+  "category": {"uid": "c1", "name": "Environments", "slug": "environments", "path": "environments"},
+  "user": {"sellerName": "GrimforgeArt"},
+  "ratings": {"averageRating": 4.9, "total": 512},
+  "reviewCount": 120,
+  "startingPrice": {"price": 89.99, "currencyCode": "USD", "offerId": "offer-paid"}
+}

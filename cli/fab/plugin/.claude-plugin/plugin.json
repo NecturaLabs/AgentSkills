@@ -1,0 +1,13 @@
+{
+  "name": "necturalabs-fab",
+  "description": "Agent Skill for finding, comparing, claiming and downloading Fab marketplace assets through the necturalabs-fab CLI.",
+  "version": "0.2.1",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "homepage": "https://github.com/NecturaLabs/FabCLI",
+  "repository": "https://github.com/NecturaLabs/FabCLI",
+  "license": "MIT",
+  "keywords": ["agent-skills", "fab", "unreal", "gamedev", "assets"]
+}
