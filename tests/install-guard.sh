@@ -532,5 +532,34 @@ check "plugin-disabled-doctor-not-accepted" "0" "$(printf '%s\n' "$doctor_out" |
 check "plugin-disabled-doctor-reports" "1" "$(printf '%s\n' "$doctor_out" | grep -c "$OTHER_PLUGIN_NAME plugin is installed but not enabled")"
 check "plugin-disabled-doctor-no-missing" "0" "$(printf '%s\n' "$doctor_out" | sed -n '/^Claude Code/,/^$/p' | grep -c 'is not installed')"
 
+# 33. the recommended layout serves Codex from the enabled plugin's marketplace clone, so doctor run
+#     from any other checkout accepts Codex links into that clone; a link into some other checkout
+#     is still an error, and so is the clone once the plugin is disabled
+marketplace_links() {
+  local h=$1 clone=$1/.claude/plugins/marketplaces/$OTHER_PLUGIN_NAME s
+  mkdir -p "$clone/.claude-plugin"
+  printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$clone/.claude-plugin/plugin.json"
+  for s in "${SKILLS[@]}"; do
+    mkdir -p "$clone/skills/$s"
+    printf 'marketplace clone skill\n' > "$clone/skills/$s/SKILL.md"
+    ln -s "$clone/skills/$s" "$h/.agents/skills/$s"
+  done
+}
+H=$(plugin_home true)
+mkdir -p "$H/.agents/skills"
+marketplace_links "$H"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "marketplace-doctor-codex-accepted" "0" "$(printf '%s\n' "$doctor_out" | sed -n '/^Codex (user scope)/,/^$/p' | grep -c '\[error\]')"
+check "marketplace-doctor-codex-named" "${#SKILLS[@]}" "$(printf '%s\n' "$doctor_out" | grep -c "marketplace clone")"
+rm -f "$H/.agents/skills/testing"
+ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.agents/skills/testing"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "marketplace-doctor-other-still-error" "1" "$(printf '%s\n' "$doctor_out" | grep -c 'testing points at a different AgentSkills checkout')"
+H=$(plugin_home false)
+mkdir -p "$H/.agents/skills"
+marketplace_links "$H"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "marketplace-disabled-doctor-error" "${#SKILLS[@]}" "$(printf '%s\n' "$doctor_out" | sed -n '/^Codex (user scope)/,/^$/p' | grep -c '\[error\]')"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

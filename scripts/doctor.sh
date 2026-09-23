@@ -163,7 +163,10 @@ entry_state() {
       printf 'broken\t%s' "${target:-unresolvable}"
     else
       owner=$(checkout_root_of "$target" || true)
-      if [ -n "$owner" ]; then
+      if [ -n "$owner" ] && [ "$claude_plugin" -eq 1 ] && [ -n "$MARKETPLACES_DIR" ] \
+        && [ "${owner%/*}" = "$MARKETPLACES_DIR" ]; then
+        printf 'marketplace\t%s' "$target"
+      elif [ -n "$owner" ]; then
         printf 'other-checkout\t%s' "$target"
       else
         printf 'foreign\t%s' "$target"
@@ -196,6 +199,7 @@ check_root() {
     target=${line#*$'\t'}
     case $state in
       correct) ok "$name -> $target" ;;
+      marketplace) ok "$name -> $target (the Claude Code plugin's marketplace clone)" ;;
       broken)
         if [ "$required" -eq 1 ]; then err "$name is a broken symlink -> $target"
         else warn "$name is a broken symlink -> $target"; fi ;;
@@ -234,6 +238,9 @@ if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_N
     claude_plugin_disabled=1
   fi
 fi
+# With the plugin enabled, the recommended Codex links point into its marketplace clone, so both
+# harnesses load one copy; a link there is correct even when this doctor runs from another checkout.
+MARKETPLACES_DIR=$(readlink -f -- "$CLAUDE_HOME/plugins/marketplaces" 2>/dev/null || true)
 
 printf 'Installed skills\n'
 if [ "$claude_active" -eq 1 ] && [ "$claude_plugin" -eq 1 ]; then
