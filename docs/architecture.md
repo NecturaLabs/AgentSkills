@@ -29,7 +29,7 @@ environment facts that change what a command must look like, correctness and com
 the decision whether to delegate at all, essential security boundaries, and routing by requirement
 to everything else. It is the wrong home for review methodology, testing doctrine, security
 checklists, delegation procedure, per-language examples, and anything derivable from the code or the
-tooling. The shipped global example holds to that at about 10 KB.
+tooling. The shipped global example holds to that at about 15 KB.
 
 It is also the only maintained policy source: no competing CLAUDE policy layer, no context-loader
 skill, no session-start hook that reinjects text. A repository `CLAUDE.md` is forbidden here — a

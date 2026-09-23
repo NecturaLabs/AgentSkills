@@ -160,13 +160,14 @@ want to see how much detail a real file carries at a given scope, then write for
 repository rather than adapting theirs.
 
 - [`examples/global-agents.md`](../../../examples/global-agents.md)
-  — user-scope working agreement. Note how every machine-, harness- and vendor-specific rule is
-  parameterized rather than stated literally, and how model selection is expressed as tiers,
-  because vendor model names change faster than an instruction file should.
+  — user-scope working agreement. Note how every machine-specific rule is left as a `customize:`
+  marker rather than stated literally, and how skill routing names each skill exactly as the
+  harness lists it, so a user adds a scenario row in the same shape for any skill they rely on.
 - [`examples/project-agents.md`](../../../examples/project-agents.md)
   — repository-level file. Note what it leaves out: no generic engineering doctrine, no framework
-  conventions, no file-by-file tour. It is roughly a fifth the size of the global file, and links
-  out to the architecture docs instead of summarizing them.
+  conventions, no file-by-file tour, no routing to skills a contributor may not have installed. It
+  is well under half the size of the global file, leaves to `make lint` what lint can decide, and
+  links out to the architecture docs instead of summarizing them.
 - [`examples/nested-agents.md`](../../../examples/nested-agents.md)
   — subtree file for a directory whose toolchain, command set and safety boundary genuinely
   differ. The test it passes: every rule in it would be false or harmful if applied to the
