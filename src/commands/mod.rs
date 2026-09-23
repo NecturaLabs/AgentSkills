@@ -209,8 +209,10 @@ pub fn hydrate(ctx: &Ctx, assets: &mut [Asset], limit: usize) -> Vec<String> {
     if limit == 0 || !ctx.provider.capabilities().listing_detail {
         return warnings;
     }
-    for asset in assets.iter_mut().take(limit) {
-        match ctx.provider.listing(&asset.id, true) {
+    let ids: Vec<String> = assets.iter().take(limit).map(|a| a.id.clone()).collect();
+    let details = ctx.provider.listings(&ids, true);
+    for (asset, detail) in assets.iter_mut().zip(details) {
+        match detail {
             Ok(detail) => merge_detail(asset, detail),
             Err(err) => warnings.push(format!(
                 "could not fetch detail for {}: {} ({})",

@@ -65,10 +65,23 @@ fn current(ctx: &Ctx) -> Result<(Vec<Asset>, Vec<String>)> {
     // a paid listing that is free right now is a promotion. Search rows may
     // not carry the discount itself, so an unknown one is read from the
     // listing detail.
+    let unknown: Vec<String> = page
+        .assets
+        .iter()
+        .filter(|a| a.price.temporarily_free.is_none())
+        .map(|a| a.id.clone())
+        .collect();
+    let mut details = ctx.provider.listings(&unknown, false).into_iter();
     let mut promos = Vec::new();
     for mut asset in page.assets {
         if asset.price.temporarily_free.is_none() {
-            match ctx.provider.listing(&asset.id, false) {
+            let detail = details.next().unwrap_or_else(|| {
+                Err(crate::error::FabError::new(
+                    crate::error::ErrorCode::ProviderFailed,
+                    "listing detail missing",
+                ))
+            });
+            match detail {
                 Ok(detail) if detail.price.temporarily_free == Some(true) => {
                     asset.price.original = asset.price.amount.or(asset.price.original);
                     asset.price.amount = Some(crate::model::Amount::ZERO);

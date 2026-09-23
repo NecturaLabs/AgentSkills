@@ -49,6 +49,11 @@ const LIBRARY_MIN_TIMEOUT: Duration = Duration::from_secs(300);
 /// avoid parallel calls, so the fan-out stays small.
 const LICENSE_WORKERS: usize = 4;
 
+/// Listing-detail calls (detail, formats, prices) run at once when several
+/// listings are fetched together. They hit three different endpoints, so a
+/// batch spreads across them.
+const DETAIL_WORKERS: usize = 6;
+
 /// Licence searches one necturalabs-fab run may send: one per listing for a
 /// full `library --details` page of 100, with room for the few that need a
 /// second round. Listings past it stay unknown rather than turning one
@@ -654,8 +659,14 @@ impl FabCliProvider {
 /// Run invocations at most [`LICENSE_WORKERS`] at a time and return their
 /// outputs in the order given.
 fn run_all(exec: &Exec, calls: &[Vec<String>]) -> Vec<Result<Output>> {
+    run_all_by(exec, calls, LICENSE_WORKERS)
+}
+
+/// Run invocations at most `width` at a time and return their outputs in the
+/// order given.
+fn run_all_by(exec: &Exec, calls: &[Vec<String>], width: usize) -> Vec<Result<Output>> {
     let mut outputs = Vec::with_capacity(calls.len());
-    for chunk in calls.chunks(LICENSE_WORKERS) {
+    for chunk in calls.chunks(width.max(1)) {
         std::thread::scope(|scope| {
             let handles: Vec<_> = chunk
                 .iter()
@@ -931,6 +942,82 @@ impl FabProvider for FabCliProvider {
             }
             Ok(asset)
         })
+    }
+
+    /// Several listings at once: every detail, formats and prices call runs
+    /// concurrently, then one licence pass covers the whole batch so its
+    /// searches run concurrently too.
+    fn listings(&self, listing_ids: &[String], with_formats: bool) -> Vec<Result<Asset>> {
+        if let Err(err) = self.ensure_supported_version() {
+            return listing_ids.iter().map(|_| Err(err.clone())).collect();
+        }
+        let ids: Vec<Result<String>> = listing_ids
+            .iter()
+            .map(|id| validate_listing_id(id))
+            .collect();
+        let per_listing = if with_formats { 3 } else { 1 };
+        let mut calls: Vec<Vec<String>> = Vec::new();
+        for id in ids.iter().flatten() {
+            calls.push(vec!["listing".to_string(), id.clone()]);
+            if with_formats {
+                calls.push(vec!["formats".to_string(), id.clone()]);
+                calls.push(vec!["prices".to_string(), id.clone()]);
+            }
+        }
+        let exec = self.exec(self.settings.timeout);
+        let mut outputs = run_all_by(&exec, &calls, DETAIL_WORKERS).into_iter();
+        let mut calls = calls.chunks(per_listing);
+
+        let mut results: Vec<Result<Asset>> = Vec::with_capacity(ids.len());
+        for id in ids {
+            if let Err(err) = id {
+                results.push(Err(err));
+                continue;
+            }
+            // One chunk of calls was built per valid id, in this order.
+            let Some(call) = calls.next() else { break };
+            let listed = outputs.next().unwrap_or_else(|| {
+                Err(FabError::new(
+                    ErrorCode::ProviderFailed,
+                    "a provider call did not finish",
+                ))
+            });
+            let mut result = listed
+                .and_then(|output| self.parse(output, &call[0]))
+                .and_then(|raw| map::listing_detail(&raw, self.include_raw));
+            if with_formats {
+                let formats = outputs.next();
+                let prices = outputs.next();
+                if let Ok(asset) = result.as_mut() {
+                    match formats.map(|o| o.and_then(|o| self.parse(o, &call[1]))) {
+                        Some(Ok(formats)) => map::apply_formats(asset, &formats),
+                        _ => {
+                            asset.coverage.formats = Availability::Unavailable;
+                            asset.coverage.technical = Availability::Unavailable;
+                        }
+                    }
+                    if let Some(Ok(prices)) =
+                        prices.map(|o| o.and_then(|o| self.parse(o, &call[2])))
+                    {
+                        map::apply_tier_prices(asset, &prices);
+                    }
+                }
+            }
+            results.push(result);
+        }
+
+        let mut found: Vec<Asset> = results
+            .iter_mut()
+            .filter_map(|r| r.as_mut().ok().map(std::mem::take))
+            .collect();
+        self.resolve_licenses(&mut found, None);
+        let mut found = found.into_iter();
+        for result in results.iter_mut().filter(|r| r.is_ok()) {
+            if let (Ok(slot), Some(asset)) = (result.as_mut(), found.next()) {
+                *slot = asset;
+            }
+        }
+        results
     }
 
     fn ownership(&self, listing_ids: &[String]) -> Result<Vec<Ownership>> {

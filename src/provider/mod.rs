@@ -261,6 +261,16 @@ pub trait FabProvider {
         Err(Capabilities::unsupported(self.id(), "listing detail"))
     }
 
+    /// Full detail for several listings, one result per id in the order
+    /// given. A provider that can fetch them concurrently overrides this; the
+    /// default asks one at a time.
+    fn listings(&self, listing_ids: &[String], with_formats: bool) -> Vec<Result<Asset>> {
+        listing_ids
+            .iter()
+            .map(|id| self.listing(id, with_formats))
+            .collect()
+    }
+
     /// Ownership state for one or more listings.
     fn ownership(&self, _listing_ids: &[String]) -> Result<Vec<Ownership>> {
         Err(Capabilities::unsupported(self.id(), "ownership lookup"))

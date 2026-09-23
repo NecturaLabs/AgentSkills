@@ -148,8 +148,15 @@ fn describe(ctx: &Ctx, assets: &mut [Asset], limit: usize) -> Vec<String> {
     if limit == 0 || !ctx.provider.capabilities().listing_detail {
         return warnings;
     }
-    for asset in assets.iter_mut().filter(|a| a.url.is_some()).take(limit) {
-        match ctx.provider.listing(&asset.id, false) {
+    let mut listed: Vec<&mut Asset> = assets
+        .iter_mut()
+        .filter(|a| a.url.is_some())
+        .take(limit)
+        .collect();
+    let ids: Vec<String> = listed.iter().map(|a| a.id.clone()).collect();
+    let details = ctx.provider.listings(&ids, false);
+    for (asset, detail) in listed.iter_mut().zip(details) {
+        match detail {
             Ok(detail) => {
                 if detail.description.is_some() {
                     asset.description = detail.description;
