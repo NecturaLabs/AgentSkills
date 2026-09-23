@@ -259,19 +259,36 @@ pub fn price_cell(price: &crate::model::Price) -> String {
 
 /// Ownership and price in one cell: an owned asset's price is not news.
 pub fn status_cell(owned: Option<bool>, price: &crate::model::Price) -> String {
+    let price = match (price.highest, price.is_free()) {
+        (Some(highest), false) => format!(
+            "{}–{highest} {}",
+            price.amount.map(|a| a.to_string()).unwrap_or_default(),
+            price.currency.as_deref().unwrap_or("")
+        )
+        .trim()
+        .to_string(),
+        _ => price_cell(price),
+    };
     match owned {
         Some(true) => "owned".into(),
-        Some(false) => price_cell(price),
-        None => format!("{} (owned?)", price_cell(price)),
+        Some(false) => price,
+        None => format!("{price} (owned?)"),
     }
 }
 
 /// Licences in one cell, the Standard License tiers by tier name alone.
-pub fn license_cell(licenses: &[String]) -> String {
-    if licenses.is_empty() {
-        return "?".into();
+/// `other` is a licence the marketplace's filter does not name; `?` is one
+/// that was not established.
+pub fn license_cell(asset: &crate::model::Asset) -> String {
+    if asset.licenses.is_empty() {
+        return if asset.coverage.licenses == crate::model::Availability::Available {
+            "other".into()
+        } else {
+            "?".into()
+        };
     }
-    licenses
+    asset
+        .licenses
         .iter()
         .map(|name| {
             name.strip_prefix("Standard License (")
@@ -419,16 +436,33 @@ mod tests {
     }
 
     #[test]
-    fn licence_cell_names_the_standard_tiers_and_says_unknown() {
-        assert_eq!(license_cell(&[]), "?");
-        assert_eq!(
-            license_cell(&[
-                "Standard License (Personal)".into(),
-                "Standard License (Professional)".into()
-            ]),
-            "Personal, Professional"
-        );
-        assert_eq!(license_cell(&["CC BY 4.0".into()]), "CC BY 4.0");
+    fn licence_cell_names_the_standard_tiers_and_tells_unknown_from_other() {
+        use crate::model::{Asset, Availability};
+        let mut asset = Asset::new("id", "p");
+        assert_eq!(license_cell(&asset), "?");
+        asset.coverage.licenses = Availability::Available;
+        assert_eq!(license_cell(&asset), "other");
+        asset.licenses = vec![
+            "Standard License (Personal)".into(),
+            "Standard License (Professional)".into(),
+        ];
+        assert_eq!(license_cell(&asset), "Personal, Professional");
+        asset.licenses = vec!["CC BY 4.0".into()];
+        assert_eq!(license_cell(&asset), "CC BY 4.0");
+    }
+
+    #[test]
+    fn differently_priced_tiers_show_as_a_range() {
+        use crate::model::{Amount, Price};
+        let price = Price {
+            amount: Amount::parse("135.12"),
+            highest: Amount::parse("240.24"),
+            currency: Some("ILS".into()),
+            free: Some(false),
+            ..Default::default()
+        };
+        let cell = status_cell(Some(false), &price);
+        assert!(cell.contains("135.12") && cell.contains("240.24"), "{cell}");
     }
 
     #[test]

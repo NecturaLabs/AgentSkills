@@ -21,7 +21,7 @@ pub mod skill;
 use crate::cli::{Cli, FilterArgs};
 use crate::config::{Config, LayerRecord, OutputMode};
 use crate::error::{ErrorCode, FabError, Result};
-use crate::model::{Asset, Engine};
+use crate::model::{Asset, Availability, Engine};
 use crate::output::{Meta, Outcome, Renderer};
 use crate::provider::fabcli::{FabCliProvider, FabCliSettings};
 use crate::provider::FabProvider;
@@ -116,6 +116,7 @@ pub fn build_provider(config: &Config, raw: bool, progress: bool) -> Result<Box<
                 version_requirement: config.fabcli.version_requirement.clone(),
                 library_cache: config.fabcli.library_cache,
                 progress,
+                license_cache: crate::config::user_cache_dir().map(|dir| dir.join("licenses.json")),
             };
             Ok(Box::new(FabCliProvider::new(settings).with_raw(raw)))
         }
@@ -248,27 +249,42 @@ pub fn merge_detail(summary: &mut Asset, detail: Asset) {
     if merged.thumbnail.is_none() {
         merged.thumbnail.clone_from(&summary.thumbnail);
     }
-    if merged.licenses.is_empty() && !summary.licenses.is_empty() {
+    if merged.coverage.licenses != Availability::Available
+        && summary.coverage.licenses == Availability::Available
+    {
         merged.licenses = std::mem::take(&mut summary.licenses);
-        merged.coverage.licenses = summary.coverage.licenses;
+        merged.coverage.licenses = Availability::Available;
     }
     *summary = merged;
 }
 
-/// A warning naming how many listings were left without an established
-/// licence, when any were: the lookup may have found nothing or failed, and
-/// either way the caller must check the listing page before relying on one.
-pub fn license_warning<'a>(assets: impl IntoIterator<Item = &'a Asset>) -> Option<String> {
-    let unknown = assets
-        .into_iter()
-        .filter(|a| a.coverage.licenses == crate::model::Availability::Unavailable)
-        .count();
-    (unknown > 0).then(|| {
-        format!(
-            "licence unknown for {unknown} listing(s): the marketplace's licence filter did not \
-             return them or the lookup failed; check each one's url before relying on a licence"
-        )
-    })
+/// Warnings for listings whose licence the caller must check on the listing
+/// page: ones it could not be established for, and ones offered under a
+/// licence the marketplace's filter does not name.
+pub fn license_warnings<'a>(assets: impl IntoIterator<Item = &'a Asset>) -> Vec<String> {
+    let (mut unknown, mut other) = (0, 0);
+    for asset in assets {
+        match asset.coverage.licenses {
+            Availability::Unavailable => unknown += 1,
+            Availability::Available if asset.licenses.is_empty() => other += 1,
+            _ => {}
+        }
+    }
+    let mut warnings = Vec::new();
+    if unknown > 0 {
+        warnings.push(format!(
+            "licence unknown for {unknown} listing(s): a lookup failed or was cut short, or \
+             the marketplace's search did not find the listing; check each one's url before \
+             relying on a licence"
+        ));
+    }
+    if other > 0 {
+        warnings.push(format!(
+            "{other} listing(s) use a licence the marketplace's filter does not name (such as \
+             the legacy UE Marketplace License); check each one's url for its terms"
+        ));
+    }
+    warnings
 }
 
 /// Apply the post-retrieval filters Fab cannot evaluate server-side.

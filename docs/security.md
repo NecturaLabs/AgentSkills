@@ -89,6 +89,8 @@ user config, `NECTURALABS_FAB_*` environment variables or flags.
 Downloads go to `--out` or `<download.directory>/<listing id>`. The default policy `refuse` stops
 if any previous necturalabs-fab download is present in the directory, and FabCLI itself refuses to
 overwrite any file the download would replace; `force` and `require-empty` are explicit opt-ins.
+The licence cache (`licenses.json` in the user cache directory) holds listing ids and licence
+verdicts only; it is read with size and schema limits, and every entry is validated before use.
 necturalabs-fab's own writes cannot be redirected through a planted symlink: the writability probe is
 created with `create_new`, the sidecar is written to a fresh file and renamed into place, and a
 sidecar path that is a link is refused.

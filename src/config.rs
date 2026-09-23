@@ -347,6 +347,17 @@ pub fn user_config_path() -> Option<PathBuf> {
     Some(base.join("necturalabs-fab").join("config.toml"))
 }
 
+/// The user-scope cache directory for this platform, honouring an absolute
+/// `XDG_CACHE_HOME` everywhere the way [`user_config_path`] honours
+/// `XDG_CONFIG_HOME`.
+pub fn user_cache_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(dirs::cache_dir)?;
+    Some(base.join("necturalabs-fab"))
+}
+
 /// The nearest project config at or above `cwd`.
 pub fn find_project_config(cwd: &Path) -> Option<PathBuf> {
     let mut dir = Some(cwd);

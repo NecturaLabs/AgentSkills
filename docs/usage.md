@@ -55,9 +55,10 @@ necturalabs-fab inspect 1a2b3c4d-…
 
 Listings show whether the account owns them, the price only when it does not, and the licences
 they are offered under. FabCLI does not report licences, so they are established from Fab's
-licence search filter: a few extra searches per page, and up to three per listing the page left
-open. One run sends at most 150 of them and none after a rate limit; a warning counts the listings
-whose licence stayed unknown.
+licence search filter, run alongside the page's own search, plus one to three searches for each
+listing the page left open. Verdicts are cached for a week, so each listing is looked up once;
+one run sends at most 200 licence searches and none after a rate limit, and a warning counts the
+listings whose licence stayed unknown or is one the filter does not name.
 
 ## Download
 

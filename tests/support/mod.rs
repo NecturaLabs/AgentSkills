@@ -114,6 +114,7 @@ impl Harness {
             .env("HOME", self.home())
             .env("USERPROFILE", self.home())
             .env("XDG_CONFIG_HOME", self.home().join(".config"))
+            .env("XDG_CACHE_HOME", self.home().join(".cache"))
             .env("NECTURALABS_FAB_FABCLI_PATH", cargo_bin("mock-fabcli"))
             .env("MOCK_FABCLI_DIR", &self.fixtures);
         for key in LEAKY_VARS {

@@ -187,12 +187,11 @@ fn owned_only_searches_the_library_and_says_so() {
         .iter()
         .any(|w| w.as_str().unwrap().contains("library")));
     assert!(harness.called("library"));
-    // Licence lookups are licence-filtered searches; the results themselves
-    // must not come from one.
-    assert!(!harness
-        .calls()
-        .iter()
-        .any(|c| c.starts_with("search ") && !c.contains("--filter=licenses=")));
+    // Licence lookups are searches (licence-filtered, or for one listing by
+    // seller); the results themselves must not come from one.
+    assert!(!harness.calls().iter().any(|c| c.starts_with("search ")
+        && !c.contains("--filter=licenses=")
+        && !c.contains("--filter=seller=")));
 }
 
 #[test]

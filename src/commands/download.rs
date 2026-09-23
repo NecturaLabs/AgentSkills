@@ -109,6 +109,7 @@ pub fn run(ctx: &Ctx, args: &DownloadArgs) -> Result<Outcome> {
                 "overwrite": overwrite,
                 "engineVersions": receipt.engine_versions,
                 "platforms": receipt.platforms,
+                "licenses": receipt.licenses,
                 "wouldWriteSidecar": !args.no_sidecar,
             },
             "note": "file and byte counts are only known once the provider fetches the manifest",
@@ -399,6 +400,7 @@ fn write_sidecar(dir: &Path, receipt: &DownloadReceipt, provider: &str) -> Resul
         "bytes": receipt.bytes,
         "engineVersions": receipt.engine_versions,
         "platforms": receipt.platforms,
+        "licenses": receipt.licenses,
         "providerSidecar": receipt.provider_sidecar,
     });
     let text = format!("{}\n", serde_json::to_string_pretty(&body)?);
@@ -532,6 +534,7 @@ mod tests {
             platforms: vec!["Windows".into()],
             provider_sidecar: Some(".fabcli-asset.json".into()),
             elapsed_seconds: Some(1.5),
+            licenses: vec!["CC BY 4.0".into()],
         };
         let path = write_sidecar(tmp.path(), &receipt, "fabcli").unwrap();
         let body: serde_json::Value =
@@ -539,6 +542,7 @@ mod tests {
         assert_eq!(body["schema"], "necturalabs-fab/asset@1");
         assert_eq!(body["listingId"], "abc");
         assert_eq!(body["engineVersions"][0], "UE_5.4");
+        assert_eq!(body["licenses"][0], "CC BY 4.0");
         assert_eq!(body["url"], "https://www.fab.com/listings/abc");
     }
 }

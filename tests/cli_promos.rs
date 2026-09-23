@@ -7,13 +7,13 @@ use support::{code, Harness};
 const PROMO: &str = "33333333-3333-4333-8333-333333333333";
 const PERMANENT_FREE: &str = "11111111-1111-4111-8111-111111111111";
 
-/// The base fixtures mark the promo as owned; most promo tests need it unowned.
+/// The base library holds the promo; most promo tests need it unowned.
 fn unowned_promo() -> Harness {
     let harness = Harness::new("base");
-    let search = std::fs::read_to_string(harness.fixtures().join("search.json"))
+    let library = std::fs::read_to_string(harness.fixtures().join("library.json"))
         .unwrap()
-        .replace("\"owned\": true", "\"owned\": false");
-    harness.write_fixture("search.json", &search);
+        .replace(PROMO, "55555555-5555-4555-8555-555555555555");
+    harness.write_fixture("library.json", &library);
     harness
 }
 

@@ -22,25 +22,29 @@ pub fn run(ctx: &Ctx, args: &OwnershipArgs) -> Result<Outcome> {
         "owned": owned,
     });
 
+    // Licences only appear once a search or inspect established them; a
+    // column of nothing but "?" says less than no column.
+    let any_licence = records.iter().any(|r| !r.licenses.is_empty());
     let rows: Vec<Vec<String>> = records
         .iter()
         .map(|record| {
-            vec![
-                record.listing_id.clone(),
-                owned_cell(record.owned),
-                if record.licenses.is_empty() {
-                    "-".into()
+            let mut row = vec![record.listing_id.clone(), owned_cell(record.owned)];
+            if any_licence {
+                row.push(if record.licenses.is_empty() {
+                    "?".into()
                 } else {
                     record.licenses.join(", ")
-                },
-            ]
+                });
+            }
+            row
         })
         .collect();
-    let human = format!(
-        "{}\n{owned} of {} owned.",
-        table(&["LISTING", "OWNED", "LICENSES"], &rows),
-        ids.len()
-    );
+    let headers: &[&str] = if any_licence {
+        &["LISTING", "OWNED", "LICENSES"]
+    } else {
+        &["LISTING", "OWNED"]
+    };
+    let human = format!("{}\n{owned} of {} owned.", table(headers, &rows), ids.len());
 
     Ok(Outcome::read("ownership", data, human))
 }

@@ -83,8 +83,8 @@ Uninstall removes exactly what the manifest records and nothing else:
   binary and state directory are removed — unless FabCLI's state directory existed before the
   install, in which case the sign-in is yours and is kept;
 - the necturalabs-fab binary, its `PATH` entry on Windows, the bin directory if the installer created
-  it and it is now empty, its user config (`--keep-config` / `-KeepConfig` keeps it) and the
-  manifest.
+  it and it is now empty, its user config (`--keep-config` / `-KeepConfig` keeps it), its licence
+  cache and the manifest.
 
 A FabCLI that was already installed beforehand is left alone. Project `.necturalabs-fab.toml` files and
 downloaded assets are yours and are never touched.

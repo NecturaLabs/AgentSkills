@@ -10,6 +10,7 @@ use crate::model::{
     Amount, Asset, AssetFormat, AssetKind, Availability, Category, DetailLevel, Engine,
     MetadataSource, Ownership, Price, Publisher, Rating, TechnicalMetadata,
 };
+use crate::provider::fabcli::licenses::LicenseKind;
 use crate::provider::{AuthStatus, ClaimOutcome, SearchPage};
 use crate::sanitize;
 use serde_json::Value;
@@ -17,20 +18,29 @@ use serde_json::Value;
 /// Provider id recorded on every asset this module produces.
 pub const PROVIDER: &str = "fabcli";
 
-/// Fab's licence search facets, as its `licenses` filter spells them, and the
-/// name each one is reported under. Fab's listing detail names the licences,
-/// but FabCLI 0.1 drops them from its output, so they are recovered from which
-/// licence-filtered searches return a listing.
-pub const LICENSE_FACETS: [(&str, &str); 3] = [
-    ("personal", "Standard License (Personal)"),
-    ("professional", "Standard License (Professional)"),
-    ("cc-by", "CC BY 4.0"),
-];
+/// Fab's `licenses` filter value for the Standard License. Fab's listing
+/// detail names a listing's licences, but FabCLI 0.1 drops them from its
+/// output, so they are recovered from which licence-filtered searches return
+/// the listing. Fab requires both Standard tiers on every Standard listing
+/// (<https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab>),
+/// so the Personal tier's filter finds exactly the Standard listings.
+pub const STANDARD_FILTER: &str = "personal";
 
-/// Index of the CC BY facet in [`LICENSE_FACETS`]. Fab offers a listing under
-/// either CC BY or the Standard License, never both
-/// (<https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab>).
-pub const CC_BY_FACET: usize = 2;
+/// Fab's `licenses` filter value for Creative Commons Attribution. A listing is
+/// offered under CC BY or the Standard License, never both.
+pub const CC_BY_FILTER: &str = "cc-by";
+
+/// The names a licence verdict is reported under.
+pub fn license_names(kind: LicenseKind) -> Vec<String> {
+    match kind {
+        LicenseKind::Standard => vec![
+            "Standard License (Personal)".to_string(),
+            "Standard License (Professional)".to_string(),
+        ],
+        LicenseKind::CcBy => vec!["CC BY 4.0".to_string()],
+        LicenseKind::Unlisted => Vec::new(),
+    }
+}
 
 /// Map `fabcli search` output into a page of normalized assets.
 pub fn search_page(value: &Value, include_raw: bool) -> Result<SearchPage> {
@@ -276,6 +286,33 @@ pub fn price(is_free: Option<bool>, starting_price: Option<&Value>) -> Price {
         }
     }
     price
+}
+
+/// Record the dearest licence tier's price from `fabcli prices <uid>`, when
+/// the tiers are priced differently. Only offers in the asset's own currency
+/// count; `amount` already holds the cheapest.
+pub fn apply_tier_prices(asset: &mut Asset, value: &Value) {
+    let Some(offers) = value.get("offers").and_then(Value::as_array) else {
+        return;
+    };
+    let currency = asset.price.currency.clone();
+    let highest = offers
+        .iter()
+        .filter(|offer| {
+            currency.is_some()
+                && offer.get("currencyCode").and_then(Value::as_str) == currency.as_deref()
+        })
+        .filter_map(|offer| {
+            offer
+                .get("discountedPrice")
+                .and_then(Amount::from_json)
+                .or_else(|| offer.get("price").and_then(Amount::from_json))
+        })
+        .max();
+    asset.price.highest = match (highest, asset.price.amount) {
+        (Some(highest), Some(amount)) if highest > amount => Some(highest),
+        _ => None,
+    };
 }
 
 /// Fab's `priceTierId` looks like `<hash>_<ISO currency>_<minor units>_<ts>`.

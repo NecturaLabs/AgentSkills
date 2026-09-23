@@ -65,7 +65,7 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
 
     // Only assets whose metadata was actually fetched can be filtered on it.
     let (kept, dropped) = apply_client_filters(assets, &query);
-    warnings.extend(super::license_warning(&kept));
+    warnings.extend(super::license_warnings(&kept));
     let filtered_out: Vec<_> = dropped
         .iter()
         .map(|(id, reason)| json!({"id": id, "reason": reason}))
@@ -88,7 +88,7 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
                 asset.id.clone(),
                 cell(asset.title.as_deref(), 44),
                 status_cell(asset.owned, &asset.price),
-                license_cell(&asset.licenses),
+                license_cell(asset),
                 asset
                     .rating
                     .average

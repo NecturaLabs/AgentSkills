@@ -293,7 +293,7 @@ fn drain_stderr<R: Read>(reader: R, buf: &Arc<Mutex<Vec<u8>>>, tee: bool) {
         // which necturalabs-fab maps and renders itself; echoing it would print it
         // twice, once raw.
         let is_error_report = line.trim_ascii_start().starts_with(b"{\"error\"");
-        if tee && !is_error_report {
+        if tee && !is_error_report && !is_internal_chatter(&line) {
             // Progress is echoed for a human, so it gets both defences: no
             // credentials, and no escape sequences that could drive the terminal.
             if let Some(clean) = sanitize::progress_line(&String::from_utf8_lossy(&line)) {
@@ -308,6 +308,12 @@ fn drain_stderr<R: Read>(reader: R, buf: &Arc<Mutex<Vec<u8>>>, tee: bool) {
             }
         }
     }
+}
+
+/// FabCLI's browser helper logs its own window teardown to stderr on every
+/// session-backed call; it is no progress a person can use.
+fn is_internal_chatter(line: &[u8]) -> bool {
+    line.trim_ascii_start().starts_with(b"[webview-host]")
 }
 
 /// Resolve a program name against `PATH`, returning the absolute path.
@@ -420,6 +426,14 @@ mod tests {
             "stderr len {}",
             out.stderr.len()
         );
+    }
+
+    #[test]
+    fn browser_helper_chatter_is_not_echoed_but_progress_is() {
+        assert!(is_internal_chatter(
+            b"[webview-host] HostWindow::drop start\n"
+        ));
+        assert!(!is_internal_chatter(b"[download] chunk 3 of 200\n"));
     }
 
     #[test]

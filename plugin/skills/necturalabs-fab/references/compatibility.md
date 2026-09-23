@@ -41,8 +41,12 @@ for memory — and say they are seller-stated.
   (<https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab>).
 - `CC BY 4.0` requires crediting the creator wherever the asset is used; tell the user.
 - An owned asset reports the tiers the listing offers, not the tier the user acquired.
-- If `licenses` is absent (`coverage.licenses: "unavailable"`), open `asset.url` and tell the
-  user you could not confirm the licence from the CLI. Never state a licence you did not see.
+- If `licenses` is absent, open `asset.url` and tell the user you could not confirm the licence
+  from the CLI: `coverage.licenses: "available"` means a licence Fab's filter does not name (such
+  as the legacy UE Marketplace License), `"unavailable"` that it could not be established. Never
+  state a licence you did not see.
+- `price.highest`, when present, is the dearest tier; a company over the Personal tier's revenue
+  limit may owe that one.
 - A limited-time free claim grants the same licence as a purchase, but only if claimed before
   the promotion ends.
 

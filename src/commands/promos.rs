@@ -88,7 +88,7 @@ fn current(ctx: &Ctx) -> Result<(Vec<Asset>, Vec<String>)> {
             promos.push(asset);
         }
     }
-    warnings.extend(super::license_warning(&promos));
+    warnings.extend(super::license_warnings(&promos));
     Ok((promos, warnings))
 }
 
@@ -115,7 +115,7 @@ fn list(ctx: &Ctx) -> Result<Outcome> {
                 a.id.clone(),
                 cell(a.title.as_deref(), 48),
                 status_cell(a.owned, &a.price),
-                license_cell(&a.licenses),
+                license_cell(a),
             ]
         })
         .collect();

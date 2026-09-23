@@ -258,6 +258,11 @@ pub struct Price {
     /// When a time-limited discount ends (RFC 3339, UTC), if reported.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub free_until: Option<String>,
+    /// The dearest licence tier's effective price, in `currency`, when the
+    /// tiers are priced differently; `amount` is the cheapest. Reported with
+    /// listing detail only, and without saying which tier costs which.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub highest: Option<Amount>,
 }
 
 impl Price {

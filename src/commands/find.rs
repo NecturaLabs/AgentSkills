@@ -108,7 +108,7 @@ fn run(ctx: &Ctx, args: &FindArgs, default_top: u32, recommending: bool) -> Resu
     let ranking = rank::rank(assets, &prefs);
 
     let top = args.top.unwrap_or(default_top) as usize;
-    warnings.extend(super::license_warning(
+    warnings.extend(super::license_warnings(
         ranking.ranked.iter().take(top).map(|s| &s.asset),
     ));
     let candidates: Vec<Value> = ranking
@@ -291,7 +291,7 @@ fn render(ranking: &Ranking, top: usize, recommending: bool) -> String {
                 scored.asset.id.clone(),
                 cell(scored.asset.title.as_deref(), 40),
                 status_cell(scored.asset.owned, &scored.asset.price),
-                license_cell(&scored.asset.licenses),
+                license_cell(&scored.asset),
             ]
         })
         .collect();

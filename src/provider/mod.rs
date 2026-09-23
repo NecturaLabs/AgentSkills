@@ -164,6 +164,8 @@ pub struct DownloadReceipt {
     pub engine_versions: Vec<String>,
     /// Platforms the downloaded files target.
     pub platforms: Vec<String>,
+    /// Licences the listing is offered under, when established.
+    pub licenses: Vec<String>,
 }
 
 /// The result of a free-asset claim.

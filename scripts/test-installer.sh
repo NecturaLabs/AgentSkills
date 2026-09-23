@@ -31,7 +31,7 @@ if [ "$(uname -s)" = Darwin ]; then
 fi
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$SANDBOX/no-session-bus"
 unset DBUS_SYSTEM_BUS_ADDRESS || true
-unset XDG_CONFIG_HOME XDG_DATA_HOME CODEX_HOME CLAUDE_CONFIG_DIR NECTURALABS_FAB_BIN_DIR || true
+unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME CODEX_HOME CLAUDE_CONFIG_DIR NECTURALABS_FAB_BIN_DIR || true
 BIN="$SANDBOX/bin"
 
 sh "$ROOT/scripts/install.sh" --no-login --bin-dir "$BIN" --source "$ROOT"
@@ -57,6 +57,10 @@ if command -v codex >/dev/null 2>&1; then
 fi
 NECTURALABS_FAB_FABCLI_PATH="$BIN/fabcli" "$BIN/necturalabs-fab" --json doctor | grep -q '"ok":true' || fail "doctor failed"
 pass "doctor ran"
+
+# The licence cache necturalabs-fab writes as it runs goes with it.
+mkdir -p "$SANDBOX/.cache/necturalabs-fab"
+printf '{"version":1,"entries":{}}\n' > "$SANDBOX/.cache/necturalabs-fab/licenses.json"
 
 sh "$ROOT/scripts/install.sh" --uninstall
 

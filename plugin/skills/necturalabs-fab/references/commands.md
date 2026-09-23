@@ -48,14 +48,26 @@ Fields that are unknown are **omitted**, not null. `coverage` says why:
 
 `technical` with `source: "parsed-text"` was extracted from the seller's free text: advisory.
 
-`licenses` lists the licences the listing is offered under: `Standard License (Personal)`,
-`Standard License (Professional)` or `CC BY 4.0`. `search`, `find`, `recommend`, `promos` and
-`inspect` fill it for every row; `library` for the entries whose details it fetches. Each one was
-confirmed by Fab returning that listing for that licence, so a licence Fab's filter does not name
-(the legacy UE Marketplace License, for one) leaves `licenses` absent with
-`coverage.licenses: "unavailable"`, meaning unknown, not unlicensed, and adds a warning counting
-those listings. A run sends at most 150 licence searches and stops after a rate limit, so the
-listings past that are unknown too.
+`licenses` lists the licences the listing is offered under: `Standard License (Personal)` with
+`Standard License (Professional)` (Fab requires both tiers on every Standard listing), or
+`CC BY 4.0`. Each was confirmed by Fab returning that listing for that licence. `search`, `find`,
+`recommend`, `promos` and `inspect` fill it for every row; `library` and `ownership` for listings
+already looked up, and for `library` entries whose details it fetches. `coverage.licenses` says
+which case applies:
+
+- `available` with `licenses` absent: the listing is on the marketplace under a licence Fab's
+  filter does not name (the legacy UE Marketplace License, for one); a warning says so.
+- `unavailable`: it could not be established (a lookup failed, was cut short, or the search did
+  not find the listing); a warning counts them. Unknown, never "unlicensed".
+
+Verdicts are kept for a week in the user cache directory (`licenses.json` under
+`$XDG_CACHE_HOME/necturalabs-fab`, `~/.cache/necturalabs-fab`, `~/Library/Caches/necturalabs-fab`
+or `%LOCALAPPDATA%\necturalabs-fab`), so a listing is looked up once. A run sends at most 200
+licence searches and none after a rate limit.
+
+`price.highest` appears with listing detail when the licence tiers are priced differently: the
+dearest tier's price in `currency`, with `amount` the cheapest. Fab does not say which tier costs
+which.
 
 ## Discovery
 
@@ -78,7 +90,7 @@ Filters shared by `search`/`find`/`recommend`:
 | `--seller NAME` | One seller. |
 | `--free permanent\|limited-time\|either\|any`, `--free-only` | Which "free" (see SKILL.md). `either` costs two searches. |
 | `--owned-only` | Search the library instead of the marketplace. |
-| `--with-ownership` | Require `owned` on rows: without a session the command fails instead of leaving it out. `search` and `find` add it on their own whenever a session allows. |
+| `--with-ownership` | Require `owned` on rows: without a session the command fails instead of leaving it out. `search`, `find` and `promos` add it on their own whenever a session allows. It is read from the library, which FabCLI caches for a day (a claim through this CLI refreshes it). |
 | `--min-price`, `--max-price`, `--min-rating` | Numeric bounds. `find` also excludes paid candidates above `--max-price`. |
 | `--published-since YYYY-MM-DD` | Absolute date only. Compute it yourself. |
 | `--sort relevance\|newest\|oldest\|price-asc\|price-desc\|rating\|discount\|title` | Order. |
@@ -97,14 +109,14 @@ Filters shared by `search`/`find`/`recommend`:
 
 | Command | Purpose |
 |---|---|
-| `inspect <id>` | Detail plus formats, ownership and licences. `--no-formats` skips the formats call; a missing account session leaves `owned` out with a warning (`--ownership` is accepted and changes nothing); `--full-description` disables truncation (600 chars). |
-| `ownership <id>...` | `results[]` of `{listingId, owned, entitlementId, licenses, wishlisted}`. Needs the account session. |
+| `inspect <id>` | Detail plus formats, per-tier price range, ownership and licences. Ownership comes from the library when it holds the listing, else from the account session's ownership check; without either, `owned` is left out with a warning (`--ownership` is accepted and changes nothing). `--no-formats` skips the formats and prices calls; `--full-description` disables truncation (600 chars). |
+| `ownership <id>...` | `results[]` of `{listingId, owned, entitlementId, licenses, wishlisted}`. Needs the account session. `licenses` only for listings already looked up. |
 
 ## Acquisition
 
 | Command | Class | Notes |
 |---|---|---|
-| `download <id> --out DIR` | local-write | `--engine-version`, `--platform`, `--overwrite refuse\|force\|require-empty` (default refuse), `--jobs N`, `--dry-run`, `--no-sidecar`. Without `--out`, writes to `<download.directory>/<id>`. For an owned asset with several engine versions or platforms and none given, picks the configured engine version if shipped, else the newest, and this machine's platform (Windows on Linux); each choice is a warning. |
+| `download <id> --out DIR` | local-write | The receipt and the `necturalabs-fab.asset.json` sidecar carry `licenses`. `--engine-version`, `--platform`, `--overwrite refuse\|force\|require-empty` (default refuse), `--jobs N`, `--dry-run`, `--no-sidecar`. Without `--out`, writes to `<download.directory>/<id>`. For an owned asset with several engine versions or platforms and none given, picks the configured engine version if shipped, else the newest, and this machine's platform (Windows on Linux); each choice is a warning. |
 | `claim <id>` | account-mutation | Refused unless `--approve` (default policy). `--dry-run` returns the plan. Paid or unknown-price listings are always refused. |
 | `promos` | read | Fab's current limited-time free listings: `promos[]` of `{id, title, url, owned, listPrice, currency, freeUntil, licenses, publisher}`, `count`. A discount the search omits is confirmed from the listing detail. |
 | `promos claim [<id>...]` | account-mutation | Claims every current promo not yet owned (or only the ids given; others land in `skipped`). One approval covers the listed batch; `--dry-run` returns `plan`, `toClaim`, `skipped`. Each listing is re-checked as free right before its claim; per-item failures are in `results`. |

@@ -90,6 +90,13 @@ case $TAG in *[!A-Za-z0-9.+-]*) die "--version contains unexpected characters" ;
 
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/necturalabs-fab"
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+# Where necturalabs-fab keeps its licence cache: an absolute XDG_CACHE_HOME wins on every
+# platform, as it does in the binary.
+case ${XDG_CACHE_HOME:-} in
+  /*) CACHE_DIR="$XDG_CACHE_HOME/necturalabs-fab" ;;
+  *) if [ "$(uname -s)" = Darwin ]; then CACHE_DIR="$HOME/Library/Caches/necturalabs-fab"
+     else CACHE_DIR="$HOME/.cache/necturalabs-fab"; fi ;;
+esac
 MANIFEST="$DATA_DIR/install.manifest"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
@@ -533,6 +540,10 @@ do_uninstall() {
     else
       failed "could not remove $CONFIG_HOME/necturalabs-fab"
     fi
+  fi
+
+  if [ -d "$CACHE_DIR" ]; then
+    if rm -rf "$CACHE_DIR"; then say "removed $CACHE_DIR"; else failed "could not remove $CACHE_DIR"; fi
   fi
 
   if [ "$FAILED" = 1 ]; then

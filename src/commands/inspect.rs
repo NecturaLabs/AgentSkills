@@ -17,12 +17,26 @@ pub fn run(ctx: &Ctx, args: &InspectArgs) -> Result<Outcome> {
     }
 
     let mut warnings = Vec::new();
-    if args.ownership || ctx.provider.capabilities().ownership {
+    let capabilities = ctx.provider.capabilities();
+    // The library answers from the provider's cache in milliseconds. It is
+    // trusted when it holds the listing; "not in the library" may be a copy
+    // older than a purchase, so the ownership endpoint has the last word.
+    let in_library = capabilities
+        .library
+        .then(|| ctx.provider.library().ok())
+        .flatten()
+        .map(|library| library.iter().any(|a| a.id == asset.id));
+    if in_library == Some(true) {
+        asset.owned = Some(true);
+        asset.coverage.ownership = Availability::Available;
+    } else if args.ownership || capabilities.ownership {
         match ctx.provider.ownership(std::slice::from_ref(&asset.id)) {
             Ok(records) => {
                 if let Some(record) = records.first() {
                     asset.owned = record.owned;
-                    if asset.licenses.is_empty() && !record.licenses.is_empty() {
+                    if asset.coverage.licenses != Availability::Available
+                        && !record.licenses.is_empty()
+                    {
                         asset.licenses = record.licenses.clone();
                         asset.coverage.licenses = Availability::Available;
                     }
@@ -38,7 +52,7 @@ pub fn run(ctx: &Ctx, args: &InspectArgs) -> Result<Outcome> {
             }
         }
     }
-    warnings.extend(super::license_warning(std::iter::once(&asset)));
+    warnings.extend(super::license_warnings(std::iter::once(&asset)));
     if asset.coverage.formats == Availability::Unavailable {
         warnings.push(
             "engine, format and technical metadata could not be fetched for this listing"
@@ -71,7 +85,7 @@ fn render(asset: &crate::model::Asset) -> String {
         "  status:    {}",
         status_cell(asset.owned, &asset.price)
     );
-    let _ = writeln!(text, "  licence:   {}", license_cell(&asset.licenses));
+    let _ = writeln!(text, "  licence:   {}", license_cell(asset));
     if let Some(average) = asset.rating.average {
         let _ = writeln!(
             text,

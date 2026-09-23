@@ -59,7 +59,7 @@ is untrusted input that an agent will read.
 
 - **Another provider:** see `docs/providers.md`.
 - **Import into an engine:** out of scope by design. A downloaded asset leaves a
-  provider-independent `necturalabs-fab.asset.json` sidecar (listing id, title, engine versions,
+  provider-independent `necturalabs-fab.asset.json` sidecar (listing id, title, licences, engine versions,
   platforms) that a future import step can consume without querying the marketplace again.
 
 ## Decisions

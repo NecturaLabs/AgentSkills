@@ -41,6 +41,11 @@ $FabCliSha256 = '67e0eb68d62589a3282a4af12085a40246625fa7c57ffdd5189d5814b5c0a38
 $DataDir = Join-Path $env:LOCALAPPDATA 'necturalabs-fab'
 $Manifest = Join-Path $DataDir 'install.manifest.json'
 $ConfigDir = Join-Path $env:APPDATA 'necturalabs-fab'
+# The licence cache lives in the data directory unless an absolute XDG_CACHE_HOME moves it, as it
+# does in the binary.
+$CacheDir = if ($env:XDG_CACHE_HOME -and [IO.Path]::IsPathRooted($env:XDG_CACHE_HOME)) {
+  Join-Path $env:XDG_CACHE_HOME 'necturalabs-fab'
+} else { $DataDir }
 $FabCliStateDir = Join-Path $env:APPDATA 'fabcli'
 $ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
 $CodexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
@@ -473,6 +478,7 @@ function Invoke-Uninstall {
     Forget 'bin_dir'
   }
   if (-not $KeepConfig) { Remove-Entry $ConfigDir | Out-Null }
+  if ($CacheDir -ne $DataDir) { Remove-Entry $CacheDir | Out-Null }
 
   if ($state.Failed) {
     throw "some steps failed; their record is kept in $Manifest, so running -Uninstall again retries them"

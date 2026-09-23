@@ -33,6 +33,25 @@ fn result<'a>(value: &'a Value, id: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("{id} missing from results"))
 }
 
+/// Licence lookups the mock saw: licence-filtered searches, and the
+/// per-listing searches by seller.
+fn licence_lookups(harness: &Harness) -> usize {
+    harness
+        .calls()
+        .iter()
+        .filter(|c| c.contains("--filter=licenses=") || c.contains("--filter=seller="))
+        .count()
+}
+
+fn warnings(value: &Value) -> Vec<String> {
+    value["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|w| w.as_str().unwrap().to_string())
+        .collect()
+}
+
 fn probes_for(harness: &Harness, seller: &str) -> Vec<String> {
     harness
         .calls()
@@ -42,10 +61,9 @@ fn probes_for(harness: &Harness, seller: &str) -> Vec<String> {
 }
 
 #[test]
-fn search_reports_each_listings_licences_and_says_when_none_were_found() {
+fn search_reports_each_listings_licences_and_one_the_filter_does_not_name() {
     let harness = Harness::new("base");
     facet(&harness, "personal", &[DARK]);
-    facet(&harness, "professional", &[DARK]);
     facet(&harness, "cc-by", &[CASTLE]);
 
     let (value, output) = harness.json(&["search", "castle"]);
@@ -64,38 +82,57 @@ fn search_reports_each_listings_licences_and_says_when_none_were_found() {
         ])
     );
 
-    // No search returned it: unknown, not "unlicensed".
+    // Found by an unfiltered search, by no licence filter: a licence the
+    // filter does not name, which the caller is told to check.
     let keep = result(&value, KEEP);
     assert!(keep.get("licenses").is_none());
-    assert_eq!(keep["coverage"]["licenses"], "unavailable");
+    assert_eq!(keep["coverage"]["licenses"], "available");
+    assert!(
+        warnings(&value)
+            .iter()
+            .any(|w| w.starts_with("1 listing(s) use a licence")),
+        "{:?}",
+        warnings(&value)
+    );
 }
 
 #[test]
 fn only_listings_the_page_left_open_are_asked_about_individually() {
     let harness = Harness::new("base");
     facet(&harness, "personal", &[DARK]);
-    facet(&harness, "professional", &[DARK]);
     facet(&harness, "cc-by", &[CASTLE]);
 
     harness.json(&["search", "castle"]);
 
     assert!(probes_for(&harness, "Stonewright").is_empty());
     assert!(probes_for(&harness, "GrimforgeArt").is_empty());
+    // Standard first; then CC BY and an unfiltered search together.
     let keep = probes_for(&harness, "KeepWorks");
-    assert_eq!(keep.len(), 3, "every licence is open for {KEEP}: {keep:?}");
+    assert_eq!(keep.len(), 3, "{keep:?}");
     assert!(keep.iter().all(|c| c.contains("--query=Ruined Keep Props")));
 }
 
 #[test]
-fn one_standard_tier_seen_leaves_only_the_other_tier_to_ask() {
+fn the_personal_tier_alone_establishes_both_standard_tiers() {
+    // Fab requires both tiers on every Standard listing, so the Professional
+    // filter is never worth a search.
     let harness = Harness::new("base");
     facet(&harness, "personal", &[DARK]);
 
-    harness.json(&["search", "castle"]);
+    let (value, _) = harness.json(&["search", "castle"]);
 
-    let dark = probes_for(&harness, "GrimforgeArt");
-    assert_eq!(dark.len(), 1, "{dark:?}");
-    assert!(dark[0].contains("--filter=licenses=professional"));
+    assert_eq!(
+        result(&value, DARK)["licenses"],
+        serde_json::json!([
+            "Standard License (Personal)",
+            "Standard License (Professional)"
+        ])
+    );
+    assert!(probes_for(&harness, "GrimforgeArt").is_empty());
+    assert!(!harness
+        .calls()
+        .iter()
+        .any(|c| c.contains("licenses=professional")));
 }
 
 #[test]
@@ -157,7 +194,6 @@ fn inspect_reports_the_licence_of_one_listing() {
 fn hydration_reuses_licences_the_search_already_established() {
     let harness = Harness::new("base");
     facet(&harness, "personal", &[DARK]);
-    facet(&harness, "professional", &[DARK]);
     facet(&harness, "cc-by", &[CASTLE]);
 
     let (value, _) = harness.json(&["search", "castle", "--hydrate", "3"]);
@@ -165,29 +201,12 @@ fn hydration_reuses_licences_the_search_already_established() {
         result(&value, CASTLE)["licenses"],
         serde_json::json!(["CC BY 4.0"])
     );
-    let lookups = harness
-        .calls()
-        .into_iter()
-        .filter(|c| c.contains("--filter=licenses="))
-        .count();
-    // Three page-wide searches plus three for the one listing left open.
-    assert_eq!(lookups, 6);
-}
-
-fn licence_lookups(harness: &Harness) -> usize {
-    harness
-        .calls()
-        .iter()
-        .filter(|c| c.contains("--filter=licenses="))
-        .count()
+    // Two page-wide searches plus three for the one listing left open.
+    assert_eq!(licence_lookups(&harness), 5);
 }
 
 fn warned_about_licences(value: &Value) -> bool {
-    value["warnings"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|w| w.as_str().unwrap().contains("licen"))
+    warnings(value).iter().any(|w| w.contains("licen"))
 }
 
 #[test]
@@ -212,7 +231,7 @@ fn a_rate_limit_stops_further_licence_lookups() {
     let (value, _) = harness.json(&["search", "castle", "--hydrate", "3"]);
     // The first round is the page-wide one; nothing more is sent after the
     // marketplace asked us to slow down.
-    assert_eq!(licence_lookups(&harness), 3);
+    assert_eq!(licence_lookups(&harness), 2);
     assert!(warned_about_licences(&value));
 }
 
@@ -237,16 +256,120 @@ fn licence_lookups_per_run_are_bounded() {
     let (value, output) = harness.json(&["search", "asset"]);
     assert_eq!(code(&output), 0);
     let lookups = licence_lookups(&harness);
-    assert!(lookups < 3 + 80 * 3, "unbounded: {lookups} lookups");
+    assert!(
+        lookups <= 200,
+        "over the documented bound: {lookups} lookups"
+    );
     assert!(warned_about_licences(&value));
 }
 
 #[test]
-fn search_adds_ownership_without_being_asked() {
+fn licences_are_remembered_between_runs() {
     let harness = Harness::new("base");
+    facet(&harness, "personal", &[DARK]);
+    facet(&harness, "cc-by", &[CASTLE]);
     harness.json(&["search", "castle"]);
+    let first = licence_lookups(&harness);
     assert!(harness
+        .home()
+        .join(".cache/necturalabs-fab/licenses.json")
+        .is_file());
+
+    // The page-wide searches still run alongside the page (they cost no
+    // time), but no listing is asked about again.
+    let (value, _) = harness.json(&["search", "castle"]);
+    let per_listing = harness
         .calls()
         .iter()
-        .any(|c| c.starts_with("search ") && c.contains("--with-ownership")));
+        .filter(|c| c.contains("--filter=seller="))
+        .count();
+    assert_eq!(
+        per_listing, 3,
+        "only the first run's three per-listing searches"
+    );
+    assert!(licence_lookups(&harness) - first <= 2);
+    assert_eq!(
+        result(&value, KEEP)["coverage"]["licenses"],
+        "available",
+        "the remembered verdict is reported"
+    );
+}
+
+#[test]
+fn library_and_ownership_show_licences_already_established() {
+    let harness = Harness::new("base");
+    facet(&harness, "personal", &[KEEP]);
+    facet(&harness, "cc-by", &[CASTLE]);
+    harness.json(&["inspect", KEEP]);
+    harness.json(&["inspect", CASTLE]);
+    let before = licence_lookups(&harness);
+
+    let (library, _) = harness.json(&["library", "keep", "--no-details"]);
+    let entry = &library["data"]["results"][0];
+    assert_eq!(entry["id"], KEEP);
+    assert_eq!(entry["licenses"][0], "Standard License (Personal)");
+
+    // The fixture's ownership rows carry no licence for this listing.
+    let (ownership, _) = harness.json(&["ownership", CASTLE]);
+    let record = ownership["data"]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["listingId"] == CASTLE)
+        .expect("ownership row");
+    assert_eq!(record["licenses"][0], "CC BY 4.0");
+    assert_eq!(licence_lookups(&harness), before, "no new lookups");
+}
+
+#[test]
+fn inspect_reports_the_price_range_across_licence_tiers() {
+    let harness = Harness::new("base");
+    harness.write_fixture(
+        &format!("prices-{DARK}.json"),
+        r#"{"offers": [{"currencyCode": "USD", "price": 89.99, "offerId": "a"},
+                       {"currencyCode": "USD", "price": 159.99, "offerId": "b"}]}"#,
+    );
+    let (value, output) = harness.json(&["inspect", DARK]);
+    assert_eq!(code(&output), 0);
+    let price = &value["data"]["asset"]["price"];
+    assert_eq!(price["amount"], "89.99");
+    assert_eq!(price["highest"], "159.99");
+}
+
+#[test]
+fn a_download_records_the_licence_in_its_sidecar() {
+    let harness = Harness::new("base");
+    facet(&harness, "cc-by", &[CASTLE]);
+    let (value, output) = harness.json(&["download", CASTLE, "--out", "assets/castle"]);
+    assert_eq!(code(&output), 0, "{value}");
+    assert_eq!(value["data"]["receipt"]["licenses"][0], "CC BY 4.0");
+    let sidecar = value["data"]["sidecar"].as_str().unwrap();
+    let body: Value = serde_json::from_str(&std::fs::read_to_string(sidecar).unwrap()).unwrap();
+    assert_eq!(body["licenses"][0], "CC BY 4.0");
+}
+
+#[test]
+fn the_callers_search_text_cannot_add_marketplace_parameters() {
+    let harness = Harness::new("base");
+    harness.json(&["search", "castle & dungeon=1"]);
+    let main = harness
+        .calls()
+        .into_iter()
+        .find(|c| {
+            c.starts_with("search ")
+                && !c.contains("--filter=licenses=")
+                && !c.contains("--filter=seller=")
+        })
+        .expect("the page's own search ran");
+    assert!(main.contains("--query=castle dungeon 1 "), "{main}");
+}
+
+#[test]
+fn search_adds_ownership_without_being_asked() {
+    // Ownership is the library's membership, read alongside the search.
+    let harness = Harness::new("base");
+    let (value, _) = harness.json(&["search", "castle"]);
+    assert!(harness.called("library"));
+    assert_eq!(result(&value, KEEP)["owned"], true);
+    assert_eq!(result(&value, CASTLE)["owned"], false);
 }
