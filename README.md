@@ -57,7 +57,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 15 KB: autonomy and stop rules, native-first capability routing, scenario routing to named skills, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 12 KB: autonomy and stop rules, native-first capability routing, scenario routing to named skills, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 

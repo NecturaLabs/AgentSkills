@@ -166,7 +166,7 @@ repository rather than adapting theirs.
 - [`examples/project-agents.md`](../../../examples/project-agents.md)
   — repository-level file. Note what it leaves out: no generic engineering doctrine, no framework
   conventions, no file-by-file tour, no routing to skills a contributor may not have installed. It
-  is well under half the size of the global file, leaves to `make lint` what lint can decide, and
+  is under half the size of the global file, leaves to `make lint` what lint can decide, and
   links out to the architecture docs instead of summarizing them.
 - [`examples/nested-agents.md`](../../../examples/nested-agents.md)
   — subtree file for a directory whose toolchain, command set and safety boundary genuinely
