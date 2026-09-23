@@ -1,10 +1,15 @@
 # Installation
 
 Verified against Claude Code 2.1.278 (skill precedence and bundled names re-checked on 2.1.280)
-and Codex CLI 0.155.1 on Linux. Where a claim below was not
-confirmed by running it, that is stated.
+and Codex CLI 0.155.1 on Linux; skill naming and the recommended layout re-checked on Claude Code
+2.1.281 and Codex CLI 0.156.1. Where a claim below was not confirmed by running it, that is stated.
 
-## Recommended: link the checkout
+The recommended layout is the Claude Code plugin with Codex linked into the plugin's marketplace
+clone ([below](#recommended-claude-code-plugin-codex-linked-to-its-marketplace-clone)), because it
+is the only one in which both harnesses list every skill under the same name. Linking a checkout
+into both harnesses, described first, is for developing the skills.
+
+## Link a checkout
 
 ```bash
 git clone https://github.com/NecturaLabs/AgentSkills.git
@@ -125,24 +130,46 @@ regular file holding exactly the neutral import, whether the Codex file resolves
 one or has become a separate copy, and whether an override is shadowing it. It never repairs any
 of them.
 
-## Alternative: Claude Code plugin
+## Recommended: Claude Code plugin, Codex linked to its marketplace clone
 
 ```
 /plugin marketplace add NecturaLabs/AgentSkills
 /plugin install necturalabs@necturalabs
 ```
 
-This copies the plugin into Claude Code's plugin cache, so the checkout is no longer the live source
-and local edits do not take effect. Plugin skills load namespaced, as `necturalabs:<skill>`, so they
-can never displace a bundled skill.
+```bash
+cd ~/.claude/plugins/marketplaces/necturalabs
+bash scripts/install.sh
+bash scripts/doctor.sh
+```
 
-`install.sh` and `doctor.sh` recognise the plugin from Claude Code's `installed_plugins.json`. With it
-installed, `install.sh` puts no links into `~/.claude/skills` — a personal link beside the plugin
-would load every skill twice — and still links Codex; `doctor.sh` accepts the plugin as the Claude
-install and warns about any personal link that duplicates it. To serve Codex from the same copy
-Claude Code uses, run `install.sh` from the plugin's marketplace clone
-(`~/.claude/plugins/marketplaces/<marketplace>`): the Codex links then follow
-`claude plugin marketplace update`, and no separate working checkout is needed.
+The plugin is copied into Claude Code's plugin cache, so a separate working checkout is not the
+live source and its edits do not take effect. Plugin skills load namespaced, as
+`necturalabs:<skill>`, so they can never displace a bundled skill.
+
+**Skill names.** Codex lists a skill linked from a plugin checkout — any directory whose
+`.claude-plugin/plugin.json` names a plugin — under that plugin's prefix. Verified on Codex CLI
+0.156.1 with `codex debug prompt-input`: skills linked into `~/.agents/skills` from the marketplace
+clone and, in a sandboxed `HOME`, from a plain working checkout were both listed as
+`necturalabs:<skill>`. Claude Code lists personal skills in `~/.claude/skills` bare. So:
+
+| Layout | Claude Code lists | Codex lists |
+|---|---|---|
+| Plugin, Codex linked to its clone | `necturalabs:<skill>` | `necturalabs:<skill>` |
+| Checkout linked into both | `<skill>` | `necturalabs:<skill>` |
+
+A global policy that routes to these skills by name, as `examples/global-agents.md` does, names
+each skill exactly once only under the plugin layout.
+
+`install.sh` and `doctor.sh` recognise the plugin from Claude Code's `installed_plugins.json`,
+counting it only while `enabledPlugins` marks it true. With it enabled, `install.sh` puts no links
+into `~/.claude/skills` — a personal link beside the plugin would load every skill twice — and
+still links Codex; `doctor.sh` accepts the plugin as the Claude install and warns about any
+personal link that duplicates it. Run from the marketplace clone, `install.sh` links Codex to the
+same copy Claude Code installed from, and the links follow `claude plugin marketplace update`;
+`claude plugin update necturalabs@necturalabs` then refreshes Claude Code's cached copy. `doctor.sh`
+accepts Codex links into that clone from whichever checkout it runs, and still reports a link into
+any other checkout as an error.
 
 ## Any other harness
 

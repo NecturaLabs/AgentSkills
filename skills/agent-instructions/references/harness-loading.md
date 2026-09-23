@@ -72,6 +72,11 @@ Code 2.1.280 and Codex 0.155.1.
   `[[skills.config]]` entry in `config.toml` with the skill's `path` and `enabled = false` disables
   one, system skills included; `codex debug prompt-input` prints the skill roots and the list the
   model actually sees.
+- **Names differ by install, verified on Claude Code 2.1.281 and Codex 0.156.1.** A plugin skill is
+  `plugin:name` in Claude Code; a personal skill in `~/.claude/skills` is bare. Codex lists a skill
+  linked from any plugin checkout — a directory whose `.claude-plugin/plugin.json` names a plugin
+  — under that prefix, from `~/.agents/skills` too. A routing entry must spell the skill as the
+  harness lists it, so one entry serves both harnesses only when both list the same name.
 
 The consequence for instruction files: never give a custom skill a native capability's name unless
 replacing that capability is the whole point, and never write a routing rule that forces a custom
@@ -99,9 +104,9 @@ record of what it resolved:
 
 - **Claude Code** lists the memory files it loaded for the current session, and where each one came
   from, in its own context/status output.
-- **Codex** can log its resolved instruction chain to a file when started with logging directed at
-  a local path, and that log is the authoritative record of what was actually concatenated and
-  whether anything was truncated.
+- **Codex** prints the model-visible input with `codex debug prompt-input`, run from the working
+  directory in question: its `AGENTS.md instructions` block is the chain as actually concatenated,
+  and its skill list is what the model can load. Verified on 0.156.1.
 
 Where neither is available, a prompted check ("summarize your current instructions") is a weaker
 fallback — it reflects the model's account, not the loader's, and a silently dropped file will not

@@ -57,9 +57,9 @@ claude-code	alias	checkup	2.1.280
 claude-code	alias	review	2.1.280
 claude-code	alias	setup-cowork	2.1.280
 claude-code	reserved	synced	2.1.280
-codex	system-skill	imagegen	0.155.1
-codex	system-skill	openai-docs	0.155.1
-codex	system-skill	plugin-creator	0.155.1
-codex	system-skill	review-agent	0.155.1
-codex	system-skill	skill-creator	0.155.1
-codex	system-skill	skill-installer	0.155.1
+codex	system-skill	imagegen	0.156.1
+codex	system-skill	openai-docs	0.156.1
+codex	system-skill	plugin-creator	0.156.1
+codex	system-skill	review-agent	0.156.1
+codex	system-skill	skill-creator	0.156.1
+codex	system-skill	skill-installer	0.156.1

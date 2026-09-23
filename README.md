@@ -57,7 +57,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 12 KB: autonomy and stop rules, native-first capability routing, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-, harness- and vendor-specific rule is parameterized with a `customize:` marker. |
+| [`global-agents.md`](examples/global-agents.md) | A user-scope working agreement of durable policy only, about 15 KB: autonomy and stop rules, native-first capability routing, scenario routing to named skills, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 
@@ -71,22 +71,46 @@ looks like.
 
 ## Install
 
-Linking the checkout is the recommended setup: it keeps one editable canonical source, and both
-harnesses follow symlinked skill directories.
+### Recommended: the Claude Code plugin, with Codex linked to the same copy
+
+```
+/plugin marketplace add NecturaLabs/AgentSkills
+/plugin install necturalabs@necturalabs
+```
+
+Then link Codex from the plugin's marketplace clone:
+
+```bash
+cd ~/.claude/plugins/marketplaces/necturalabs
+bash scripts/install.sh --dry-run    # preview every action
+bash scripts/install.sh
+bash scripts/doctor.sh
+```
+
+With the plugin enabled, `install.sh` puts nothing in `~/.claude/skills` — a personal link beside
+the plugin would load every skill twice — and links each skill into `~/.agents/skills/` for Codex.
+Both harnesses then list the skills under one name, `necturalabs:<skill>`: Claude Code namespaces
+plugin skills, and Codex prefixes any skill linked from a plugin checkout. One routing table in
+your global policy therefore works in both, which is why this is the recommended layout.
+
+### For developing the skills: link a checkout
 
 ```bash
 git clone https://github.com/NecturaLabs/AgentSkills.git
 cd AgentSkills
-bash scripts/install.sh --dry-run    # preview every action
+bash scripts/install.sh --dry-run
 bash scripts/install.sh
 ```
 
-This creates one symlink per skill in `~/.claude/skills/` (Claude Code) and `~/.agents/skills/`
-(Codex), for whichever harnesses are present. Codex also scans `$CODEX_HOME/skills` (default
-`~/.codex/skills`); install never writes there, and `doctor.sh` checks it so a shadowing duplicate
-is visible. Install refuses to overwrite anything it doesn't recognise: a real
-directory is never replaced, and a symlink pointing outside an AgentSkills checkout is never
-replaced, `--force` included.
+Without the plugin, this creates one symlink per skill in `~/.claude/skills/` (Claude Code) and
+`~/.agents/skills/` (Codex), for whichever harnesses are present, so an edit to the checkout is
+live in both. Claude Code then lists the skills bare, as `<skill>`, while Codex still lists them as
+`necturalabs:<skill>`, so spell routing rows for the harness you route in.
+
+Codex also scans `$CODEX_HOME/skills` (default `~/.codex/skills`); install never writes there, and
+`doctor.sh` checks it so a shadowing duplicate is visible. Install refuses to overwrite anything it
+doesn't recognise: a real directory is never replaced, and a symlink pointing outside an
+AgentSkills checkout is never replaced, `--force` included.
 
 ### Optional: bootstrap a global working agreement
 
@@ -127,22 +151,14 @@ bash scripts/install.sh --global-agents ~/my-agents.md --replace-global
 `doctor.sh` reports whether the canonical policy and both adapters are healthy — including a Codex
 file that has become a second, independently maintained copy — and never changes any of them.
 
-Claude Code users who prefer the plugin mechanism can install from the marketplace instead:
-
-```
-/plugin marketplace add NecturaLabs/AgentSkills
-/plugin install necturalabs@necturalabs
-```
-
-With the plugin installed, `install.sh` links Codex only, since Claude Code already loads the skills
-from the plugin; run it from the plugin's marketplace clone to serve Codex from the same copy.
-
 ### Update, check, remove
 
 ```bash
-git pull                                 # the links follow the checkout
-bash scripts/doctor.sh                   # what is installed, what is broken, what conflicts
-bash scripts/uninstall.sh                # removes only links this project created
+claude plugin marketplace update necturalabs   # plugin layout: refreshes the clone Codex follows
+claude plugin update necturalabs@necturalabs   # ...and the copy Claude Code loads
+git pull                                       # checkout layout: the links follow the checkout
+bash scripts/doctor.sh                         # what is installed, what is broken, what conflicts
+bash scripts/uninstall.sh                      # removes only links this project created
 ```
 
 `doctor.sh` also reports instruction-file health — whether a `CLAUDE.md` is suppressing native
