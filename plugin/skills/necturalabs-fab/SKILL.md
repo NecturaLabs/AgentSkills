@@ -31,7 +31,7 @@ Always pass `--json` and read the envelope: `ok`, `data`, `warnings`, `error.cod
    (`signals`, `reasons`). Read the candidates yourself: title and category actually match,
    `coverage` says which metadata was fetched, `excluded` explains what was dropped. Never take
    rank 1 without looking at ranks 2–3.
-5. **Inspect the choice.** `necturalabs-fab inspect <id> --ownership --json`. Verify engine and
+5. **Inspect the choice.** `necturalabs-fab inspect <id> --json`. Verify engine and
    version support, formats, platforms, price and licence against the project. See
    `references/compatibility.md`.
 6. **Acquire.**

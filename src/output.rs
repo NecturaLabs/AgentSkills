@@ -257,6 +257,31 @@ pub fn price_cell(price: &crate::model::Price) -> String {
     }
 }
 
+/// Ownership and price in one cell: an owned asset's price is not news.
+pub fn status_cell(owned: Option<bool>, price: &crate::model::Price) -> String {
+    match owned {
+        Some(true) => "owned".into(),
+        Some(false) => price_cell(price),
+        None => format!("{} (owned?)", price_cell(price)),
+    }
+}
+
+/// Licences in one cell, the Standard License tiers by tier name alone.
+pub fn license_cell(licenses: &[String]) -> String {
+    if licenses.is_empty() {
+        return "?".into();
+    }
+    licenses
+        .iter()
+        .map(|name| {
+            name.strip_prefix("Standard License (")
+                .and_then(|tier| tier.strip_suffix(')'))
+                .unwrap_or(name)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Human-readable ownership cell.
 pub fn owned_cell(owned: Option<bool>) -> String {
     match owned {
@@ -378,6 +403,32 @@ mod tests {
         );
         assert!(text.contains("ID    TITLE"), "{text}");
         assert!(!text.contains('\u{1b}'));
+    }
+
+    #[test]
+    fn an_owned_asset_shows_no_price() {
+        use crate::model::{Amount, Price};
+        let price = Price {
+            amount: Amount::parse("89.99"),
+            currency: Some("USD".into()),
+            ..Default::default()
+        };
+        assert!(!status_cell(Some(true), &price).contains("89.99"));
+        assert!(status_cell(Some(false), &price).contains("89.99"));
+        assert!(status_cell(None, &price).contains("89.99"));
+    }
+
+    #[test]
+    fn licence_cell_names_the_standard_tiers_and_says_unknown() {
+        assert_eq!(license_cell(&[]), "?");
+        assert_eq!(
+            license_cell(&[
+                "Standard License (Personal)".into(),
+                "Standard License (Professional)".into()
+            ]),
+            "Personal, Professional"
+        );
+        assert_eq!(license_cell(&["CC BY 4.0".into()]), "CC BY 4.0");
     }
 
     #[test]

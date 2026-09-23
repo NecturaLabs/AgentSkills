@@ -1,6 +1,6 @@
 # Checking that an asset fits the project
 
-Run `necturalabs-fab inspect <id> --ownership --json` and check each item below against the project.
+Run `necturalabs-fab inspect <id> --json` and check each item below against the project.
 Report every item you could not verify; do not treat silence as a pass.
 
 ## Engine and version
@@ -33,15 +33,16 @@ for memory — and say they are seller-stated.
 
 ## Licence
 
-- `licenses` appears when ownership was fetched. The Fab Standard License permits commercial use.
+- `licenses` names what the listing is offered under: `Standard License (Personal)`,
+  `Standard License (Professional)` or `CC BY 4.0`. The Fab Standard License permits commercial use.
   Its Personal and Professional tiers grant the same rights and differ only by the buyer's gross
   revenue over the last 12 months (under or over US$100,000); a paid listing may price the tiers
   differently, so name the tier when reporting a price
   (<https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab>).
-- Creative Commons listings (`cc-by`, `cc0`, …) carry attribution or other terms;
-  `uefn-reference-only`, `epic-only` and similar restrict where the asset may be used.
-- If the licence is not in the response, open `asset.url` and tell the user you could not
-  confirm the licence from the CLI. Never state a licence you did not see.
+- `CC BY 4.0` requires crediting the creator wherever the asset is used; tell the user.
+- An owned asset reports the tiers the listing offers, not the tier the user acquired.
+- If `licenses` is absent (`coverage.licenses: "unavailable"`), open `asset.url` and tell the
+  user you could not confirm the licence from the CLI. Never state a licence you did not see.
 - A limited-time free claim grants the same licence as a purchase, but only if claimed before
   the promotion ends.
 

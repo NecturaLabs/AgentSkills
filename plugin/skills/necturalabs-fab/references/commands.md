@@ -34,7 +34,7 @@ Fields that are unknown are **omitted**, not null. `coverage` says why:
  "kind": "model3d", "tags": ["castle"],
  "price": {"amount": "0.00", "original": "19.99", "currency": "USD", "discountPercent": 100,
            "free": true, "temporarilyFree": true, "freeUntil": "2026-10-06T13:59:00Z"},
- "owned": false, "licenses": ["Standard License"],
+ "owned": false, "licenses": ["Standard License (Personal)", "Standard License (Professional)"],
  "formats": [{"code": "unreal-engine", "distributionMethod": "asset-pack",
               "engineVersions": ["UE_5.4"], "platforms": ["Windows"]}],
  "engines": ["unreal"], "engineVersions": ["UE_5.4"], "platforms": ["Windows"],
@@ -43,19 +43,28 @@ Fields that are unknown are **omitted**, not null. `coverage` says why:
  "rating": {"average": 4.6, "count": 128}, "publishedAt": "2026-06-01T10:00:00Z",
  "detailLevel": "detail",
  "coverage": {"formats": "available", "ownership": "not-requested",
-              "technical": "available", "pricing": "available"}}
+              "technical": "available", "pricing": "available", "licenses": "available"}}
 ```
 
 `technical` with `source: "parsed-text"` was extracted from the seller's free text: advisory.
+
+`licenses` lists the licences the listing is offered under: `Standard License (Personal)`,
+`Standard License (Professional)` or `CC BY 4.0`. `search`, `find`, `recommend`, `promos` and
+`inspect` fill it for every row; `library` for the entries whose details it fetches. Each one was
+confirmed by Fab returning that listing for that licence, so a licence Fab's filter does not name
+(the legacy UE Marketplace License, for one) leaves `licenses` absent with
+`coverage.licenses: "unavailable"`, meaning unknown, not unlicensed, and adds a warning counting
+those listings. A run sends at most 150 licence searches and stops after a rate limit, so the
+listings past that are unknown too.
 
 ## Discovery
 
 | Command | Purpose |
 |---|---|
-| `search "<query>"` | Marketplace retrieval in marketplace order. `--hydrate N` fetches detail for the first N rows. `--cursor` pages. |
+| `search "<query>"` | Marketplace retrieval in marketplace order, with `owned` whenever a session allows and `licenses` for every row. `--hydrate N` fetches detail for the first N rows. `--cursor` pages. |
 | `find "<need>"` | Search + enrich top `--hydrate` (default 6) + deterministic ranking; returns `--top` (default 5). |
 | `recommend "<need>"` | `find` with top 3 and a `recommendation` object (`listingId`, `confidence`, `why`, `blockers`, `requiresApproval`). |
-| `library ["<words or id>"]` | Owned assets, matched client-side on title, description, tags, listing id (or its first segment) and link; `--engine`, `--engine-version`. Paged: `--limit` (default 100, max 500), `--page N`; data has `matched`, `page`, `pages`, `pageSize`, `nextPage`. Real descriptions are fetched from listings when 10 or fewer match, or for the page with `--details`; `--no-details` never. Entries without `url` are engine builds or Epic plugins, not Fab listings. |
+| `library ["<words or id>"]` | Owned assets, matched client-side on title, description, tags, listing id (or its first segment) and link; `--engine`, `--engine-version`. Paged: `--limit` (default 100, max 500), `--page N`; data has `matched`, `page`, `pages`, `pageSize`, `nextPage`. Real descriptions and `licenses` are fetched from listings when 10 or fewer match, or for the page with `--details`; `--no-details` never. Entries without `url` are engine builds or Epic plugins, not Fab listings. |
 
 Filters shared by `search`/`find`/`recommend`:
 
@@ -69,7 +78,7 @@ Filters shared by `search`/`find`/`recommend`:
 | `--seller NAME` | One seller. |
 | `--free permanent\|limited-time\|either\|any`, `--free-only` | Which "free" (see SKILL.md). `either` costs two searches. |
 | `--owned-only` | Search the library instead of the marketplace. |
-| `--with-ownership` | Annotate rows with `owned` (needs the account session). `find` does this automatically when it can. |
+| `--with-ownership` | Require `owned` on rows: without a session the command fails instead of leaving it out. `search` and `find` add it on their own whenever a session allows. |
 | `--min-price`, `--max-price`, `--min-rating` | Numeric bounds. `find` also excludes paid candidates above `--max-price`. |
 | `--published-since YYYY-MM-DD` | Absolute date only. Compute it yourself. |
 | `--sort relevance\|newest\|oldest\|price-asc\|price-desc\|rating\|discount\|title` | Order. |
@@ -88,7 +97,7 @@ Filters shared by `search`/`find`/`recommend`:
 
 | Command | Purpose |
 |---|---|
-| `inspect <id>` | Detail plus formats. `--no-formats` skips the formats call; `--ownership` adds ownership and licences; `--full-description` disables truncation (600 chars). |
+| `inspect <id>` | Detail plus formats, ownership and licences. `--no-formats` skips the formats call; a missing account session leaves `owned` out with a warning (`--ownership` is accepted and changes nothing); `--full-description` disables truncation (600 chars). |
 | `ownership <id>...` | `results[]` of `{listingId, owned, entitlementId, licenses, wishlisted}`. Needs the account session. |
 
 ## Acquisition
@@ -97,7 +106,7 @@ Filters shared by `search`/`find`/`recommend`:
 |---|---|---|
 | `download <id> --out DIR` | local-write | `--engine-version`, `--platform`, `--overwrite refuse\|force\|require-empty` (default refuse), `--jobs N`, `--dry-run`, `--no-sidecar`. Without `--out`, writes to `<download.directory>/<id>`. For an owned asset with several engine versions or platforms and none given, picks the configured engine version if shipped, else the newest, and this machine's platform (Windows on Linux); each choice is a warning. |
 | `claim <id>` | account-mutation | Refused unless `--approve` (default policy). `--dry-run` returns the plan. Paid or unknown-price listings are always refused. |
-| `promos` | read | Fab's current limited-time free listings: `promos[]` of `{id, title, url, owned, listPrice, currency, freeUntil, publisher}`, `count`. A discount the search omits is confirmed from the listing detail. |
+| `promos` | read | Fab's current limited-time free listings: `promos[]` of `{id, title, url, owned, listPrice, currency, freeUntil, licenses, publisher}`, `count`. A discount the search omits is confirmed from the listing detail. |
 | `promos claim [<id>...]` | account-mutation | Claims every current promo not yet owned (or only the ids given; others land in `skipped`). One approval covers the listed batch; `--dry-run` returns `plan`, `toClaim`, `skipped`. Each listing is re-checked as free right before its claim; per-item failures are in `results`. |
 
 Download data: `receipt` (`files`, `bytes`, `elapsedSeconds`, `title`, `engineVersions`,

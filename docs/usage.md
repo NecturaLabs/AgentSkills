@@ -50,8 +50,14 @@ necturalabs-fab recommend "rigged low-poly zombie with walk and attack animation
 ## Inspect
 
 ```bash
-necturalabs-fab inspect 1a2b3c4d-… --ownership
+necturalabs-fab inspect 1a2b3c4d-…
 ```
+
+Listings show whether the account owns them, the price only when it does not, and the licences
+they are offered under. FabCLI does not report licences, so they are established from Fab's
+licence search filter: a few extra searches per page, and up to three per listing the page left
+open. One run sends at most 150 of them and none after a rate limit; a warning counts the listings
+whose licence stayed unknown.
 
 ## Download
 

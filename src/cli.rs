@@ -158,7 +158,8 @@ pub struct FilterArgs {
     #[arg(long)]
     pub owned_only: bool,
 
-    /// Annotate results with ownership state. Needs an authenticated session.
+    /// Require ownership state on results: a missing session becomes an error.
+    /// Without it, `search` still adds ownership whenever a session allows.
     #[arg(long)]
     pub with_ownership: bool,
 
@@ -259,7 +260,8 @@ pub struct InspectArgs {
     #[arg(long)]
     pub no_formats: bool,
 
-    /// Also fetch ownership state. Needs an authenticated session.
+    /// Accepted for compatibility: ownership is checked whenever the provider
+    /// can, and a missing session only leaves it unknown.
     #[arg(long)]
     pub ownership: bool,
 

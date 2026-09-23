@@ -62,9 +62,20 @@ fn search_and_inspect_round_trip_against_the_live_marketplace() {
     let id = results[0]["id"].as_str().unwrap().to_string();
     assert!(results[0]["url"].as_str().unwrap().contains(&id));
 
+    // Licences come from Fab's licence search facets; a castle search's top
+    // hits are ordinary Standard License or CC BY listings.
+    assert!(
+        results.iter().any(|r| r["licenses"].is_array()),
+        "no live search result carried a licence: {search}"
+    );
+
     let (code, inspected) = run(&["inspect", &id]);
     assert_eq!(code, 0, "{inspected}");
     assert_eq!(inspected["data"]["asset"]["id"], id.as_str());
+    assert_eq!(
+        inspected["data"]["asset"]["licenses"], results[0]["licenses"],
+        "inspect and search disagree on the licence"
+    );
     eprintln!(
         "inspected {} — coverage {}",
         inspected["data"]["asset"]["title"], inspected["data"]["asset"]["coverage"]

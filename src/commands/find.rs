@@ -10,7 +10,7 @@ use crate::cli::FindArgs;
 use crate::config::ApprovalPolicy;
 use crate::error::{ErrorCode, Result};
 use crate::model::Asset;
-use crate::output::{cell, owned_cell, price_cell, table, Outcome};
+use crate::output::{cell, license_cell, status_cell, table, Outcome};
 use crate::rank::{self, Preferences, Ranking};
 use serde_json::{json, Value};
 use std::fmt::Write;
@@ -108,6 +108,9 @@ fn run(ctx: &Ctx, args: &FindArgs, default_top: u32, recommending: bool) -> Resu
     let ranking = rank::rank(assets, &prefs);
 
     let top = args.top.unwrap_or(default_top) as usize;
+    warnings.extend(super::license_warning(
+        ranking.ranked.iter().take(top).map(|s| &s.asset),
+    ));
     let candidates: Vec<Value> = ranking
         .ranked
         .iter()
@@ -287,13 +290,16 @@ fn render(ranking: &Ranking, top: usize, recommending: bool) -> String {
                 format!("{:.2}", scored.score),
                 scored.asset.id.clone(),
                 cell(scored.asset.title.as_deref(), 40),
-                price_cell(&scored.asset.price),
-                owned_cell(scored.asset.owned),
+                status_cell(scored.asset.owned, &scored.asset.price),
+                license_cell(&scored.asset.licenses),
             ]
         })
         .collect();
 
-    let mut text = table(&["#", "SCORE", "LISTING", "TITLE", "PRICE", "OWNED"], &rows);
+    let mut text = table(
+        &["#", "SCORE", "LISTING", "TITLE", "STATUS", "LICENCE"],
+        &rows,
+    );
     if recommending {
         if let Some(best) = ranking.ranked.first() {
             let _ = write!(

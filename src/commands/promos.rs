@@ -12,7 +12,7 @@ use crate::approval::{gate, ActionPlan};
 use crate::cli::{PromosArgs, PromosCommand};
 use crate::error::Result;
 use crate::model::Asset;
-use crate::output::{cell, owned_cell, table, Outcome};
+use crate::output::{cell, license_cell, status_cell, table, Outcome};
 use crate::provider::Capabilities;
 use crate::query::{FreeMode, SearchQuery};
 use serde_json::{json, Value};
@@ -88,6 +88,7 @@ fn current(ctx: &Ctx) -> Result<(Vec<Asset>, Vec<String>)> {
             promos.push(asset);
         }
     }
+    warnings.extend(super::license_warning(&promos));
     Ok((promos, warnings))
 }
 
@@ -100,6 +101,7 @@ fn summary(asset: &Asset) -> Value {
         "listPrice": asset.price.original,
         "currency": asset.price.currency,
         "freeUntil": asset.price.free_until,
+        "licenses": asset.licenses,
         "publisher": asset.publisher.as_ref().and_then(|p| p.name.clone()),
     })
 }
@@ -112,7 +114,8 @@ fn list(ctx: &Ctx) -> Result<Outcome> {
             vec![
                 a.id.clone(),
                 cell(a.title.as_deref(), 48),
-                owned_cell(a.owned),
+                status_cell(a.owned, &a.price),
+                license_cell(&a.licenses),
             ]
         })
         .collect();
@@ -121,7 +124,7 @@ fn list(ctx: &Ctx) -> Result<Outcome> {
     } else {
         format!(
             "{}\nClaim the ones you do not own with: necturalabs-fab promos claim --dry-run",
-            table(&["LISTING", "TITLE", "OWNED"], &rows)
+            table(&["LISTING", "TITLE", "STATUS", "LICENCE"], &rows)
         )
     };
     let data = json!({

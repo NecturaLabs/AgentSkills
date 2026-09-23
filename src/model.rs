@@ -468,6 +468,16 @@ pub struct Coverage {
     pub technical: Availability,
     /// Pricing.
     pub pricing: Availability,
+    /// Licences the listing is offered under. `unavailable` means they were
+    /// looked up and could not be established.
+    #[serde(default = "Availability::not_requested")]
+    pub licenses: Availability,
+}
+
+impl Availability {
+    fn not_requested() -> Self {
+        Self::NotRequested
+    }
 }
 
 impl Default for Coverage {
@@ -477,6 +487,7 @@ impl Default for Coverage {
             ownership: Availability::NotRequested,
             technical: Availability::NotRequested,
             pricing: Availability::NotRequested,
+            licenses: Availability::NotRequested,
         }
     }
 }
@@ -524,7 +535,10 @@ pub struct Asset {
     /// Whether the authenticated account owns it. `None` = unknown.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owned: Option<bool>,
-    /// License names, when known.
+    /// Licences the listing is offered under, when established: the Standard
+    /// License tiers (`Standard License (Personal)`, `Standard License
+    /// (Professional)`) or `CC BY 4.0`. [`Coverage::licenses`] says whether
+    /// they were looked up.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub licenses: Vec<String>,
     /// Distributable formats.

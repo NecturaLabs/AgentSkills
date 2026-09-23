@@ -17,6 +17,21 @@ use serde_json::Value;
 /// Provider id recorded on every asset this module produces.
 pub const PROVIDER: &str = "fabcli";
 
+/// Fab's licence search facets, as its `licenses` filter spells them, and the
+/// name each one is reported under. Fab's listing detail names the licences,
+/// but FabCLI 0.1 drops them from its output, so they are recovered from which
+/// licence-filtered searches return a listing.
+pub const LICENSE_FACETS: [(&str, &str); 3] = [
+    ("personal", "Standard License (Personal)"),
+    ("professional", "Standard License (Professional)"),
+    ("cc-by", "CC BY 4.0"),
+];
+
+/// Index of the CC BY facet in [`LICENSE_FACETS`]. Fab offers a listing under
+/// either CC BY or the Standard License, never both
+/// (<https://dev.epicgames.com/documentation/fab/licenses-and-pricing-in-fab>).
+pub const CC_BY_FACET: usize = 2;
+
 /// Map `fabcli search` output into a page of normalized assets.
 pub fn search_page(value: &Value, include_raw: bool) -> Result<SearchPage> {
     let results = value

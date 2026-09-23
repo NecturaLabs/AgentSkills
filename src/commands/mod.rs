@@ -248,7 +248,27 @@ pub fn merge_detail(summary: &mut Asset, detail: Asset) {
     if merged.thumbnail.is_none() {
         merged.thumbnail.clone_from(&summary.thumbnail);
     }
+    if merged.licenses.is_empty() && !summary.licenses.is_empty() {
+        merged.licenses = std::mem::take(&mut summary.licenses);
+        merged.coverage.licenses = summary.coverage.licenses;
+    }
     *summary = merged;
+}
+
+/// A warning naming how many listings were left without an established
+/// licence, when any were: the lookup may have found nothing or failed, and
+/// either way the caller must check the listing page before relying on one.
+pub fn license_warning<'a>(assets: impl IntoIterator<Item = &'a Asset>) -> Option<String> {
+    let unknown = assets
+        .into_iter()
+        .filter(|a| a.coverage.licenses == crate::model::Availability::Unavailable)
+        .count();
+    (unknown > 0).then(|| {
+        format!(
+            "licence unknown for {unknown} listing(s): the marketplace's licence filter did not \
+             return them or the lookup failed; check each one's url before relying on a licence"
+        )
+    })
 }
 
 /// Apply the post-retrieval filters Fab cannot evaluate server-side.
@@ -458,6 +478,21 @@ mod tests {
         let local = summary.local_price.expect("local price kept");
         assert_eq!(local.currency.as_deref(), Some("ILS"));
         assert_eq!(local.amount, crate::model::Amount::parse("452.14"));
+    }
+
+    #[test]
+    fn merge_detail_keeps_licences_the_summary_established() {
+        let mut summary = Asset::new("uid", "t");
+        summary.licenses = vec!["CC BY 4.0".into()];
+        summary.coverage.licenses = crate::model::Availability::Available;
+        let mut detail = Asset::new("uid", "t");
+        detail.coverage.licenses = crate::model::Availability::Unavailable;
+        merge_detail(&mut summary, detail);
+        assert_eq!(summary.licenses, vec!["CC BY 4.0"]);
+        assert_eq!(
+            summary.coverage.licenses,
+            crate::model::Availability::Available
+        );
     }
 
     #[test]

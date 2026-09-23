@@ -4,7 +4,7 @@ use super::{match_tokens, matches_tokens, Ctx};
 use crate::cli::LibraryArgs;
 use crate::error::Result;
 use crate::model::{Asset, Engine};
-use crate::output::Outcome;
+use crate::output::{license_cell, Outcome};
 use serde_json::json;
 use std::fmt::Write;
 
@@ -103,6 +103,7 @@ pub fn run(ctx: &Ctx, args: &LibraryArgs) -> Result<Outcome> {
         0
     };
     let mut warnings = describe(ctx, &mut assets, wanted);
+    warnings.extend(super::license_warning(&assets));
     if args.details && assets.len() > MAX_DETAILS {
         warnings.push(format!(
             "descriptions fetched for the first {MAX_DETAILS} of {} entries; narrow with a query or --limit",
@@ -159,6 +160,8 @@ fn describe(ctx: &Ctx, assets: &mut [Asset], limit: usize) -> Vec<String> {
                 if asset.tags.is_empty() {
                     asset.tags = detail.tags;
                 }
+                asset.licenses = detail.licenses;
+                asset.coverage.licenses = detail.coverage.licenses;
             }
             Err(err) => warnings.push(format!(
                 "could not fetch the description of {}: {}",
@@ -221,6 +224,9 @@ fn render(assets: &[Asset], total: usize, offer_details: bool) -> String {
             };
             let _ = writeln!(text, "  description: {short}{ellipsis}");
         }
+        if !asset.licenses.is_empty() {
+            let _ = writeln!(text, "  licence:     {}", license_cell(&asset.licenses));
+        }
         if !asset.engine_versions.is_empty() {
             let _ = writeln!(text, "  engines:     {}", asset.engine_versions.join(", "));
         }
@@ -231,7 +237,9 @@ fn render(assets: &[Asset], total: usize, offer_details: bool) -> String {
     }
     let _ = write!(text, "{} shown, library holds {}.", assets.len(), total);
     if offer_details {
-        text.push_str(" Add --details for descriptions (or narrow the search to 10 or fewer).");
+        text.push_str(
+            " Add --details for descriptions and licences (or narrow the search to 10 or fewer).",
+        );
     }
     text
 }

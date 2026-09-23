@@ -22,7 +22,8 @@ use crate::provider::{
 use crate::query::{FreeMode, SearchQuery, SortOrder};
 use exec::{Exec, Output, StderrMode};
 use serde_json::Value;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -41,6 +42,19 @@ const EPIC_LOGIN_URL: &str = "https://www.epicgames.com/id/login?redirectUrl=htt
 
 /// Floor for the library timeout: a cold 1k-item library takes ~100s.
 const LIBRARY_MIN_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// Licence searches run at once. FabCLI answers rate limits with a request to
+/// avoid parallel calls, so the fan-out stays small.
+const LICENSE_WORKERS: usize = 4;
+
+/// Licence searches one necturalabs-fab run may send: a full page of listings
+/// nobody has seen before, three times over, with room to spare. Listings past
+/// it stay unknown rather than turning one command into minutes of traffic.
+const LICENSE_SEARCH_BUDGET: usize = 150;
+
+/// Page size for a per-listing licence search: a title and seller rarely
+/// match more listings than this.
+const LICENSE_PROBE_COUNT: &str = "24";
 
 /// Settings the provider needs from configuration.
 #[derive(Debug, Clone)]
@@ -80,6 +94,14 @@ pub struct FabCliProvider {
     verified: RefCell<Option<std::result::Result<semver::Version, FabError>>>,
     /// Include untouched provider payloads on produced assets.
     include_raw: bool,
+    /// Licences already established this process, by listing id, as indices
+    /// into [`map::LICENSE_FACETS`]. An empty entry means every lookup
+    /// succeeded and none matched.
+    licenses: RefCell<HashMap<String, Vec<usize>>>,
+    /// Licence searches this run may still send.
+    license_budget: Cell<usize>,
+    /// Set once the marketplace rate-limits a licence search: none follow.
+    license_halted: Cell<bool>,
 }
 
 impl FabCliProvider {
@@ -89,6 +111,9 @@ impl FabCliProvider {
             settings,
             verified: RefCell::new(None),
             include_raw: false,
+            licenses: RefCell::new(HashMap::new()),
+            license_budget: Cell::new(LICENSE_SEARCH_BUDGET),
+            license_halted: Cell::new(false),
         }
     }
 
@@ -391,8 +416,201 @@ impl FabCliProvider {
     fn search_once(&self, query: &SearchQuery, free: FreeMode) -> Result<SearchPage> {
         let args = self.search_args(query, free);
         let raw = self.run_json(&args, self.settings.timeout)?;
-        map::search_page(&raw, self.include_raw)
+        let mut page = map::search_page(&raw, self.include_raw)?;
+        self.resolve_licenses(&mut page.assets, Some((query, free)));
+        Ok(page)
     }
+
+    /// Establish which licences each asset is offered under.
+    ///
+    /// Only a listing coming back from a licence-filtered search counts as
+    /// evidence; its absence proves nothing, so a listing no search returned
+    /// is `unavailable`, never "unlicensed". `page` is the search that
+    /// produced `assets`: re-running it once per licence settles most of a
+    /// page in three calls, and whatever it leaves open is asked per listing
+    /// by title and seller.
+    fn resolve_licenses(&self, assets: &mut [Asset], page: Option<(&SearchQuery, FreeMode)>) {
+        let mut found: HashMap<String, BTreeSet<usize>> = HashMap::new();
+        let mut failed: HashSet<String> = HashSet::new();
+        let pending: Vec<String> = {
+            let cache = self.licenses.borrow();
+            assets
+                .iter()
+                .filter(|a| !cache.contains_key(&a.id))
+                .map(|a| a.id.clone())
+                .collect()
+        };
+
+        if let (Some((query, free)), false) = (page, pending.is_empty()) {
+            let mut sweep = query.clone();
+            sweep.licenses.clear();
+            sweep.raw_filters.retain(|(key, _)| key != "licenses");
+            sweep.with_ownership = false;
+            let base = self.search_args(&sweep, free);
+            let searches: Vec<Vec<String>> = map::LICENSE_FACETS
+                .iter()
+                .map(|(slug, _)| {
+                    let mut args = base.clone();
+                    args.push(format!("--filter=licenses={slug}"));
+                    args
+                })
+                .collect();
+            // A failed sweep costs nothing but speed: the per-listing
+            // searches below still run for every listing it left open.
+            for (facet, ids) in self.search_ids(&searches).into_iter().enumerate() {
+                for id in ids.into_iter().flatten() {
+                    if pending.contains(&id) {
+                        found.entry(id).or_default().insert(facet);
+                    }
+                }
+            }
+        }
+
+        let mut probes: Vec<(String, usize)> = Vec::new();
+        let mut searches: Vec<Vec<String>> = Vec::new();
+        for asset in assets.iter().filter(|a| pending.contains(&a.id)) {
+            let known = found.get(&asset.id);
+            let open: Vec<usize> = match known {
+                Some(facets) if facets.contains(&map::CC_BY_FACET) => Vec::new(),
+                // A Standard tier seen: only the other can still be missing.
+                Some(facets) => (0..map::CC_BY_FACET)
+                    .filter(|f| !facets.contains(f))
+                    .collect(),
+                None => (0..map::LICENSE_FACETS.len()).collect(),
+            };
+            let seller = asset.publisher.as_ref().and_then(|p| p.name.as_deref());
+            let (Some(title), Some(seller)) = (asset.title.as_deref(), seller) else {
+                if !open.is_empty() {
+                    failed.insert(asset.id.clone());
+                }
+                continue;
+            };
+            for facet in open {
+                probes.push((asset.id.clone(), facet));
+                searches.push(vec![
+                    "search".to_string(),
+                    format!("--query={}", query_words(title)),
+                    format!("--count={LICENSE_PROBE_COUNT}"),
+                    format!("--filter=seller={seller}"),
+                    format!("--filter=licenses={}", map::LICENSE_FACETS[facet].0),
+                ]);
+            }
+        }
+        for ((id, facet), result) in probes.into_iter().zip(self.search_ids(&searches)) {
+            match result {
+                Ok(ids) if ids.contains(&id) => {
+                    found.entry(id).or_default().insert(facet);
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    failed.insert(id);
+                }
+            }
+        }
+
+        let mut cache = self.licenses.borrow_mut();
+        for id in &pending {
+            let facets: Vec<usize> = found
+                .get(id)
+                .map(|f| f.iter().copied().collect())
+                .unwrap_or_default();
+            if !facets.is_empty() || !failed.contains(id) {
+                cache.insert(id.clone(), facets);
+            }
+        }
+        for asset in assets.iter_mut() {
+            let facets = cache
+                .get(&asset.id)
+                .cloned()
+                .or_else(|| found.get(&asset.id).map(|f| f.iter().copied().collect()))
+                .unwrap_or_default();
+            asset.licenses = facets
+                .iter()
+                .map(|&f| map::LICENSE_FACETS[f].1.to_string())
+                .collect();
+            asset.coverage.licenses = if asset.licenses.is_empty() {
+                Availability::Unavailable
+            } else {
+                Availability::Available
+            };
+        }
+    }
+
+    /// Run read-only searches, a few at a time, and return the listing ids
+    /// each one produced, in the order given. Searches past the run's budget,
+    /// or after a rate limit, are not sent and come back as errors.
+    fn search_ids(&self, searches: &[Vec<String>]) -> Vec<Result<HashSet<String>>> {
+        if searches.is_empty() {
+            return Vec::new();
+        }
+        if let Err(err) = self.ensure_supported_version() {
+            return searches.iter().map(|_| Err(err.clone())).collect();
+        }
+        // Background lookups: their progress chatter is not the user's.
+        let exec = self
+            .exec(self.settings.timeout)
+            .with_stderr(StderrMode::Capture);
+        let mut results = Vec::with_capacity(searches.len());
+        for chunk in searches.chunks(LICENSE_WORKERS) {
+            let allowed = if self.license_halted.get() {
+                0
+            } else {
+                chunk.len().min(self.license_budget.get())
+            };
+            self.license_budget.set(self.license_budget.get() - allowed);
+            let (sent, skipped) = chunk.split_at(allowed);
+            let outputs: Vec<Result<Output>> = std::thread::scope(|scope| {
+                let handles: Vec<_> = sent
+                    .iter()
+                    .map(|args| {
+                        let exec = &exec;
+                        scope.spawn(move || exec.run(args))
+                    })
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|handle| {
+                        handle.join().unwrap_or_else(|_| {
+                            Err(FabError::new(
+                                ErrorCode::ProviderFailed,
+                                "a licence lookup did not finish",
+                            )
+                            .with_provider("fabcli"))
+                        })
+                    })
+                    .collect()
+            });
+            for (args, output) in sent.iter().zip(outputs) {
+                let result = output
+                    .and_then(|output| self.parse(output, args))
+                    .and_then(|raw| map::search_page(&raw, false))
+                    .map(|page| page.assets.into_iter().map(|a| a.id).collect());
+                if matches!(&result, Err(err) if err.code == ErrorCode::RateLimited) {
+                    self.license_halted.set(true);
+                }
+                results.push(result);
+            }
+            results.extend(skipped.iter().map(|_| {
+                Err(FabError::new(
+                    ErrorCode::RateLimited,
+                    "licence lookup not sent: this run's allowance is spent",
+                )
+                .with_provider("fabcli"))
+            }));
+        }
+        results
+    }
+}
+
+/// A marketplace-authored title reduced to its words for use as a search
+/// query. FabCLI forwards `--query` into the URL unencoded, so `&`, `=` or `#`
+/// in a title would otherwise add parameters — a licence filter among them.
+fn query_words(title: &str) -> String {
+    title
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// FabCLI's sort vocabulary. Kept in one place so a provider swap only touches
@@ -565,6 +783,7 @@ impl FabProvider for FabCliProvider {
         if with_formats {
             self.hydrate_formats(&mut asset);
         }
+        self.resolve_licenses(std::slice::from_mut(&mut asset), None);
         Ok(asset)
     }
 

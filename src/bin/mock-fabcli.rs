@@ -19,6 +19,11 @@
 //! | `MOCK_FABCLI_NOISE` | Write progress lines to stderr before answering. |
 //! | `MOCK_FABCLI_NOISE_ESCAPES` | Write a progress line carrying terminal escape sequences. |
 //! | `MOCK_FABCLI_FAIL_MESSAGE` | Message used by `MOCK_FABCLI_FAIL`. |
+//! | `MOCK_FABCLI_LICENSE_FAIL` | `<kind>:<exit>`. Fails only licence-filtered searches. |
+//!
+//! A search filtered to one licence (`--filter=licenses=<slug>`) answers from
+//! `search-license-<slug>.json`, and with no results when that fixture is
+//! absent, so a fixture set says which listings carry which licence.
 //!
 //! Every invocation's argv is appended to `$MOCK_FABCLI_DIR/calls.log`, which
 //! is how tests assert that a command was — or was not — issued.
@@ -78,6 +83,24 @@ fn main() {
     let (name, ident) = fixture_name(&args);
     if name == "download" {
         return download(&args);
+    }
+    if name == "search" {
+        if let Some(slug) = args
+            .iter()
+            .find_map(|a| a.strip_prefix("--filter=licenses="))
+        {
+            if let Ok(spec) = std::env::var("MOCK_FABCLI_LICENSE_FAIL") {
+                let (kind, code) = spec.split_once(':').unwrap_or((spec.as_str(), "1"));
+                eprintln!(
+                    "{{\"error\":{{\"kind\":\"{kind}\",\"message\":\"mock failure: {kind}\"}}}}"
+                );
+                std::process::exit(code.parse().unwrap_or(1));
+            }
+            let body = read_fixture(&format!("search-license-{slug}"))
+                .unwrap_or_else(|| r#"{"results":[],"cursors":{"next":null}}"#.to_string());
+            println!("{}", body.trim_end());
+            std::process::exit(0);
+        }
     }
 
     // A per-id fixture wins, so a test can give each listing its own record
@@ -140,7 +163,9 @@ fn log_call(args: &[String]) {
         .append(true)
         .open(dir.join("calls.log"))
     {
-        let _ = writeln!(file, "{}", args.join(" "));
+        // One write per line: licence lookups run several mocks at once, and
+        // O_APPEND keeps a single write whole where `writeln!` may split it.
+        let _ = file.write_all(format!("{}\n", args.join(" ")).as_bytes());
     }
 }
 

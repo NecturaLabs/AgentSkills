@@ -37,7 +37,8 @@ FabProvider trait ─────────── src/provider/mod.rs   (capab
 ## Data flow for `find`
 
 1. `commands::build_query` turns flags plus config defaults into a validated `SearchQuery`.
-2. The provider searches (with ownership decoration when the session allows it).
+2. The provider searches (with ownership decoration when the session allows it) and establishes
+   each result's licences from Fab's licence search filter, which FabCLI's listing output lacks.
 3. `commands::hydrate` fetches listing detail and formats for the top N results — Fab's search
    index carries no engine, version or technical data.
 4. `rank::rank` hard-filters positive incompatibilities, scores the rest from fixed weights, and

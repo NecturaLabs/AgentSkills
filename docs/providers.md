@@ -17,6 +17,8 @@ and every command stay unchanged when one is added or swapped.
    - Pass every marketplace-authored string through `sanitize::text`/`sanitize::short`.
    - `Price::free` must mean *claimable at no cost now*, `temporarilyFree` distinguishes promos.
    - Asset `id` is the Fab listing uid.
+   - `licenses` holds the licences a listing is offered under, named as `src/model.rs` documents;
+     `coverage.licenses` says whether they were established. `search` and `listing` fill them.
 5. Map backend failures onto `ErrorCode` (`src/error.rs`). Authentication problems must be
    `AuthRequired`/`AuthExpired`; unexpected shapes must be `ProviderProtocol`, never a panic.
 6. Register the id in `commands::build_provider` and `KNOWN_PROVIDERS` (`src/commands/mod.rs`),

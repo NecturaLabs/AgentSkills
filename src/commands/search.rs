@@ -2,8 +2,8 @@
 
 use super::{apply_client_filters, build_query, hydrate, Ctx};
 use crate::cli::SearchArgs;
-use crate::error::Result;
-use crate::output::{cell, owned_cell, price_cell, table, Outcome};
+use crate::error::{ErrorCode, Result};
+use crate::output::{cell, license_cell, status_cell, table, Outcome};
 use serde_json::json;
 
 /// Run `search`.
@@ -30,10 +30,33 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
         let count = assets.len() as u64;
         (assets, Some(count), None)
     } else {
-        if query.with_ownership && !ctx.provider.capabilities().search_ownership {
+        let capable = ctx.provider.capabilities().search_ownership;
+        if query.with_ownership && !capable {
             warnings.push("provider cannot decorate results with ownership".to_string());
         }
-        let page = ctx.provider.search(&query)?;
+        // Whether a result is already owned is part of every listing, so ask
+        // whenever the provider can; a missing session only loses that column.
+        let asked = query.with_ownership;
+        query.with_ownership = capable;
+        let page = match ctx.provider.search(&query) {
+            Ok(page) => page,
+            Err(err)
+                if query.with_ownership
+                    && matches!(err.code, ErrorCode::AuthRequired | ErrorCode::AuthExpired) =>
+            {
+                if asked {
+                    return Err(err);
+                }
+                warnings.push(format!(
+                    "ownership unknown without a session ({}); `{}` signs in",
+                    err.code,
+                    super::auth::login_command(crate::provider::LoginScope::Reads)
+                ));
+                query.with_ownership = false;
+                ctx.provider.search(&query)?
+            }
+            Err(err) => return Err(err),
+        };
         (page.assets, page.total, page.next_cursor)
     };
 
@@ -42,6 +65,7 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
 
     // Only assets whose metadata was actually fetched can be filtered on it.
     let (kept, dropped) = apply_client_filters(assets, &query);
+    warnings.extend(super::license_warning(&kept));
     let filtered_out: Vec<_> = dropped
         .iter()
         .map(|(id, reason)| json!({"id": id, "reason": reason}))
@@ -63,8 +87,8 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
             vec![
                 asset.id.clone(),
                 cell(asset.title.as_deref(), 44),
-                price_cell(&asset.price),
-                owned_cell(asset.owned),
+                status_cell(asset.owned, &asset.price),
+                license_cell(&asset.licenses),
                 asset
                     .rating
                     .average
@@ -79,7 +103,7 @@ pub fn run(ctx: &Ctx, args: &SearchArgs) -> Result<Outcome> {
         "No results.".to_string()
     } else {
         let mut text = table(
-            &["LISTING", "TITLE", "PRICE", "OWNED", "RATING", "SELLER"],
+            &["LISTING", "TITLE", "STATUS", "LICENCE", "RATING", "SELLER"],
             &rows,
         );
         text.push_str(&format!(
