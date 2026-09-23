@@ -27,8 +27,8 @@ Handles live card authorizations: treat every change as production-affecting.
 - Single test: `go test ./ledger -run TestReconcileSettlement`
 - Console tests: `pnpm -C console test`
 - Lint: `make lint` (`golangci-lint` + `eslint`; `make lint-fix` applies)
-- Migrations, new: `make migrate-new name=<slug>` — never hand-create the file, the timestamp
-  prefix has to match the sequence table
+- Migrations, new: `make migrate-new name=<slug>` — never hand-create the file; the tool assigns
+  the next sequence number, and the migrator refuses to run past a gap or a duplicate
 
 `make test` needs Docker running. Without it the integration tests fail on connection refused,
 which looks like a code failure and is not.
@@ -44,9 +44,9 @@ which looks like a code failure and is not.
 - `infra/` — Terraform for all environments. Has its own AGENTS.md; different toolchain and a
   different safety boundary.
 
-The `ledger/` and `adapters/` split is load-bearing, not cosmetic: a change that puts an SQL query
-or a `time.Now()` call into `ledger/` breaks the determinism the whole test suite depends on, and
-the compiler will not catch it.
+The `ledger/` and `adapters/` split is load-bearing, not cosmetic: the whole test suite depends on
+`ledger/` being deterministic. `make lint` rejects a database or HTTP import there, but not a call
+to `time.Now()` or `uuid.New()` — take the injected clock and ID generator instead.
 
 ## Conventions
 
@@ -60,15 +60,11 @@ the compiler will not catch it.
 
 ## Testing
 
-Route test work through the `testing` skill. Project-specific:
-
 - Ledger invariants are property-tested in `ledger/prop_test.go`. A new posting rule needs a
   property there, not only a table test — the table tests have historically missed asymmetric
   rounding.
 - Integration tests run against the real schema, not a mock. If a test needs a new table, it needs
   a migration.
-- The clock and ID generator are injected everywhere. Never call `time.Now()` or `uuid.New()`
-  inside `ledger/`.
 
 ## Boundaries
 
@@ -79,8 +75,7 @@ Route test work through the `testing` skill. Project-specific:
   full PAN anywhere, at any level, including debug; weaken an idempotency check to make a test
   pass.
 - **Security-sensitive**: `adapters/cardnet/` and `internal/auth/`. Changes there get a security
-  pass before the general review, whichever harness or skill runs it. Never log request or response
-  bodies in either.
+  pass before the general review. Never log request or response bodies in either.
 
 ## Commits and pull requests
 
