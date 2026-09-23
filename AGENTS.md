@@ -13,6 +13,9 @@ marketplace through a replaceable provider; FabCLI 0.1.x is the current one. Map
 - Format: `cargo fmt` (CI runs `cargo fmt --check`)
 - Live read-only check against a signed-in FabCLI: `cargo test --test live -- --ignored`
 - Installer round trip in a throwaway HOME (network; downloads FabCLI): `sh scripts/test-installer.sh`
+- Version check: `sh scripts/check-version.sh [vX.Y.Z]`. Every release bumps `version` in
+  `Cargo.toml` and `plugin/.claude-plugin/plugin.json` together, and tags `vX.Y.Z` to match;
+  harnesses only refresh an installed plugin whose version changed.
 
 ## Conventions
 

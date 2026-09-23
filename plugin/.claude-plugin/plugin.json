@@ -1,7 +1,7 @@
 {
   "name": "necturalabs-fab",
   "description": "Agent Skill for finding, comparing, claiming and downloading Fab marketplace assets through the necturalabs-fab CLI.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"

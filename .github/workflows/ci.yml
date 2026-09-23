@@ -42,6 +42,7 @@ jobs:
           toolchain: "1.98"
           components: rustfmt, clippy
       - uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - run: sh scripts/check-version.sh
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
