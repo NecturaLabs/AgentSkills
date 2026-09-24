@@ -161,7 +161,7 @@ Upgrading from a release before 5.0.0 that used `scripts/install.sh` links for C
 |---|---|---|---|
 | ☑ | `necturalabs` | This repository's six skills, including `fab` | `necturalabs@necturalabs` |
 | ☑ | `security-audit` | Cloudflare's security review, focused or full audit | `security-audit@necturalabs` (upstream `cloudflare/security-audit-skill`, MIT) |
-| ☑ | superpowers | Brainstorm, plan, TDD, subagent-driven development, reviews | `superpowers@necturalabs` (upstream `obra/superpowers` 6.4.1, MIT) |
+| ☑ | superpowers | Brainstorm, plan, TDD, subagent-driven development, reviews; runs as written, including its session-start hook | `superpowers@claude-plugins-official` (`obra/superpowers`, MIT) |
 | ☑ | `impeccable` | Frontend design, critique and polish | `impeccable@impeccable` (`pbakaus/impeccable`) |
 | ☑ | `frontend-design` | Distinctive visual design, used on request | `frontend-design@claude-plugins-official` |
 | ☑ | Web Interface Guidelines | UI audit against Vercel's guidelines | `web-design-guidelines@necturalabs` (upstream `vercel-labs/agent-skills`) |

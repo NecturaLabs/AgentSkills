@@ -56,7 +56,7 @@
   "enabledPlugins": {
     "necturalabs@necturalabs": true,
     "security-audit@necturalabs": true,
-    "superpowers@necturalabs": true,
+    "superpowers@claude-plugins-official": true,
     "impeccable@impeccable": true,
     "frontend-design@claude-plugins-official": true,
     "web-design-guidelines@necturalabs": true,
