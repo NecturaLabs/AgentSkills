@@ -1,0 +1,10 @@
+{
+  "name": "typescript-native-lsp",
+  "description": "TypeScript 7 native language server (tsc --lsp --stdio)",
+  "version": "1.0.0",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "blender-lab": {
+      "command": "blender-mcp",
+      "args": ["--transport", "stdio"]
+    }
+  }
+}

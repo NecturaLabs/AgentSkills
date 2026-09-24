@@ -1,0 +1,13 @@
+{
+  "name": "blender-lab-mcp",
+  "version": "1.0.2",
+  "description": "Connects the official Blender Lab MCP server (blender-mcp on PATH, built from projects.blender.org/lab/blender_mcp at ff54e4d8) to the harness. Ships only this manifest; the GPL-3.0 server is installed from upstream.",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "homepage": "https://www.blender.org/lab/mcp-server/",
+  "repository": "https://projects.blender.org/lab/blender_mcp",
+  "license": "MIT",
+  "mcpServers": "./.mcp.json"
+}

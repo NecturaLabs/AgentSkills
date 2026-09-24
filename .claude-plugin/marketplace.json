@@ -1,6 +1,6 @@
 {
   "name": "necturalabs",
-  "description": "NecturaLabs Agent Skills",
+  "description": "NecturaLabs Agent Skills, plus a pinned entry for every plugin the NecturaLabs setup uses that no official or vendor marketplace carries. Third-party entries install straight from their upstream repositories; this repository redistributes none of their code.",
   "owner": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"
@@ -8,8 +8,116 @@
   "plugins": [
     {
       "name": "necturalabs",
-      "description": "Six Agent Skills for coding agents: instruction-file maintenance, agent orchestration, independent review, threat review, test engineering, and project documentation.",
+      "description": "NecturaLabs Agent Skills: five skills for instruction files, orchestration, independent review, testing and project docs, plus fab for the Fab asset marketplace.",
       "source": "./"
+    },
+    {
+      "name": "security-audit",
+      "description": "Cloudflare's security-audit skill, installed from cloudflare/security-audit-skill at c1c8a8c (MIT). Nothing is redistributed here.",
+      "version": "0.0.0+c1c8a8c",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/cloudflare/security-audit-skill.git",
+        "sha": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/security-audit"
+      ],
+      "homepage": "https://github.com/cloudflare/security-audit-skill",
+      "license": "MIT",
+      "category": "security"
+    },
+    {
+      "name": "superpowers",
+      "description": "obra/superpowers 6.4.1, installed from upstream at 5bf4e78 (MIT) and run as written, SessionStart hook included.",
+      "version": "6.4.1",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/obra/superpowers.git",
+        "ref": "v6.4.1",
+        "sha": "5bf4e78011075bcfc0dc295f0724994cd123ee71"
+      },
+      "homepage": "https://github.com/obra/superpowers",
+      "license": "MIT",
+      "category": "workflow"
+    },
+    {
+      "name": "web-design-guidelines",
+      "description": "Vercel's web-design-guidelines skill (the Web Interface Guidelines as a UI audit), installed from vercel-labs/agent-skills at 063bee9. Upstream declares no license for it; nothing is redistributed here.",
+      "version": "0.0.0+063bee9",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/web-design-guidelines"
+      ],
+      "homepage": "https://vercel.com/design/guidelines",
+      "category": "design"
+    },
+    {
+      "name": "remotion",
+      "description": "Remotion's Agent Skills, installed from remotion-dev/skills at 4.0.527 (9682e99). Upstream declares no license; Remotion itself is under the Remotion License. Nothing is redistributed here.",
+      "version": "4.0.527",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/remotion-dev/skills.git",
+        "sha": "9682e994989f951c75912fbc49aa10332a512685"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/"
+      ],
+      "homepage": "https://www.remotion.dev/docs/ai/skills",
+      "category": "design"
+    },
+    {
+      "name": "vercel-react-extras",
+      "description": "Optional: vercel-composition-patterns, vercel-react-view-transitions and vercel-react-native-skills, installed from vercel-labs/agent-skills at 063bee9 (each declares MIT).",
+      "version": "0.0.0+063bee9",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./skills/composition-patterns",
+        "./skills/react-view-transitions",
+        "./skills/react-native-skills"
+      ],
+      "homepage": "https://github.com/vercel-labs/agent-skills",
+      "license": "MIT",
+      "category": "development"
+    },
+    {
+      "name": "blender-lab-mcp",
+      "description": "Connects the official Blender Lab MCP server (projects.blender.org/lab/blender_mcp ff54e4d8, GPL-3.0, installed from upstream) to the harness.",
+      "version": "1.0.2",
+      "source": "./plugins/blender-lab-mcp",
+      "homepage": "https://www.blender.org/lab/mcp-server/",
+      "license": "MIT",
+      "category": "design"
+    },
+    {
+      "name": "godot-mcp-toolkit",
+      "description": "Connects NPGameDev's Godot MCP Toolkit bridge 1.0.2 (MIT, installed from upstream) to the harness.",
+      "version": "1.0.2",
+      "source": "./plugins/godot-mcp-toolkit",
+      "homepage": "https://github.com/NPGameDev/godot-mcp-toolkit",
+      "license": "MIT",
+      "category": "development"
+    },
+    {
+      "name": "typescript-native-lsp",
+      "description": "TypeScript 7 native language server (tsc --lsp --stdio). Claude Code only.",
+      "version": "1.0.0",
+      "source": "./plugins/typescript-native-lsp",
+      "license": "MIT",
+      "category": "development"
     }
   ]
 }
