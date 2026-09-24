@@ -6,6 +6,18 @@ use support::{code, stderr, stdout, Harness};
 
 const FREE: &str = "11111111-1111-4111-8111-111111111111";
 
+/// The reported directory is the real path; the temporary one the test built may pass through a
+/// symlink, as `/var` does on macOS.
+fn assert_same_dir(reported: &serde_json::Value, expected: &std::path::Path) {
+    let reported = reported.as_str().expect("outputDir is a string");
+    assert_eq!(
+        std::fs::canonicalize(reported).unwrap(),
+        std::fs::canonicalize(expected).unwrap(),
+        "outputDir {reported} is not {}",
+        expected.display()
+    );
+}
+
 #[test]
 fn download_writes_files_and_reports_the_exact_path() {
     let harness = Harness::new("base");
@@ -16,7 +28,7 @@ fn download_writes_files_and_reports_the_exact_path() {
     assert!(dir.join("Asset.uasset").is_file(), "asset files must exist");
     assert_eq!(value["data"]["receipt"]["files"], 1);
     assert_eq!(value["data"]["receipt"]["bytes"], 18);
-    assert_eq!(value["data"]["outputDir"], dir.display().to_string());
+    assert_same_dir(&value["data"]["outputDir"], &dir);
     assert_eq!(value["action"]["class"], "local-write");
 
     // Metadata from the provider's own sidecar is normalized into ours.
@@ -112,7 +124,7 @@ fn the_default_destination_is_one_directory_per_listing() {
     let (value, output) = harness.json(&["download", FREE]);
     assert_eq!(code(&output), 0);
     let expected = harness.work().join("Assets").join("Fab").join(FREE);
-    assert_eq!(value["data"]["outputDir"], expected.display().to_string());
+    assert_same_dir(&value["data"]["outputDir"], &expected);
     assert!(expected.join("Asset.uasset").is_file());
 }
 
