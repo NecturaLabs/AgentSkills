@@ -47,13 +47,14 @@
       "description": "Vercel's web-design-guidelines skill (the Web Interface Guidelines as a UI audit), installed from vercel-labs/agent-skills at 063bee9. Upstream declares no license for it; nothing is redistributed here.",
       "version": "0.0.0+063bee9",
       "source": {
-        "source": "url",
+        "source": "git-subdir",
         "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
         "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
       },
       "strict": false,
       "skills": [
-        "./skills/web-design-guidelines"
+        "./web-design-guidelines"
       ],
       "homepage": "https://vercel.com/design/guidelines",
       "category": "design"
@@ -75,19 +76,54 @@
       "category": "design"
     },
     {
-      "name": "vercel-react-extras",
-      "description": "Optional: vercel-composition-patterns, vercel-react-view-transitions and vercel-react-native-skills, installed from vercel-labs/agent-skills at 063bee9 (each declares MIT).",
+      "name": "vercel-composition-patterns",
+      "description": "Optional: React composition patterns that scale. Installed from vercel-labs/agent-skills at 063bee9 (skills/composition-patterns, MIT).",
       "version": "0.0.0+063bee9",
       "source": {
-        "source": "url",
+        "source": "git-subdir",
         "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
         "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
       },
       "strict": false,
       "skills": [
-        "./skills/composition-patterns",
-        "./skills/react-view-transitions",
-        "./skills/react-native-skills"
+        "./composition-patterns"
+      ],
+      "homepage": "https://github.com/vercel-labs/agent-skills",
+      "license": "MIT",
+      "category": "development"
+    },
+    {
+      "name": "vercel-react-view-transitions",
+      "description": "Optional: React View Transition API animations. Installed from vercel-labs/agent-skills at 063bee9 (skills/react-view-transitions, MIT).",
+      "version": "0.0.0+063bee9",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./react-view-transitions"
+      ],
+      "homepage": "https://github.com/vercel-labs/agent-skills",
+      "license": "MIT",
+      "category": "development"
+    },
+    {
+      "name": "vercel-react-native-skills",
+      "description": "Optional: React Native and Expo best practices. Installed from vercel-labs/agent-skills at 063bee9 (skills/react-native-skills, MIT).",
+      "version": "0.0.0+063bee9",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./react-native-skills"
       ],
       "homepage": "https://github.com/vercel-labs/agent-skills",
       "license": "MIT",
