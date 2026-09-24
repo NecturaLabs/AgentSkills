@@ -1,0 +1,22 @@
+# Recommended Codex settings for the NecturaLabs setup. Merge these keys into
+# ~/.codex/config.toml; keep everything else already there.
+
+model = "gpt-6-sol"
+model_reasoning_effort = "high"
+
+# Yolo mode: no approval prompts and no sandbox. The global AGENTS.md stop rules
+# become the only guard. Leave these two out to keep Codex's defaults.
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[mcp_servers.unity-editor-mcp]
+command = "unity"
+args = ["mcp"]
+
+# The Codex-catalog copies add no skills to the Codex CLI; the marketplace
+# installs below replace them.
+[plugins."impeccable@openai-curated-remote"]
+enabled = false
+
+[plugins."superpowers@openai-curated-remote"]
+enabled = false

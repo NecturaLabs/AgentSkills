@@ -55,8 +55,8 @@ trailing or consecutive hyphens, and equal to the directory name.
 Name the guarantee the skill adds, not the job. A name like `code-review` claims a slot the harness
 may already fill — and in Claude Code a personal skill of that name *replaces* the bundled
 `/code-review`, while Codex lists both with no precedence. The validator fails on any name in
-`scripts/native-names.tsv`, aliases included; `independent-review` and `threat-review` are named for
-what they add over a native reviewer.
+`scripts/native-names.tsv`, aliases included; `independent-review` is named for what it adds over a
+native reviewer.
 
 The rule is not "never overlap a native capability" — it is "never displace one by accident". Where
 a harness does the same job, write the skill as the procedure around the native capability and the

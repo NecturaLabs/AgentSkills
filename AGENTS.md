@@ -1,7 +1,9 @@
 # AgentSkills — Agent Guidelines
 
-This repository is a set of Agent Skills for Claude Code and OpenAI Codex. The Markdown under
-`skills/` is the product, not prose about the product.
+This repository is a set of Agent Skills for Claude Code and OpenAI Codex, the `necturalabs`
+marketplace that pins the third-party plugins the NecturaLabs setup uses, and the `necturalabs-fab`
+CLI behind the `fab` skill. The Markdown under `skills/` is the product, not prose about the
+product.
 
 ## Commands
 
@@ -12,6 +14,8 @@ Run from bash on Linux:
 - Install into this machine's harnesses: `bash scripts/install.sh` (`--dry-run` to preview)
 - Report installation health: `bash scripts/doctor.sh`
 - Remove this project's links: `bash scripts/uninstall.sh`
+- Version agreement (package, plugin, crate; optionally a tag): `sh scripts/check-version.sh [vX.Y.Z]`
+- Fab CLI: see `cli/fab/AGENTS.md` (`cargo test` from `cli/fab`)
 
 The suite is entirely offline: every check reads files in this repo. Nothing needs the network, the
 `claude` CLI, or credentials, and nothing that does may be added — no API key belongs in this repo
@@ -22,8 +26,10 @@ Two official tools exist alongside the suite and are for humans to run, not CI:
 
 - `claude plugin validate . --strict` — Anthropic's own manifest and frontmatter validator.
 - `claude plugin eval .` — runs the routing evals under `evals/`. It spends tokens and needs
-  credentials, which is why CI validates the eval *files* and never executes them. Run it once per
-  release and record the result in `docs/evals.md`.
+  credentials, which is why CI validates the eval *files* and never executes them. Run
+  `bash scripts/fetch-eval-plugins.sh` first (it fetches the pinned third-party plugins some cases
+  load into the ignored `evals/.plugins/`), then run it once per release and record the result in
+  `docs/evals.md`.
 
 ## Architecture
 
@@ -34,6 +40,12 @@ exists to avoid.
 - `skills/*/SKILL.md` + `references/` — conditional procedure, loaded on demand.
 - `docs/`, code, config — authoritative project truth, read when relevant.
 - `scripts/`, `tests/`, CI — deterministic enforcement, never a model call.
+
+`cli/fab/` is a Rust crate with its own `AGENTS.md`; its docs are `docs/fab/`. `plugins/` holds
+only files of our own: connector manifests whose servers users install from upstream, and a
+language-server config. Third-party plugins are marketplace entries pinned to upstream commits in
+`.claude-plugin/marketplace.json`; never commit their code here. `setup/` holds the recommended
+settings and worker agents the README's setup section merges in.
 
 `examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not
 instructions for work on this repo. They are named `*-agents.md` so an agent working under
@@ -78,8 +90,8 @@ skill body.
 
 ## Boundaries
 
-- **Always**: run the suite before claiming done; keep `package.json` and
-  `.claude-plugin/plugin.json` on the same version; keep the skill lists in `scripts/install.sh`,
+- **Always**: run the suite before claiming done; keep `package.json`,
+  `.claude-plugin/plugin.json` and `cli/fab/Cargo.toml` on the same version; keep the skill lists in `scripts/install.sh`,
   `uninstall.sh`, `doctor.sh` and `tests/install-guard.sh` equal to `skills/` (the validator
   checks).
 - **Ask first**: adding or removing a skill; changing what `tests/run-all.sh` aggregates.
@@ -92,6 +104,7 @@ skill body.
 
 ## Versioning
 
-Semver across `package.json` and `.claude-plugin/plugin.json`, which change together: **patch** for
+Semver across `package.json`, `.claude-plugin/plugin.json` and `cli/fab/Cargo.toml`, which change
+together (a `vX.Y.Z` tag also builds the `necturalabs-fab` release binaries): **patch** for
 fixes and typos, **minor** for new skills or features, **major** for removed skills or restructured
 layout. Work lands directly on `main`.

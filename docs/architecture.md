@@ -122,9 +122,10 @@ the job. That sets two rules for this repository:
 - **A skill is the procedure around a native capability, and the fallback where none exists.**
   `independent-review` owns scope, the uncontaminated brief, the evidence standard, adjudication and
   the stop rule, and uses the harness's reviewer as its review pass when one runs in a separate
-  context. `threat-review` defers to a native security review for what it covers and keeps the
-  surfaces it excludes, such as dependency changes. The routing evals accept either route where
-  both satisfy the request, and require this plugin's skill only where it alone adds something.
+  context. Security review is no longer a skill of this repository: the setup recommends
+  Cloudflare's `security-audit` beside the native security review, and the routing evals accept
+  either where both satisfy the request, requiring `security-audit` only where it alone covers the
+  surface, such as a dependency change.
 - **No skill takes a native name.** In Claude Code a personal or project skill replaces a bundled
   one of the same name but not its aliases; Codex lists two same-named skills side by side with no
   precedence. Either way the user silently loses the native capability, so the validator fails on

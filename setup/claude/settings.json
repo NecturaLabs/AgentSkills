@@ -1,0 +1,77 @@
+{
+  "model": "opus[1m]",
+  "modelSettings": {
+    "claude-opus-5": {
+      "effortLevel": "medium"
+    },
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
+  "switchModelsOnFlag": false,
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "permissions": {
+    "defaultMode": "bypassPermissions"
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "askUserQuestionTimeout": "60s",
+  "tui": "fullscreen",
+  "timeFormat": "12-hour",
+  "remoteControlAtStartup": true,
+  "crossSessionInbound": "accept",
+  "agentPushNotifEnabled": true,
+  "extraKnownMarketplaces": {
+    "necturalabs": {
+      "source": {
+        "source": "github",
+        "repo": "NecturaLabs/AgentSkills"
+      },
+      "autoUpdate": true
+    },
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      },
+      "autoUpdate": true
+    },
+    "agent-browser": {
+      "source": {
+        "source": "github",
+        "repo": "vercel-labs/agent-browser"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "necturalabs@necturalabs": true,
+    "security-audit@necturalabs": true,
+    "superpowers@necturalabs": true,
+    "impeccable@impeccable": true,
+    "frontend-design@claude-plugins-official": true,
+    "web-design-guidelines@necturalabs": true,
+    "vercel@claude-plugins-official": true,
+    "cloudflare@claude-plugins-official": true,
+    "remotion@necturalabs": true,
+    "github@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "agent-browser@agent-browser": true,
+    "blender-lab-mcp@necturalabs": true,
+    "godot-mcp-toolkit@necturalabs": true,
+    "typescript-native-lsp@necturalabs": true,
+    "lua-lsp@claude-plugins-official": true
+  },
+  "disabledMcpServers": [
+    "plugin:vercel:vercel"
+  ]
+}
