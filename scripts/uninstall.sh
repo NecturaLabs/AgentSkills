@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs)
+# Skills earlier releases shipped. Uninstall still removes their links, so an upgrade never
+# leaves one dangling.
+RETIRED_SKILLS=(threat-review)
 
 usage() {
   cat <<'USAGE'
@@ -85,7 +88,7 @@ checkout_root_of() {
   return 1
 }
 
-MANAGED=("${SKILLS[@]}")
+MANAGED=("${SKILLS[@]}" "${RETIRED_SKILLS[@]}")
 
 is_managed_name() {
   local candidate=$1 n

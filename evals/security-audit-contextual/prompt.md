@@ -1,8 +1,8 @@
 ---
-name: threat-review-contextual
+name: security-audit-contextual
 description: The trigger is embedded in a larger merge-readiness task rather than stated as a security request.
 tags: [routing]
-plugins: ["../.."]
+plugins: ["../..", "security-audit@necturalabs"]
 runs: 3
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

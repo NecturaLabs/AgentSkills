@@ -1,8 +1,8 @@
 ---
-name: threat-review-ambiguous
+name: security-audit-ambiguous
 description: A patch bump of a date-formatting library — a genuine dependency surface, but a small one; the assertion is proportionality.
 tags: [routing]
-plugins: ["../.."]
+plugins: ["../..", "security-audit@necturalabs"]
 runs: 3
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

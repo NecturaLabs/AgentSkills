@@ -1,8 +1,8 @@
 ---
-name: threat-review-negative
+name: security-audit-negative
 description: A copy change on a sign-in page — adjacent to a sensitive area but with no threat surface, so the skill must not fire.
 tags: [routing]
-plugins: ["../.."]
+plugins: ["../..", "security-audit@necturalabs"]
 runs: 3
 allowed_tools: [Read, Glob, Grep, Skill]
 ---

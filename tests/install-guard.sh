@@ -13,7 +13,7 @@ REPO_ROOT=${SCRIPT_DIR%/*}
 INSTALL=$REPO_ROOT/scripts/install.sh
 UNINSTALL=$REPO_ROOT/scripts/uninstall.sh
 DOCTOR=$REPO_ROOT/scripts/doctor.sh
-SKILLS=(agent-instructions agent-orchestration independent-review threat-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs)
 
 PASS=0
 FAIL=0
@@ -108,6 +108,14 @@ check "uninstall-removes-ours" "0" "$(for s in "${SKILLS[@]}"; do [ -e "$H/.clau
 check "uninstall-keeps-foreign-link" "yes" "$([ -L "$H/.claude/skills/unrelated-link" ] && echo yes || echo no)"
 check "uninstall-keeps-real-dir" "hand written" "$(cat "$H/.agents/skills/local-real-skill/SKILL.md" 2>/dev/null)"
 check "uninstall-keeps-roots" "yes" "$([ -d "$H/.claude/skills" ] && [ -d "$H/.agents/skills" ] && echo yes || echo no)"
+
+# 6b. uninstall still removes the link an earlier release made for a skill since retired
+H=$(new_home)
+mkdir -p "$H/.claude/skills" "$H/.agents/skills"
+ln -s "$REPO_ROOT/skills/threat-review" "$H/.claude/skills/threat-review"
+ln -s "$REPO_ROOT/skills/threat-review" "$H/.agents/skills/threat-review"
+bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
+check "uninstall-removes-retired" "0" "$(link_count "$H")"
 check "uninstall-keeps-target-dir" "not ours" "$(cat "$SANDBOX/unrelated/some-skill/SKILL.md" 2>/dev/null)"
 
 # 7. --dry-run writes nothing, on either script
@@ -148,11 +156,11 @@ printf '{"name": "%s"}\n' "$OTHER_PLUGIN_NAME" > "$SANDBOX/other-checkout/.claud
 H=$(new_home)
 mkdir -p "$H/.codex/skills"
 ln -s "$SANDBOX/other-checkout/skills/testing" "$H/.codex/skills/testing"
-ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/threat-review"
+ln -s "$SANDBOX/unrelated/some-skill" "$H/.codex/skills/foreign-skill"
 ln -s "$REPO_ROOT/skills/testing" "$H/.codex/skills/agent-instructions"
 bash "$INSTALL" --prefix "$H" --force >/dev/null 2>&1
 check "codex-home-other-checkout-untouched" "$SANDBOX/other-checkout/skills/testing" "$(readlink -- "$H/.codex/skills/testing")"
-check "codex-home-foreign-untouched" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/threat-review")"
+check "codex-home-foreign-untouched" "$SANDBOX/unrelated/some-skill" "$(readlink -- "$H/.codex/skills/foreign-skill")"
 check "codex-home-no-new-links" "3" "$(link_count "$H/.codex")"
 bash "$UNINSTALL" --prefix "$H" >/dev/null 2>&1
 check "codex-home-ours-survives-uninstall" "$REPO_ROOT/skills/testing" "$(readlink -- "$H/.codex/skills/agent-instructions")"

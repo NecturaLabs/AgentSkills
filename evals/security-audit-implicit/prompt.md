@@ -1,8 +1,8 @@
 ---
-name: threat-review-implicit
+name: security-audit-implicit
 description: A natural request with an obvious threat surface that should route without naming the skill.
 tags: [routing]
-plugins: ["../.."]
+plugins: ["../..", "security-audit@necturalabs"]
 runs: 3
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
