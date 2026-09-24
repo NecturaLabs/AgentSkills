@@ -1,8 +1,9 @@
 //! `skill status` — is the agent skill installed where each harness looks?
 //!
-//! The skill ships as a plugin and both harnesses install it through their own
-//! plugin marketplace (see `scripts/install.sh`), so this command only reads
-//! harness state. It never writes: a second, hand-placed copy of a skill is
+//! The skill ships in the `necturalabs` plugin. Claude Code installs that
+//! plugin from its marketplace, and Codex either installs it the same way or
+//! reads the skill through the link AgentSkills' `scripts/install.sh` makes in
+//! `~/.agents/skills`, so this command only reads harness state. It never writes: a second, hand-placed copy of a skill is
 //! exactly the drift the marketplace install exists to prevent, and this
 //! command reports one when it finds it.
 
@@ -15,11 +16,14 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Plugin and skill name in every harness.
-pub const SKILL_NAME: &str = "necturalabs-fab";
+/// Skill name in every harness, listed as `necturalabs:fab`.
+pub const SKILL_NAME: &str = "fab";
+
+/// Plugin and marketplace name.
+pub const PLUGIN_NAME: &str = "necturalabs";
 
 /// Plugin id as `plugin@marketplace`.
-pub const PLUGIN_ID: &str = "necturalabs-fab@necturalabs-fab";
+pub const PLUGIN_ID: &str = "necturalabs@necturalabs";
 
 /// What one harness has installed.
 #[derive(Debug, Clone, Serialize)]
@@ -27,7 +31,7 @@ pub const PLUGIN_ID: &str = "necturalabs-fab@necturalabs-fab";
 pub struct HarnessStatus {
     /// `claude-code` or `codex`.
     pub harness: &'static str,
-    /// The plugin is installed and enabled.
+    /// The plugin is installed and enabled, or the skill is linked in.
     pub installed: bool,
     /// Installed plugin version, when the harness records one.
     pub version: Option<String>,
@@ -118,16 +122,23 @@ pub fn claude(claude_dir: &Path) -> HarnessStatus {
                 .cloned()
         });
     let manual = claude_dir.join("skills").join(SKILL_NAME);
+    // Without the plugin, a link from AgentSkills' install.sh is the install.
+    let linked = record.is_none() && is_link(&manual);
     HarnessStatus {
         harness: "claude-code",
-        installed: record.is_some(),
+        installed: record.is_some() || linked,
         version: record
             .as_ref()
             .and_then(|r| r.get("version")?.as_str().map(str::to_string)),
         location: record
             .as_ref()
-            .and_then(|r| r.get("installPath")?.as_str().map(PathBuf::from)),
-        duplicates: exists(&manual).into_iter().collect(),
+            .and_then(|r| r.get("installPath")?.as_str().map(PathBuf::from))
+            .or_else(|| linked.then(|| manual.clone())),
+        duplicates: if linked {
+            Vec::new()
+        } else {
+            exists(&manual).into_iter().collect()
+        },
     }
 }
 
@@ -148,8 +159,8 @@ pub fn codex(codex_dir: &Path, home: &Path) -> HarnessStatus {
     let cache = codex_dir
         .join("plugins")
         .join("cache")
-        .join(SKILL_NAME)
-        .join(SKILL_NAME);
+        .join(PLUGIN_NAME)
+        .join(PLUGIN_NAME);
     let version_dir = fs::read_dir(&cache).ok().and_then(|entries| {
         let mut dirs: Vec<PathBuf> = entries
             .filter_map(|e| e.ok().map(|e| e.path()))
@@ -158,22 +169,28 @@ pub fn codex(codex_dir: &Path, home: &Path) -> HarnessStatus {
         dirs.sort();
         dirs.pop()
     });
-    let duplicates = [
-        home.join(".agents").join("skills").join(SKILL_NAME),
-        codex_dir.join("skills").join(SKILL_NAME),
-    ]
-    .iter()
-    .filter_map(|p| exists(p))
-    .collect();
+    let agents = home.join(".agents").join("skills").join(SKILL_NAME);
+    // Without the plugin, a link from AgentSkills' install.sh is the install.
+    let linked = !enabled && is_link(&agents);
+    let duplicates = [agents.clone(), codex_dir.join("skills").join(SKILL_NAME)]
+        .iter()
+        .filter(|p| !(linked && **p == agents))
+        .filter_map(|p| exists(p))
+        .collect();
     HarnessStatus {
         harness: "codex",
-        installed: enabled,
+        installed: enabled || linked,
         version: version_dir
             .as_ref()
+            .filter(|_| enabled)
             .and_then(|d| d.file_name()?.to_str().map(str::to_string)),
-        location: version_dir,
+        location: if linked { Some(agents) } else { version_dir },
         duplicates,
     }
+}
+
+fn is_link(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink())
 }
 
 fn exists(path: &Path) -> Option<PathBuf> {
@@ -191,7 +208,7 @@ mod tests {
         fs::create_dir_all(&plugins).unwrap();
         fs::write(
             plugins.join("installed_plugins.json"),
-            r#"{"version":2,"plugins":{"necturalabs-fab@necturalabs-fab":[{"scope":"user","installPath":"/x/cache/necturalabs-fab/necturalabs-fab/0.1.0","version":"0.1.0"}]}}"#,
+            r#"{"version":2,"plugins":{"necturalabs@necturalabs":[{"scope":"user","installPath":"/x/cache/necturalabs/necturalabs/0.1.0","version":"0.1.0"}]}}"#,
         )
         .unwrap();
         let status = claude(tmp.path());
@@ -213,11 +230,10 @@ mod tests {
     fn codex_install_is_read_from_config_and_cache() {
         let tmp = tempfile::tempdir().unwrap();
         let codex_dir = tmp.path().join(".codex");
-        fs::create_dir_all(codex_dir.join("plugins/cache/necturalabs-fab/necturalabs-fab/0.1.0"))
-            .unwrap();
+        fs::create_dir_all(codex_dir.join("plugins/cache/necturalabs/necturalabs/0.1.0")).unwrap();
         fs::write(
             codex_dir.join("config.toml"),
-            "[plugins.\"necturalabs-fab@necturalabs-fab\"]\nenabled = true\n",
+            "[plugins.\"necturalabs@necturalabs\"]\nenabled = true\n",
         )
         .unwrap();
         let status = codex(&codex_dir, tmp.path());

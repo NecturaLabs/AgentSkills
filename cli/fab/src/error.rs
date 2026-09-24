@@ -93,7 +93,7 @@ impl ErrorCode {
     }
 
     /// Process exit code. The published table is
-    /// `plugin/skills/necturalabs-fab/references/errors.md`.
+    /// `skills/fab/references/errors.md`.
     pub const fn exit_code(self) -> i32 {
         match self {
             Self::Internal | Self::ProviderFailed | Self::DownloadFailed => 1,

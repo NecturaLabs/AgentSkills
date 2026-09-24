@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs fab)
 
 DEFAULT_DOC_BUDGET=32768
 

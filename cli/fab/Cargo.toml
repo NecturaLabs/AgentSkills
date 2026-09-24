@@ -1,11 +1,11 @@
 [package]
 name = "necturalabs-fab"
-version = "0.2.1"
+version = "4.1.1"
 edition = "2021"
 rust-version = "1.85"
 description = "Stable, agent-oriented CLI for the Fab marketplace. Provider-backed; FabCLI is one implementation."
 license = "MIT"
-repository = "https://github.com/NecturaLabs/FabCLI"
+repository = "https://github.com/NecturaLabs/AgentSkills"
 readme = "README.md"
 keywords = ["fab", "marketplace", "agents", "gamedev", "assets"]
 categories = ["command-line-utilities"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs fab)
 # Skills earlier releases shipped. Uninstall still removes their links, so an upgrade never
 # leaves one dangling.
 RETIRED_SKILLS=(threat-review)

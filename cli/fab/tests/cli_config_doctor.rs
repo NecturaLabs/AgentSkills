@@ -178,15 +178,14 @@ fn skill_status_reads_marketplace_installs_for_both_harnesses() {
     std::fs::create_dir_all(&plugins).unwrap();
     std::fs::write(
         plugins.join("installed_plugins.json"),
-        r#"{"version":2,"plugins":{"necturalabs-fab@necturalabs-fab":[{"installPath":"/c","version":"0.1.0"}]}}"#,
+        r#"{"version":2,"plugins":{"necturalabs@necturalabs":[{"installPath":"/c","version":"0.1.0"}]}}"#,
     )
     .unwrap();
     let codex = harness.home().join(".codex");
-    std::fs::create_dir_all(codex.join("plugins/cache/necturalabs-fab/necturalabs-fab/0.1.0"))
-        .unwrap();
+    std::fs::create_dir_all(codex.join("plugins/cache/necturalabs/necturalabs/0.1.0")).unwrap();
     std::fs::write(
         codex.join("config.toml"),
-        "[plugins.\"necturalabs-fab@necturalabs-fab\"]\nenabled = true\n",
+        "[plugins.\"necturalabs@necturalabs\"]\nenabled = true\n",
     )
     .unwrap();
     let harness = harness.env("CODEX_HOME", codex.to_str().unwrap());
@@ -203,12 +202,37 @@ fn skill_status_reads_marketplace_installs_for_both_harnesses() {
 #[test]
 fn skill_status_warns_about_a_hand_placed_duplicate() {
     let harness = Harness::new("base");
-    std::fs::create_dir_all(harness.home().join(".agents/skills/necturalabs-fab")).unwrap();
+    std::fs::create_dir_all(harness.home().join(".agents/skills/fab")).unwrap();
     let (value, _) = harness.json(&["skill", "status"]);
     let warnings = value["warnings"].as_array().unwrap();
     assert!(warnings
         .iter()
         .any(|w| w.as_str().unwrap().contains(".agents")));
+}
+
+#[cfg(unix)]
+#[test]
+fn skill_status_counts_a_codex_link_from_install_sh_as_installed() {
+    let harness = Harness::new("base");
+    let checkout = harness.home().join("AgentSkills/skills/fab");
+    std::fs::create_dir_all(&checkout).unwrap();
+    let skills = harness.home().join(".agents/skills");
+    std::fs::create_dir_all(&skills).unwrap();
+    std::os::unix::fs::symlink(&checkout, skills.join("fab")).unwrap();
+
+    let (value, _) = harness.json(&["skill", "status"]);
+    let codex = value["data"]["harnesses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|h| h["harness"] == "codex")
+        .unwrap()
+        .clone();
+    assert_eq!(codex["installed"], true, "{codex}");
+    assert!(
+        value["warnings"].as_array().is_none_or(|w| w.is_empty()),
+        "{value}"
+    );
 }
 
 #[test]
@@ -218,7 +242,7 @@ fn doctor_warns_when_the_installed_skill_is_from_another_release() {
     std::fs::create_dir_all(&plugins).unwrap();
     std::fs::write(
         plugins.join("installed_plugins.json"),
-        r#"{"version":2,"plugins":{"necturalabs-fab@necturalabs-fab":[{"installPath":"/c","version":"0.0.9"}]}}"#,
+        r#"{"version":2,"plugins":{"necturalabs@necturalabs":[{"installPath":"/c","version":"0.0.9"}]}}"#,
     )
     .unwrap();
 
