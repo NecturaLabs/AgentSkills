@@ -1,7 +1,7 @@
 {
   "name": "necturalabs-agent-skills",
-  "version": "4.1.1",
-  "description": "Six Agent Skills for coding agents: instruction-file maintenance, agent orchestration, independent review, threat review, test engineering, and project documentation.",
+  "version": "5.0.0",
+  "description": "NecturaLabs Agent Skills: five skills for instruction files, orchestration, independent review, testing and project docs, plus fab for the Fab asset marketplace.",
   "license": "MIT",
   "author": {
     "name": "NecturaLabs",
@@ -18,7 +18,7 @@
     "claude-code",
     "codex",
     "code-review",
-    "security-review"
+    "fab"
   ],
   "scripts": {
     "test": "bash tests/run-all.sh",

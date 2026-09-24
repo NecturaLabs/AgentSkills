@@ -1,6 +1,6 @@
 [package]
 name = "necturalabs-fab"
-version = "4.1.1"
+version = "5.0.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Stable, agent-oriented CLI for the Fab marketplace. Provider-backed; FabCLI is one implementation."
