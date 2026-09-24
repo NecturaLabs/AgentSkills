@@ -242,7 +242,7 @@ pub fn run(ctx: &Ctx) -> Result<Outcome> {
         };
         let check = if !status.installed {
             Check::new(id, Status::Warn, "plugin not installed")
-                .hint("run the installer: docs/installation.md")
+                .hint("install the necturalabs plugin: https://github.com/NecturaLabs/AgentSkills#install-by-hand")
         } else if let Some(duplicate) = status.duplicates.first() {
             Check::new(
                 id,
@@ -264,7 +264,7 @@ pub fn run(ctx: &Ctx) -> Result<Outcome> {
                     crate::VERSION
                 ),
             )
-            .hint("re-run the installer so the binary and the plugin come from the same release")
+            .hint("update the necturalabs plugin and re-run scripts/install-fab.sh so both come from the same release")
         } else {
             Check::new(
                 id,
