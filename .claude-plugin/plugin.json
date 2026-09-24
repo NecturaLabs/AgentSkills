@@ -1,7 +1,7 @@
 {
   "name": "necturalabs",
   "description": "NecturaLabs Agent Skills: five skills for instruction files, orchestration, independent review, testing and project docs, plus fab for the Fab asset marketplace.",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "author": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"

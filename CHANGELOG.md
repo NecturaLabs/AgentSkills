@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.0.1 — 2026-09-24
+
+### Changed
+
+- superpowers installs from Anthropic's official marketplace, which now pins its latest release
+  (6.4.1), so the `necturalabs` marketplace no longer lists it. If you installed
+  `superpowers@necturalabs` from 5.0.0: `claude plugin uninstall superpowers@necturalabs`, then
+  `claude plugin install superpowers@claude-plugins-official`; in Codex,
+  `codex plugin remove superpowers@necturalabs`, then
+  `codex plugin add superpowers@claude-plugins-official`.
+
+### Fixed
+
+- `necturalabs-fab doctor` points a missing or mismatched skill at the `necturalabs` plugin rather
+  than the retired standalone installer.
+
 ## 5.0.0 — 2026-09-24
 
 AgentSkills becomes an installable copy of the NecturaLabs Claude Code and Codex setup.
