@@ -254,6 +254,20 @@ if [ -n "$PLUGIN_NAME" ] && [ -f "$installed_plugins" ] && grep -qF "\"$PLUGIN_N
   && grep -Eq "\"$PLUGIN_NAME@[^\"]+\"[[:space:]]*:[[:space:]]*true" "$claude_settings"; then
   claude_plugin=1
 fi
+# Codex records an installed plugin as a [plugins."<plugin>@<marketplace>"] table in its config
+# and loads it only while that table says enabled = true.
+codex_plugin_enabled() {
+  local cfg=$CODEX_HOME_DIR/config.toml
+  [ -n "$PLUGIN_NAME" ] && [ -f "$cfg" ] || return 1
+  awk -v p="$PLUGIN_NAME" '
+    /^[[:space:]]*\[/ { insec = (index($0, "[plugins.\"" p "@") > 0); next }
+    insec && /^[[:space:]]*enabled[[:space:]]*=[[:space:]]*true/ { found = 1 }
+    END { exit !found }' "$cfg"
+}
+# The same holds for Codex: an enabled plugin loads the skills as <plugin>:<skill>, so a link in
+# the Codex root as well would load each twice.
+codex_plugin=0
+codex_plugin_enabled && codex_plugin=1
 
 printf 'AgentSkills install\n'
 printf '  checkout : %s\n' "$REPO_ROOT"
@@ -272,7 +286,9 @@ elif [ "$claude_present" -eq 1 ]; then
 else
   printf '  skipped  : Claude Code not found (no %s/.claude and no claude on PATH)\n' "$PREFIX"
 fi
-if [ "$codex_present" -eq 1 ]; then
+if [ "$codex_present" -eq 1 ] && [ "$codex_plugin" -eq 1 ]; then
+  printf '  found    : Codex with the %s plugin installed; its skills load from the plugin, so no links go into %s\n' "$PLUGIN_NAME" "$AGENTS_ROOT"
+elif [ "$codex_present" -eq 1 ]; then
   printf '  found    : Codex -> %s\n' "$AGENTS_ROOT"
 else
   printf '  skipped  : Codex not found (no %s/.codex, no %s/.agents and no codex on PATH)\n' "$PREFIX" "$PREFIX"
@@ -284,7 +300,7 @@ for name in "${SKILLS[@]}"; do
   if [ "$claude_present" -eq 1 ] && [ "$claude_plugin" -eq 0 ]; then
     install_one "$CLAUDE_ROOT" "$name" || status=1
   fi
-  if [ "$codex_present" -eq 1 ]; then
+  if [ "$codex_present" -eq 1 ] && [ "$codex_plugin" -eq 0 ]; then
     install_one "$AGENTS_ROOT" "$name" || status=1
   fi
 done

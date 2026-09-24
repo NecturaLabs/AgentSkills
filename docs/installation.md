@@ -155,13 +155,21 @@ clone and, in a sandboxed `HOME`, from a plain working checkout were both listed
 
 | Layout | Claude Code lists | Codex lists |
 |---|---|---|
+| Plugin in both harnesses | `necturalabs:<skill>` | `necturalabs:<skill>` |
 | Plugin, Codex linked to its clone | `necturalabs:<skill>` | `necturalabs:<skill>` |
 | Checkout linked into both | `<skill>` | `necturalabs:<skill>` |
 
 A global policy that routes to these skills by name, as `examples/global-agents.md` does, names
 each skill exactly once only under the plugin layout.
 
-`install.sh` and `doctor.sh` recognise the plugin from Claude Code's `installed_plugins.json`,
+Codex installs the plugin from the same marketplace (`codex plugin marketplace add
+NecturaLabs/AgentSkills`, then `codex plugin add necturalabs@necturalabs`); that is the recommended
+layout since 5.0.0. `install.sh` and `doctor.sh` recognise it from a `[plugins."necturalabs@…"]`
+table with `enabled = true` in Codex's `config.toml`: install then puts no links into
+`~/.agents/skills`, since Codex would load each skill twice, and doctor accepts the plugin and warns
+about any link that duplicates it.
+
+`install.sh` and `doctor.sh` recognise the Claude Code plugin from `installed_plugins.json`,
 counting it only while `enabledPlugins` marks it true. With it enabled, `install.sh` puts no links
 into `~/.claude/skills` — a personal link beside the plugin would load every skill twice — and
 still links Codex; `doctor.sh` accepts the plugin as the Claude install and warns about any

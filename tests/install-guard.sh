@@ -569,5 +569,29 @@ marketplace_links "$H"
 doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
 check "marketplace-disabled-doctor-error" "${#SKILLS[@]}" "$(printf '%s\n' "$doctor_out" | sed -n '/^Codex (user scope)/,/^$/p' | grep -c '\[error\]')"
 
+# 34. installed and enabled as a Codex plugin, the skills already load as <plugin>:<skill> in
+#     Codex: install makes no Codex links (they would load everything twice), and doctor accepts
+#     the plugin and warns about a link that duplicates it
+codex_plugin_home() {
+  local h
+  h=$(new_home)
+  mkdir -p "$h/.codex"
+  printf '[plugins."%s@%s"]\nenabled = %s\n' "$OTHER_PLUGIN_NAME" "$OTHER_PLUGIN_NAME" "$1" > "$h/.codex/config.toml"
+  printf '%s' "$h"
+}
+H=$(codex_plugin_home true)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "codex-plugin-install-no-links" "0" "$(link_count "$H/.agents")"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "codex-plugin-doctor-accepts" "1" "$(printf '%s\n' "$doctor_out" | grep -c "installed as the $OTHER_PLUGIN_NAME Codex plugin")"
+check "codex-plugin-doctor-no-missing" "0" "$(printf '%s\n' "$doctor_out" | sed -n '/^Codex (user scope)/,/^$/p' | grep -c 'is not installed')"
+mkdir -p "$H/.agents/skills"
+ln -s "$REPO_ROOT/skills/testing" "$H/.agents/skills/testing"
+doctor_out=$(bash "$DOCTOR" --prefix "$H" 2>&1)
+check "codex-plugin-doctor-warns-duplicate" "1" "$(printf '%s\n' "$doctor_out" | grep -c "Codex loads both $OTHER_PLUGIN_NAME:testing")"
+H=$(codex_plugin_home false)
+bash "$INSTALL" --prefix "$H" >/dev/null 2>&1
+check "codex-plugin-disabled-install-links" "${#SKILLS[@]}" "$(link_count "$H/.agents")"
+
 printf '\nGuard summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

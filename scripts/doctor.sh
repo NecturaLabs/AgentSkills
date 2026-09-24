@@ -241,6 +241,16 @@ fi
 # With the plugin enabled, the recommended Codex links point into its marketplace clone, so both
 # harnesses load one copy; a link there is correct even when this doctor runs from another checkout.
 MARKETPLACES_DIR=$(readlink -f -- "$CLAUDE_HOME/plugins/marketplaces" 2>/dev/null || true)
+# Codex records an installed plugin as a [plugins."<plugin>@<marketplace>"] table in its config
+# and loads it only while that table says enabled = true.
+codex_plugin_enabled() {
+  local cfg=$CODEX_HOME_DIR/config.toml
+  [ -n "$PLUGIN_NAME" ] && [ -f "$cfg" ] || return 1
+  awk -v p="$PLUGIN_NAME" '
+    /^[[:space:]]*\[/ { insec = (index($0, "[plugins.\"" p "@") > 0); next }
+    insec && /^[[:space:]]*enabled[[:space:]]*=[[:space:]]*true/ { found = 1 }
+    END { exit !found }' "$cfg"
+}
 
 printf 'Installed skills\n'
 if [ "$claude_active" -eq 1 ] && [ "$claude_plugin" -eq 1 ]; then
@@ -262,7 +272,16 @@ else
   info "harness not present; skipped"
   printf '\n'
 fi
-if [ "$codex_active" -eq 1 ]; then
+if [ "$codex_active" -eq 1 ] && codex_plugin_enabled; then
+  printf 'Codex (user scope) (%s)\n' "$AGENTS_ROOT"
+  ok "installed as the $PLUGIN_NAME Codex plugin; its skills load as $PLUGIN_NAME:<skill>, so no links are needed"
+  for name in "${SKILLS[@]}"; do
+    if [ -e "$AGENTS_ROOT/$name" ] || [ -L "$AGENTS_ROOT/$name" ]; then
+      warn "$AGENTS_ROOT/$name also exists; Codex loads both $PLUGIN_NAME:$name from the plugin and the linked copy"
+    fi
+  done
+  printf '\n'
+elif [ "$codex_active" -eq 1 ]; then
   check_root "$AGENTS_ROOT" "Codex (user scope)" 1
 else
   printf 'Codex (user scope) (%s)\n' "$AGENTS_ROOT"
