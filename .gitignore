@@ -24,3 +24,6 @@ Thumbs.db
 
 # Eval runs write here
 evals/results/
+
+# Third-party plugins the evals load, fetched by scripts/fetch-eval-plugins.sh
+evals/*/.plugins/
