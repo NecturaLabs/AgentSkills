@@ -84,6 +84,7 @@ guard and name the conflict in your report.
 | Tests are written, fixed, audited or deleted | `necturalabs:testing` |
 | An `AGENTS.md` is created, audited or shrunk | `necturalabs:agent-instructions` |
 | A decision, design, runbook or reference doc is recorded | `necturalabs:project-docs` |
+| Saved memories or handoff notes may be stale — a startup check flags them, a checkpoint is reached, or a handoff's work is finished | `necturalabs:memory-hygiene` |
 | Frontend design, UX, visual or interface work — verified in the rendered app at desktop and mobile widths | `impeccable:impeccable`, audited with `web-design-guidelines:web-design-guidelines`; `frontend-design:frontend-design` only when I ask |
 | A project needs a game asset it does not have, or the user mentions Fab — searched before anything is generated | `necturalabs:fab` |
 | Custom 2D game art, seamless or PBR texture maps, skyboxes, sprite animation or a style-locked asset set that Fab does not cover, or the user mentions Scenario | `01.-getting-started:scenario`, then the matching `scenario-*` skill. Unless I name Scenario, other images, video and audio stay with Codex or Higgsfield, and 3D meshes, retexturing one included, with the Meshy MCP (Claude Code only) |
@@ -101,9 +102,10 @@ Codex generates assets (images, textures, icons, models, any art) and does nothi
 project: no reviews, code, research or checks, however much of its allowance is left, and not
 because it has just reset. Reviews go to a separate context in the harness (Review, below). Every
 Codex call runs at high reasoning effort and prefers `gpt-6-sol`
-(`codex exec -m gpt-6-sol -c model_reasoning_effort=high`). Use `gpt-6-astra` at high effort only
-when I ask for it, or when Sol has failed the same asset twice. The Codex allowance is small, and
-Astra's much smaller. Report every Astra call.
+(`codex exec -m gpt-6-sol -c model_reasoning_effort=high`). Use `gpt-6-astra`, always at high
+effort (`codex exec -m gpt-6-astra -c model_reasoning_effort=high`), only when I explicitly confirm
+it for that asset: when Sol has failed the same asset twice, stop and ask me, never escalate on
+your own. The Codex allowance is small, and Astra's much smaller. Report every Astra call.
 
 ## Environment
 
@@ -184,9 +186,10 @@ the skill in use defines its own dispatch. Always:
 - Treat every project as production software with real users. Ceremony scales down; the standard
   does not.
 - **Done means evidence, not confidence**: the implementation is complete, the required checks ran,
-  the changed behavior is verified, docs and instruction files it made stale are updated in the same
-  change, blocking review findings are resolved, and every remaining limitation is reported. A
-  performance claim needs a measurement against a baseline.
+  the changed behavior is verified, docs, instruction files and saved memories it made stale are
+  updated in the same change, blocking review findings are resolved, and every remaining limitation
+  is reported. A performance claim needs a measurement against a baseline. A checkpoint also gets
+  one hygiene pass over the project's memories and handoff notes.
 - Existing contracts stay backward compatible unless the task or repository permits a break; where
   consumers must move, give them a documented migration path.
 - Finish the unit of work. If part cannot be finished, deliver the rest and say what is missing and

@@ -33,6 +33,16 @@
 
 ### Added
 
+- `memory-hygiene`, a skill that keeps saved memories and session handoff notes true: it checks
+  each against the repository, merges duplicates, retires finished handoffs, fixes the memory index
+  and routes drifted docs to `project-docs`, with its five eval cases.
+- `setup/claude/scripts/memory-check.py`, a SessionStart hook that flags memories no longer matching
+  the disk (index lines with no file, unlisted files, broken links, named paths that are gone) and
+  stays silent otherwise; `tests/memory-check-guard.sh` checks it. Copy it to `~/.claude/hooks/`;
+  the recommended `settings.json` registers it.
+- The working agreement keeps saved memories current with the change that made them stale, gives
+  every checkpoint one hygiene pass, and routes stale memories to `memory-hygiene`. Astra runs only
+  on the owner's explicit confirmation, always at high effort.
 - `scripts/tools.sh` builds the MCP servers no marketplace or vendor installer ships (Godot,
   Meshy, Blender Lab) from full clones at the revisions pinned in `setup/tools.tsv`, applies our
   patches, links each into `~/.local/bin`, and on `update` swaps to a new build while keeping the
