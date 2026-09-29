@@ -1,6 +1,6 @@
 {
   "name": "necturalabs-agent-skills",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "description": "NecturaLabs Agent Skills: six skills for instruction files, orchestration, independent review, testing, project docs and memory hygiene, plus fab for the Fab asset marketplace.",
   "license": "MIT",
   "author": {
