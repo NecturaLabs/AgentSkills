@@ -139,6 +139,11 @@ your own. The Codex allowance is small, and Astra's much smaller. Report every A
   Claude Code is the primary harness; give Codex the same set from the same source wherever Codex
   supports it. Never edit it in place, since an update overwrites its cache; override it from my
   own settings. Enabling is not installing: install, then confirm it in the harness's own list.
+- This setup — this file and the harness's settings, agents and hooks — is backed up in a
+  repository that only mirrors it: the local setup is the source of truth. After changing any of it,
+  mirror the change there in generalized form, with no personal paths, account names or secrets.
+  Never change the local setup to match the repository; put such a difference to me.
+  <!-- customize: name the backup repository and its local path, or delete this bullet. -->
 <!-- customize: if agents may edit your desktop or terminal configuration, add a rule for it, e.g.:
      "Back up each configuration file before editing it to a backup directory, at its path relative
      to the home directory and never beside the original; always leave a reset-to-default path."
