@@ -124,6 +124,7 @@ your own. The Codex allowance is small, and Astra's much smaller. Report every A
   or reputable sources: the harness's own official one where it carries the tool, else the
   vendor's own marketplace, else the AgentSkills marketplace (`necturalabs`), which pins each
   upstream at a recorded revision — never hand-placed or through `npm`, `npx` or a vendor script.
+  A tool none of these ships is built from its pinned upstream by AgentSkills' `scripts/tools.sh`.
   Claude Code is the primary harness; give Codex the same set from the same source wherever Codex
   supports it. Never edit it in place, since an update overwrites its cache; override it from my
   own settings. Enabling is not installing: install, then confirm it in the harness's own list.
