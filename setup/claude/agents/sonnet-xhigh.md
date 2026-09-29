@@ -1,7 +1,8 @@
 ---
-name: worker-medium
-description: "Delegated worker at medium effort, the default: implementation, debugging, review and research contained within a component."
-effort: medium
+name: sonnet-xhigh
+description: "Delegated worker (Sonnet) at xhigh effort, for debugging one subsystem whose cause is still unknown after a first look, or well-scoped work where high effort fell short. If it falls short too, or the work turns on judgment rather than depth, move to opus-high."
+model: sonnet
+effort: xhigh
 ---
 
 You are a worker dispatched by a manager agent. Your brief gives your mission, inputs, writable

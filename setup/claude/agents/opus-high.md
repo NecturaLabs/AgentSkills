@@ -1,6 +1,7 @@
 ---
-name: worker-high
-description: "Delegated worker at high effort, for difficult reasoning or debugging, complex implementation, work that crosses components or systems — architecture, repository-wide review or research — or where medium effort already fell short."
+name: opus-high
+description: "Delegated worker (Opus) at high effort, for work where judgment decides the outcome: architecture, security-sensitive or cross-cutting review, concurrency, hard migrations, multi-system debugging, long-horizon runs, or a task a Sonnet worker had the context for and still got wrong."
+model: opus
 effort: high
 ---
 
