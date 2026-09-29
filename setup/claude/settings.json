@@ -1,5 +1,5 @@
 {
-  "model": "opus[1m]",
+  "model": "opus",
   "modelSettings": {
     "claude-opus-5": {
       "effortLevel": "medium"
