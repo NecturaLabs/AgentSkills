@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Compactions are made safe to hit at any moment. The recommended settings compact at 500k
+  tokens (`autoCompactWindow`), run the new `compact-resume.py` SessionStart hook after each
+  compaction (it prints the session's `checklist.md`, the other scratchpad files and
+  `git status`) and show context used against that window in the new `statusline.py` status
+  line. `examples/global-agents.md` keeps a checklist for any task of more than a few steps,
+  written ahead of the work, treats it and the disk as the record after a compaction, and tells
+  the compaction summary what to keep. Copy both scripts in as the README's setup section says.
 - The worker agents in `setup/claude/agents/` pin a model as well as an effort: `opus-low` to
   `opus-xhigh` for judgment-led, long-horizon or costly-to-fail work, and `sonnet-low` to
   `sonnet-xhigh` as the default for work with a clear spec and a way to check it. They replace

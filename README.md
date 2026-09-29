@@ -26,7 +26,7 @@ expensive and has to earn it; a procedure that matters on one task in twenty bel
 loads on demand; anything a script can decide should never reach a model at all.
 
 `AGENTS.md` is the only maintained policy source — no competing CLAUDE policy layer, no context
-loader, no session-start hook that reinjects text. A second always-loaded file doesn't add guidance,
+loader, no session-start hook that reinjects instruction text. A second always-loaded file doesn't add guidance,
 it adds a copy that drifts. A repository `CLAUDE.md` is forbidden here and the validator fails the
 build if one reappears; the one verified exception is a user-scope shim outside this repo, covered
 in [docs/installation.md](docs/installation.md).
@@ -243,6 +243,9 @@ and `claude plugin marketplace update` for plugins.
 | ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
 | ☑ | Name each subagent after the model and effort it actually runs on, rewrite a `model` argument that contradicts a `<model>-<effort>` type, and refuse any spawn on Fable. Its per-session name counter goes under `CLAUDE_CODE_TMPDIR` when you set that, else the system temp directory | copy `setup/claude/scripts/agent-model-guard.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.PreToolUse`, matcher `Agent` |
 | ☑ | At session start, flag saved memories that no longer match the disk (index lines with no file, files the index misses, broken links, named paths that are gone), so the session tends them with `memory-hygiene` rather than trusting them; silent when all is well | copy `setup/claude/scripts/memory-check.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart` |
+| ☑ | Compact at 500k tokens rather than near the 1M window: recall falls off as context fills, and the working agreement keeps each task's state in a checklist that survives compaction | `settings.json`: `"autoCompactWindow": 500000` (or `/autocompact 500k`) |
+| ☑ | After each compaction, print the session's `checklist.md` from its scratchpad, the other files there and `git status`, so the session resumes from its own record rather than the summary; silent at every other session start | copy `setup/claude/scripts/compact-resume.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart`, matcher `compact` |
+| ☑ | Status line: model and context used against the auto-compact window, yellow from 70%, red from 90%, since newer models are not told their own token count. It replaces most footer hints, `esc to interrupt` among them | copy `setup/claude/scripts/statusline.py` to `~/.claude/statusline.py` and make it executable; `settings.json`: `statusLine` |
 | ☑ | Omarchy theme, only on Omarchy | `settings.json`: `"theme": "custom:omarchy"`; elsewhere leave the theme alone |
 
 **Codex settings** — merge from [`setup/codex/config.toml`](setup/codex/config.toml)

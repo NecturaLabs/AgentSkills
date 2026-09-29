@@ -54,13 +54,21 @@ guard and name the conflict in your report.
 
   Permission prompts may be turned off (bypass-permissions or yolo mode), so these stops are the
   guard and hold in every permission mode.
-- For a run long enough to outlive the context window, keep its checklist in a file outside the
-  repository — the session scratchpad where one exists — tick items as they finish and add what you
-  discover. After a compaction or reset, re-read that file, this one and the project's instruction
-  files rather than trusting the summary.
-- Work so that a compaction can happen at any moment without harming it: keep that checklist
-  current as you go (state, what is running, the exact next step), not only when asked, and
-  never leave a half-applied edit or an unrecorded background job between steps.
+- Keep a checklist for any task of more than a few steps, as `checklist.md` in the session
+  scratchpad (else a file outside the repository), written so a fresh session could finish the
+  task from it alone: my requests and decisions in my own words, each finished step with its
+  evidence, what is running (background job and agent IDs, and what each is for), the files
+  changed and not yet committed, and the exact next step. Findings that took real work — research,
+  measurements, review results — go in files beside it, not only in the conversation.
+- Assume a compaction can come between any two tool calls, without warning: the model is not
+  always told how full its context is. Write the checklist ahead of the work — record a background
+  job, a subagent, a multi-file edit or a new decision of mine before starting it or carrying on —
+  and tick each step with its result as it ends. Never leave a half-applied edit between steps.
+- After a compaction or reset, the checklist and the disk are the record, not the summary: re-read
+  the checklist, this file and the project's instruction files, check `git status` and what is
+  running against it, and redo nothing it marks done unless the disk contradicts it.
+- When compacting, the summary keeps: the checklist's path, my requests and decisions still in
+  force in my own words, running job and agent IDs, uncommitted files and the exact next step.
 - When I ask you to reach a clean compaction point, that comes first: as the main agent, do
   nothing else — no new steps, no waiting on results — only bring the checklist fully up to
   date, then pause and say so. I compact, and you resume from the checklist afterwards.
