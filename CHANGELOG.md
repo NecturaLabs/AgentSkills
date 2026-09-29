@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The recommended settings save Sonnet 5.5 at low effort, as the machine they back up does.
+
 ## 5.1.0 — 2026-09-29
 
 ### Changed

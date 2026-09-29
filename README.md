@@ -231,7 +231,7 @@ and `claude plugin marketplace update` for plugins.
 
 | | Setting | Where |
 |---|---|---|
-| ☑ | Model `opus`; effort Opus 5.5 high (other models keep their own defaults); `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
+| ☑ | Model `opus`; effort Opus 5.5 high, Sonnet 5.5 low (other models keep their own defaults); `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
 | ☑ | Sonnet for any subagent whose type names no model | `settings.json`: `env.CLAUDE_CODE_SUBAGENT_MODEL` |
 | ☑ | No attribution in commits or PRs | `settings.json`: `attribution` |
 | ☑ | **Bypass-permissions mode: turns off every permission prompt.** The working agreement's own stop rules become the only guard | `settings.json`: `permissions.defaultMode`, `skipDangerousModePermissionPrompt` |
