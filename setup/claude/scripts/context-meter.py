@@ -6,7 +6,8 @@ One script, two roles, told apart by the input:
 - Status line (input without `hook_event_name`): the model and the count, right-aligned in the
   status line's row. Claude Code draws that row above the footer and has no setting to move it, so
   the text is padded with spaces against COLUMNS (the terminal width Claude Code passes in),
-  leaving RIGHT_MARGIN for the row's own padding. Yellow from 70% of the window, red from 90%.
+  leaving RIGHT_MARGIN for the row's own padding. Claude Code trims leading spaces from the output,
+  so the padding starts with a blank braille cell (U+2800), which draws as a space but is not one. Yellow from 70% of the window, red from 90%.
 - Hook: on UserPromptSubmit it always adds one line of context with the count; on PostToolUse it
   adds that line only when the count first reaches 60%, 80%, 90% or 95% of the window, once per
   step, and again after a compaction brings the count back down. Main session and each subagent
@@ -40,6 +41,7 @@ YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
 RIGHT_MARGIN = 4
+BLANK = "\u2800"
 LARGE_WINDOW = 1_000_000
 SMALL_WINDOW = 200_000
 SMALL_WINDOW_MODELS = re.compile(r"haiku|-4-5|claude-3")
@@ -117,7 +119,8 @@ def right_aligned(text, columns):
     width = len(ANSI.sub("", text))
     if not columns.isdigit():
         return text
-    return " " * max(0, int(columns) - RIGHT_MARGIN - width) + text
+    pad = max(0, int(columns) - RIGHT_MARGIN - width)
+    return (BLANK + " " * (pad - 1) if pad else "") + text
 
 
 def status_line(data):

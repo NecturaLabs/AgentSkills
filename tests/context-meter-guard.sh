@@ -84,6 +84,7 @@ right() { # columns payload
 out=$(right 80 "$(payload 0 0 100000 0)")
 check "right-aligned-width" 76 "${#out}"
 check "right-aligned-tail" "(20%)" "${out##* }"
+check "padding-survives-trim" "$(printf '\u2800')" "${out:0:1}" # Claude Code trims leading spaces
 out=$(right 80 "$(payload 0 0 450000 0)")
 plain=$(sed "s/${ESC}\[[0-9;]*m//g" <<< "$out")
 check "colour-not-counted" 76 "${#plain}"
