@@ -21,15 +21,19 @@ follow a path relative to material it never loaded.
 
 ## Model and effort
 
-Take the first row that matches. **Strong** is the harness's most capable model and **ordinary** its
-standard one; the table is written in tiers because vendor model names change far faster than this
-guidance should. Never spend the strong tier on deterministic or low-judgment work.
+Take the first row that matches. **Strong** is the strongest tier the setup provides and
+**ordinary** its standard one; the table is written in tiers because vendor model names change far
+faster than this guidance should. A setup may exclude a model, and an excluded model is never the
+strong tier: where the setup pins model-and-effort agent types, strong means its `opus-*` types and
+ordinary its `sonnet-*` types, with ordinary the default and strong chosen only from its own rows.
+Never spend the strong tier on deterministic or low-judgment work.
 
 | Node | Tier | Effort |
 |---|---|---|
 | Complex work where failure is costly or irreversible: auth, crypto, production data, destructive migrations | strong | highest |
-| Architecture, security-sensitive or cross-cutting review, concurrency, hard migrations, multi-system debugging | strong | high |
+| Architecture, security-sensitive or cross-cutting review, concurrency, hard migrations, multi-system debugging, long-horizon runs | strong | high |
 | Short judgment, little output: review a plan, choose between approaches, adjudicate a finding | strong | medium |
+| A quick expert look at a small, fully supplied context where depth is not needed | strong | low |
 | Debugging one subsystem whose cause is unknown after a first look | ordinary | highest |
 | New behavior or a fix across a handful of files of known code; new tests; ordinary diff review; research needing synthesis | ordinary | high |
 | Edits in one or two files following an existing pattern; tests mirroring existing ones; docs; context compilation | ordinary | medium |
