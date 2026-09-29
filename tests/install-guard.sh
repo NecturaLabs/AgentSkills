@@ -13,7 +13,7 @@ REPO_ROOT=${SCRIPT_DIR%/*}
 INSTALL=$REPO_ROOT/scripts/install.sh
 UNINSTALL=$REPO_ROOT/scripts/uninstall.sh
 DOCTOR=$REPO_ROOT/scripts/doctor.sh
-SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs fab)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs memory-hygiene fab)
 
 PASS=0
 FAIL=0

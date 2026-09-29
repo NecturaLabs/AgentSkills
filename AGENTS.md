@@ -49,9 +49,9 @@ files of our own: connector manifests whose servers users install from upstream,
 config, and our own patches to an upstream that users build from source (each patch named in its
 `UPSTREAM.md`, with upstream's copyright notice). Third-party plugins are marketplace entries pinned
 to upstream commits in `.claude-plugin/marketplace.json`; never commit their code here. `setup/`
-holds the recommended settings, the pinned tool manifest (`tools.tsv`), worker agents and the
-Agent-call guard script (`setup/claude/scripts/`, never under a `hooks/` directory) the README's
-setup section merges in.
+holds the recommended settings, the pinned tool manifest (`tools.tsv`), worker agents and the hook
+scripts (`setup/claude/scripts/`: the Agent-call guard and the memory check, never under a `hooks/`
+directory) the README's setup section merges in.
 
 `examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not
 instructions for work on this repo. They are named `*-agents.md` so an agent working under

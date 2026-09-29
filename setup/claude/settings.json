@@ -28,6 +28,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/memory-check.py",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "skipDangerousModePermissionPrompt": true,

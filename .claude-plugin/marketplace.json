@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "necturalabs",
-      "description": "NecturaLabs Agent Skills: five skills for instruction files, orchestration, independent review, testing and project docs, plus fab for the Fab asset marketplace.",
+      "description": "NecturaLabs Agent Skills: six skills for instruction files, orchestration, independent review, testing, project docs and memory hygiene, plus fab for the Fab asset marketplace.",
       "source": "./"
     },
     {

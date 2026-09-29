@@ -1,8 +1,8 @@
 # AgentSkills
 
-The NecturaLabs setup for Claude Code and Codex: six Agent Skills of our own — instruction-file
-maintenance, agent orchestration, independent review, test engineering, project documentation, and
-`fab` for the Fab asset marketplace — plus a marketplace that pins every third-party plugin the
+The NecturaLabs setup for Claude Code and Codex: seven Agent Skills of our own — instruction-file
+maintenance, agent orchestration, independent review, test engineering, project documentation,
+memory hygiene, and `fab` for the Fab asset marketplace — plus a marketplace that pins every third-party plugin the
 setup uses, the global working agreement, worker agents and recommended settings. An agent reading
 this README can install all of it for you: see [Set up with your agent](#set-up-with-your-agent).
 
@@ -49,6 +49,7 @@ belongs.
 | **`independent-review`** | A behavioral, cross-file, schema, dependency or concurrency change is finished and needs a reviewer that did not write it — the procedure around the harness's own reviewer, or the reviewer where there is none |
 | **`testing`** | Adding coverage for new behavior, writing a regression test for a defect, fixing a failing or flaky test, choosing the right test level, or auditing a suite |
 | **`project-docs`** | Recording a consequential decision and its rationale, documenting how a system is structured, or auditing docs that have drifted from the code |
+| **`memory-hygiene`** | Keeping saved memories and session handoff notes true: verifying them against the repository, merging duplicates, retiring finished handoffs, fixing the memory index |
 | **`fab`** | A project needs a game asset it does not have, or the user mentions Fab or their Fab library: find, compare, inspect, claim and download through the `necturalabs-fab` CLI ([docs](docs/fab/README.md)) |
 
 Each description states what the skill is *not* for as well, because that clause is what keeps
@@ -161,7 +162,7 @@ Upgrading from a release before 5.0.0 that used `scripts/install.sh` links for C
 
 | | Item | What it's for | Install from |
 |---|---|---|---|
-| ☑ | `necturalabs` | This repository's six skills, including `fab` | `necturalabs@necturalabs` |
+| ☑ | `necturalabs` | This repository's seven skills, including `fab` | `necturalabs@necturalabs` |
 | ☑ | `security-audit` | Cloudflare's security review, focused or full audit | `security-audit@necturalabs` (upstream `cloudflare/security-audit-skill`, MIT) |
 | ☑ | superpowers | Brainstorm, plan, TDD, subagent-driven development, reviews; runs as written, including its session-start hook | `superpowers@claude-plugins-official` (`obra/superpowers`, MIT) |
 | ☑ | `impeccable` | Frontend design, critique and polish | `impeccable@impeccable` (`pbakaus/impeccable`) |
@@ -241,6 +242,7 @@ and `claude plugin marketplace update` for plugins.
 | ☑ | Small scripted workflows | `~/.claude.json`: `"workflowSizeGuideline": "small"` |
 | ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
 | ☑ | Name each subagent after the model and effort it actually runs on, rewrite a `model` argument that contradicts a `<model>-<effort>` type, and refuse any spawn on Fable. Its per-session name counter goes under `CLAUDE_CODE_TMPDIR` when you set that, else the system temp directory | copy `setup/claude/scripts/agent-model-guard.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.PreToolUse`, matcher `Agent` |
+| ☑ | At session start, flag saved memories that no longer match the disk (index lines with no file, files the index misses, broken links, named paths that are gone), so the session tends them with `memory-hygiene` rather than trusting them; silent when all is well | copy `setup/claude/scripts/memory-check.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart` |
 | ☑ | Omarchy theme, only on Omarchy | `settings.json`: `"theme": "custom:omarchy"`; elsewhere leave the theme alone |
 
 **Codex settings** — merge from [`setup/codex/config.toml`](setup/codex/config.toml)
