@@ -23,6 +23,19 @@
   "permissions": {
     "defaultMode": "bypassPermissions"
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/agent-model-guard.py"
+          }
+        ]
+      }
+    ]
+  },
   "skipDangerousModePermissionPrompt": true,
   "askUserQuestionTimeout": "60s",
   "tui": "fullscreen",
