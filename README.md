@@ -80,7 +80,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | The NecturaLabs setup's user-scope working agreement, about 17 KB: autonomy and stop rules, how a skill in use runs as written and which guards still apply, native-first capability routing, scenario routing to named skills, marketplace-only install sources, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
+| [`global-agents.md`](examples/global-agents.md) | The NecturaLabs setup's user-scope working agreement, about 20 KB: autonomy and stop rules, how a skill in use runs as written and which guards still apply, native-first capability routing, scenario routing to named skills, marketplace-only install sources, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 
@@ -212,15 +212,16 @@ build, else the vendor's own installer or releases)
 
 | | Setting | Where |
 |---|---|---|
-| ☑ | Model `opus[1m]`; effort Opus 5 medium, Sonnet 5 medium, Opus 5.5 high; `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
-| ☑ | Subagents on Sonnet | `settings.json`: `env.CLAUDE_CODE_SUBAGENT_MODEL` |
+| ☑ | Model `opus`; effort Opus 5 medium, Sonnet 5 medium, Opus 5.5 high; `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
+| ☑ | Sonnet for any subagent whose type names no model | `settings.json`: `env.CLAUDE_CODE_SUBAGENT_MODEL` |
 | ☑ | No attribution in commits or PRs | `settings.json`: `attribution` |
 | ☑ | **Bypass-permissions mode: turns off every permission prompt.** The working agreement's own stop rules become the only guard | `settings.json`: `permissions.defaultMode`, `skipDangerousModePermissionPrompt` |
 | ☑ | 60 s question timeout, fullscreen TUI, 12-hour clock, Remote Control at startup, accept cross-session messages, push notifications | `settings.json`: `askUserQuestionTimeout`, `tui`, `timeFormat`, `remoteControlAtStartup`, `crossSessionInbound`, `agentPushNotifEnabled` |
 | ☑ | The plugin set above, with the Vercel MCP server off | `settings.json`: `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
 | ☑ | Concise output style | `settings.local.json`: `outputStyle` |
 | ☑ | Small scripted workflows | `~/.claude.json`: `"workflowSizeGuideline": "small"` |
-| ☑ | Worker agents `worker-low`, `-medium`, `-high`, `-xhigh` | copy `setup/claude/agents/*.md` into `~/.claude/agents/` |
+| ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh` | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
+| ☑ | Name each subagent after the model and effort it actually runs on, rewrite a `model` argument that contradicts a `<model>-<effort>` type, and refuse any spawn on Fable. Its per-session name counter goes under `CLAUDE_CODE_TMPDIR` when you set that, else the system temp directory | copy `setup/claude/scripts/agent-model-guard.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.PreToolUse`, matcher `Agent` |
 | ☑ | Omarchy theme, only on Omarchy | `settings.json`: `"theme": "custom:omarchy"`; elsewhere leave the theme alone |
 
 **Codex settings** — merge from [`setup/codex/config.toml`](setup/codex/config.toml)

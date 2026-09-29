@@ -45,7 +45,8 @@ exists to avoid.
 only files of our own: connector manifests whose servers users install from upstream, and a
 language-server config. Third-party plugins are marketplace entries pinned to upstream commits in
 `.claude-plugin/marketplace.json`; never commit their code here. `setup/` holds the recommended
-settings and worker agents the README's setup section merges in.
+settings, worker agents and the Agent-call guard script (`setup/claude/scripts/`, never under a
+`hooks/` directory) the README's setup section merges in.
 
 `examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not
 instructions for work on this repo. They are named `*-agents.md` so an agent working under
