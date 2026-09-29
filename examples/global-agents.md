@@ -86,6 +86,7 @@ guard and name the conflict in your report.
 | A decision, design, runbook or reference doc is recorded | `necturalabs:project-docs` |
 | Frontend design, UX, visual or interface work — verified in the rendered app at desktop and mobile widths | `impeccable:impeccable`, audited with `web-design-guidelines:web-design-guidelines`; `frontend-design:frontend-design` only when I ask |
 | A project needs a game asset it does not have, or the user mentions Fab — searched before anything is generated | `necturalabs:fab` |
+| Custom 2D game art, seamless or PBR texture maps, skyboxes, sprite animation or a style-locked asset set that Fab does not cover, or the user mentions Scenario | `01.-getting-started:scenario`, then the matching `scenario-*` skill. Unless I name Scenario, other images, video and audio stay with Codex or Higgsfield, and 3D meshes, retexturing one included, with the Meshy MCP (Claude Code only) |
 
 Prefer the cheapest reliable source of truth: deterministic tool output, then code-intelligence
 tools where available, then targeted search and reads, project docs, skills and connectors, and
@@ -126,7 +127,9 @@ Astra's much smaller. Report every Astra call.
   own settings. Enabling is not installing: install, then confirm it in the harness's own list.
 <!-- customize: if agents may edit your desktop or terminal configuration, add a rule for it, e.g.:
      "Back up each configuration file before editing it to a backup directory, at its path relative
-     to the home directory and never beside the original; always leave a reset-to-default path." -->
+     to the home directory and never beside the original; always leave a reset-to-default path."
+     On Omarchy, also add a Capabilities row sending desktop, Hyprland and terminal configuration
+     under ~/.config to the `omarchy` skill. -->
 - The working directory persists between commands. Prefer absolute paths and `git -C <path>`, and
   confirm where you are before anything that writes.
 - Verification commands come from the repo's scripts, docs and CI; if none exist, infer the minimal
@@ -167,7 +170,9 @@ the skill in use defines its own dispatch. Always:
   strong tier, only for its strong rows — judgment-led, long-horizon or costly-to-fail work —
   never for mechanical or well-specified work, and never out of habit. Only the latest Opus and
   Sonnet run, through the `opus` and `sonnet` aliases, at the effort the type names; never Fable,
-  for any agent or workflow step (a hook refuses a Fable spawn through the Agent tool).
+  for any agent or workflow step (a hook refuses a Fable spawn through the Agent tool). Where the
+  project's own `.claude/agents/` defines a specialist for the job, use it; it pins its model and
+  effort by the same tiers.
   <!-- customize: Claude Code with the agent types and hook from setup/claude; adapt the model
        names and tiers to your harness, or delete the bullet. -->
 - At most **5 subagents active at once**, nested agents included. A scripted multi-agent workflow

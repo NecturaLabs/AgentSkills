@@ -1,12 +1,6 @@
 {
   "model": "opus",
   "modelSettings": {
-    "claude-opus-5": {
-      "effortLevel": "medium"
-    },
-    "claude-sonnet-5": {
-      "effortLevel": "medium"
-    },
     "claude-opus-5-5": {
       "effortLevel": "high"
     }
@@ -43,6 +37,7 @@
   "remoteControlAtStartup": true,
   "crossSessionInbound": "accept",
   "agentPushNotifEnabled": true,
+  "autoScrollEnabled": true,
   "extraKnownMarketplaces": {
     "necturalabs": {
       "source": {
@@ -64,6 +59,13 @@
         "repo": "vercel-labs/agent-browser"
       },
       "autoUpdate": true
+    },
+    "scenario-skills": {
+      "source": {
+        "source": "github",
+        "repo": "scenario-labs/skills"
+      },
+      "autoUpdate": true
     }
   },
   "enabledPlugins": {
@@ -82,7 +84,16 @@
     "blender-lab-mcp@necturalabs": true,
     "godot-mcp-toolkit@necturalabs": true,
     "typescript-native-lsp@necturalabs": true,
-    "lua-lsp@claude-plugins-official": true
+    "lua-lsp@claude-plugins-official": true,
+    "sentry@claude-plugins-official": true,
+    "sentry-cli@claude-plugins-official": true,
+    "meshy-mcp@necturalabs": true,
+    "01.-getting-started@scenario-skills": true,
+    "03.-images@scenario-skills": true,
+    "04.-game-art-and-environments@scenario-skills": true,
+    "05.-video-and-audio@scenario-skills": true,
+    "06.-consistency-and-custom-models@scenario-skills": true,
+    "07.-reviewing-and-organizing-output@scenario-skills": true
   },
   "disabledMcpServers": [
     "plugin:vercel:vercel"

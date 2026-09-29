@@ -144,8 +144,10 @@ codex plugin marketplace add anthropics/claude-plugins-official
 # only when an item from them is kept:
 claude plugin marketplace add pbakaus/impeccable            # impeccable
 claude plugin marketplace add vercel-labs/agent-browser     # agent-browser
+claude plugin marketplace add scenario-labs/skills          # scenario-skills
 codex plugin marketplace add pbakaus/impeccable
 codex plugin marketplace add vercel-labs/agent-browser
+codex plugin marketplace add scenario-labs/skills
 ```
 
 `claude-plugins-official` is built into Claude Code. A plugin then installs with
@@ -173,6 +175,10 @@ Upgrading from a release before 5.0.0 that used `scripts/install.sh` links for C
 | ☑ | `agent-browser` | Browser and UI inspection | `agent-browser@agent-browser` (`vercel-labs/agent-browser`) |
 | ☑ | Blender MCP | Drive Blender from the agent | `blender-lab-mcp@necturalabs`; needs Blender and `blender-mcp` (tools below) |
 | ☑ | Godot MCP | Drive the Godot editor from the agent | `godot-mcp-toolkit@necturalabs`; needs Godot and `godot-mcp-server` (tools below) |
+| ☑ | Meshy MCP | Text- and image-to-3D, rigging, animation and retexturing through Meshy; Claude Code only | `meshy-mcp@necturalabs`; needs `meshy-mcp-server` (tools below) and a Meshy API key, which Claude Code asks for when the plugin is enabled and keeps in its credential store |
+| ☑ | Scenario | Game art, seamless and PBR textures, skyboxes, sprite animation, video and audio through Scenario | `01.-getting-started`, `03.-images`, `04.-game-art-and-environments`, `05.-video-and-audio`, `06.-consistency-and-custom-models` and `07.-reviewing-and-organizing-output` `@scenario-skills` (`scenario-labs/skills`); connect Scenario's MCP server as `01.-getting-started:scenario` describes |
+| ☑ | Higgsfield | Image, video and audio generation | Claude Code: the Higgsfield connector on claude.ai (Settings → Connectors); Codex: `mcp_servers.higgsfield` (Codex settings below) |
+| ☑ | Sentry | Sentry issues, events and releases through its MCP server, and the Sentry CLI skill | `sentry@claude-plugins-official` and `sentry-cli@claude-plugins-official`; the CLI skill needs `sentry` (tools below) |
 | ☑ | Unity MCP | Drive the Unity editor from the agent | `claude mcp add -s user unity-editor-mcp -- unity mcp` and `codex mcp add unity-editor-mcp -- unity mcp`; needs the Unity CLI |
 | ☐ | GitLab | GitLab MCP server | `gitlab@claude-plugins-official` |
 | ☐ | Vercel React extras | React composition patterns, View Transitions, React Native | `vercel-composition-patterns`, `vercel-react-view-transitions`, `vercel-react-native-skills` `@necturalabs` (upstream `vercel-labs/agent-skills`, each MIT) |
@@ -205,6 +211,8 @@ build, else the vendor's own installer or releases)
 | ☑ | `blender-mcp` and its add-on | the Blender MCP server | Blender Foundation, pinned: [plugins/blender-lab-mcp/UPSTREAM.md](plugins/blender-lab-mcp/UPSTREAM.md) |
 | ☑ | Godot | the Godot MCP server | `godotengine.org`, or the distro package |
 | ☑ | `godot-mcp-server` and its add-on | the Godot MCP server | NPGameDev, pinned: [plugins/godot-mcp-toolkit/UPSTREAM.md](plugins/godot-mcp-toolkit/UPSTREAM.md) |
+| ☑ | `meshy-mcp-server` | the Meshy MCP server | Meshy, pinned: [plugins/meshy-mcp/UPSTREAM.md](plugins/meshy-mcp/UPSTREAM.md) |
+| ☑ | `sentry` | the Sentry CLI skill | Sentry: `curl https://cli.sentry.dev/install -fsS \| bash`, then `sentry auth login` |
 | ☑ | `necturalabs-fab` and `fabcli` | the `fab` skill | AgentSkills releases and `zirklerite/FabCLI` (GPL-3.0, never bundled): `curl -fsSL https://raw.githubusercontent.com/NecturaLabs/AgentSkills/main/scripts/install-fab.sh \| sh` — Windows and details in [docs/fab/installation.md](docs/fab/installation.md) |
 | ☐ | Real-ESRGAN ncnn-vulkan | upscaling generated images | `github.com/xinntao/Real-ESRGAN` release v0.2.5.0 |
 
@@ -212,15 +220,16 @@ build, else the vendor's own installer or releases)
 
 | | Setting | Where |
 |---|---|---|
-| ☑ | Model `opus`; effort Opus 5 medium, Sonnet 5 medium, Opus 5.5 high; `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
+| ☑ | Model `opus`; effort Opus 5.5 high (other models keep their own defaults); `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
 | ☑ | Sonnet for any subagent whose type names no model | `settings.json`: `env.CLAUDE_CODE_SUBAGENT_MODEL` |
 | ☑ | No attribution in commits or PRs | `settings.json`: `attribution` |
 | ☑ | **Bypass-permissions mode: turns off every permission prompt.** The working agreement's own stop rules become the only guard | `settings.json`: `permissions.defaultMode`, `skipDangerousModePermissionPrompt` |
-| ☑ | 60 s question timeout, fullscreen TUI, 12-hour clock, Remote Control at startup, accept cross-session messages, push notifications | `settings.json`: `askUserQuestionTimeout`, `tui`, `timeFormat`, `remoteControlAtStartup`, `crossSessionInbound`, `agentPushNotifEnabled` |
+| ☑ | 60 s question timeout, fullscreen TUI, 12-hour clock, Remote Control at startup, accept cross-session messages, push notifications, auto-scroll | `settings.json`: `askUserQuestionTimeout`, `tui`, `timeFormat`, `remoteControlAtStartup`, `crossSessionInbound`, `agentPushNotifEnabled`, `autoScrollEnabled` |
 | ☑ | The plugin set above, with the Vercel MCP server off | `settings.json`: `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
+| ☑ | Per project: plugins it never uses turned off, and more of the context for skill descriptions when `/doctor` reports them dropped | the project's `.claude/settings.json`: `enabledPlugins` set to `false` (project settings override user settings), `"skillListingBudgetFraction": 0.02` |
 | ☑ | Concise output style | `settings.local.json`: `outputStyle` |
 | ☑ | Small scripted workflows | `~/.claude.json`: `"workflowSizeGuideline": "small"` |
-| ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh` | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
+| ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
 | ☑ | Name each subagent after the model and effort it actually runs on, rewrite a `model` argument that contradicts a `<model>-<effort>` type, and refuse any spawn on Fable. Its per-session name counter goes under `CLAUDE_CODE_TMPDIR` when you set that, else the system temp directory | copy `setup/claude/scripts/agent-model-guard.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.PreToolUse`, matcher `Agent` |
 | ☑ | Omarchy theme, only on Omarchy | `settings.json`: `"theme": "custom:omarchy"`; elsewhere leave the theme alone |
 
@@ -230,7 +239,7 @@ build, else the vendor's own installer or releases)
 |---|---|
 | ☑ | Model `gpt-6-sol` at high reasoning effort |
 | ☑ | **Yolo mode: turns off approval prompts and the sandbox** (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`). The working agreement's own stop rules become the only guard |
-| ☑ | The same plugins as Claude Code, and the Unity MCP server |
+| ☑ | The same plugins as Claude Code, and the Unity, Scenario and Higgsfield MCP servers |
 | ☑ | `impeccable@openai-curated-remote` and `superpowers@openai-curated-remote` disabled |
 | ☑ | Vercel's MCP server off: `enabled = false` under `[mcp_servers.vercel]` |
 

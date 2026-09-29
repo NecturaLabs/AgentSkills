@@ -17,9 +17,27 @@
   the delegation routing (`sonnet-*` by default, `opus-*` for strong rows, latest aliases, never
   Fable) and one review per checkpoint.
 - The recommended Claude Code settings use model `opus` rather than `opus[1m]`.
+- The recommended settings drop the saved effort for Opus 5 and Sonnet 5, which the `opus` and
+  `sonnet` aliases no longer reach; Opus 5.5 stays at `high`. They turn on auto-scroll and enable
+  the Scenario, Sentry and Meshy plugins below.
+- `examples/global-agents.md` dispatches a project's own specialist agent (its `.claude/agents/`)
+  before a tier type when one fits, routes custom 2D game art, textures, skyboxes and sprite
+  animation to Scenario, and notes the `omarchy` route in the desktop marker. The README's setup
+  section describes per-project specialists and per-project plugin opt-outs with
+  `skillListingBudgetFraction`.
+- `godot-mcp-toolkit` is `1.0.2+fork.2`: its bridge is built with two fixes of our own in
+  `plugins/godot-mcp-toolkit/patches/` (a game run's port -1 stand-in is never dialled as the
+  editor; a re-discovered channel sends the response limits). Rebuild the bridge as its
+  `UPSTREAM.md` now describes.
 
 ### Added
 
+- `meshy-mcp`, a Claude Code connector for Meshy's official MCP server 0.5.2, built from the pinned
+  tag (`plugins/meshy-mcp/UPSTREAM.md`); the API key is a sensitive plugin option kept in Claude
+  Code's credential store.
+- Setup checklist rows for the Scenario skills (`scenario-skills` marketplace), Sentry and its CLI,
+  Higgsfield, and the `meshy-mcp-server` and `sentry` tools; the Codex settings add the Scenario and
+  Higgsfield MCP servers.
 - `setup/claude/scripts/agent-model-guard.py`, a PreToolUse hook on Agent that names each subagent
   after the model and effort it actually runs on, rewrites a `model` argument that contradicts a
   `<model>-<effort>` type, and refuses a spawn on Fable. Copy it to `~/.claude/hooks/` and make it

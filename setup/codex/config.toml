@@ -13,6 +13,13 @@ sandbox_mode = "danger-full-access"
 command = "unity"
 args = ["mcp"]
 
+# Remote servers; each signs in with `codex mcp login <name>` on first use.
+[mcp_servers.scenario]
+url = "https://mcp.scenario.com/mcp"
+
+[mcp_servers.higgsfield]
+url = "https://mcp.higgsfield.ai/mcp"
+
 # The Codex-catalog copies add no skills to the Codex CLI; the marketplace
 # installs below replace them.
 [plugins."impeccable@openai-curated-remote"]
