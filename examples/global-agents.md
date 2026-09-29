@@ -11,9 +11,9 @@ silently.
 
 How I want work done, in every repository and under any agent.
 
-This file is the only maintained policy source; no hook, prompt file or context loader restates
-it. Procedure lives in skills, project facts in each repository's docs, code and config, and
-enforceable rules in scripts, linters, tests and CI.
+This file is the only maintained policy source for these rules; where another instruction file
+repeats one, this file is the one kept current. Procedure lives in skills, project facts in each
+repository's docs, code and config, and enforceable rules in scripts, linters, tests and CI.
 
 Precedence: my explicit instruction in chat, then the project instruction files the harness loaded
 (`AGENTS.md` or `CLAUDE.md`), the one nearest the edited path winning, then this file. Saved
@@ -58,6 +58,13 @@ guard and name the conflict in your report.
   repository — the session scratchpad where one exists — tick items as they finish and add what you
   discover. After a compaction or reset, re-read that file, this one and the project's instruction
   files rather than trusting the summary.
+- Work so that a compaction can happen at any moment without harming it: keep that checklist
+  current as you go (state, what is running, the exact next step), not only when asked, and
+  never leave a half-applied edit or an unrecorded background job between steps.
+- When I ask you to reach a clean compaction point, that comes first: as the main agent, do
+  nothing else — no new steps, no waiting on results — only bring the checklist fully up to
+  date, then pause and say so. I compact, and you resume from the checklist afterwards.
+  Running subagents are not affected; leave them working.
 
 ## Capabilities
 
@@ -66,6 +73,8 @@ guard and name the conflict in your report.
   reviewer as their pass.
 - When a row below applies, load its skill rather than reconstructing the procedure from memory.
   Names are as the harness exposes them (`necturalabs:` in Claude Code and Codex).
+- Any other skill loads only when its description fits the task at hand, whatever a plugin's own
+  text says about invoking skills on the slightest chance they apply.
 
 | When | Load |
 |---|---|
@@ -76,7 +85,7 @@ guard and name the conflict in your report.
 | An `AGENTS.md` is created, audited or shrunk | `necturalabs:agent-instructions` |
 | A decision, design, runbook or reference doc is recorded | `necturalabs:project-docs` |
 | Frontend design, UX, visual or interface work — verified in the rendered app at desktop and mobile widths | `impeccable:impeccable`, audited with `web-design-guidelines:web-design-guidelines`; `frontend-design:frontend-design` only when I ask |
-| A project needs a game asset it does not have, or the user mentions Fab | `necturalabs:fab` |
+| A project needs a game asset it does not have, or the user mentions Fab — searched before anything is generated | `necturalabs:fab` |
 
 Prefer the cheapest reliable source of truth: deterministic tool output, then code-intelligence
 tools where available, then targeted search and reads, project docs, skills and connectors, and
@@ -85,9 +94,15 @@ filtering, counting — goes to a tool, never to model reasoning. Prefer `gh` fo
 `agent-browser` for browser and UI inspection, else the harness's maintained equivalent; call a
 connector only when the task needs what it reaches.
 
-Every asset generated through Codex — images, textures, icons, models, any art — runs as
-`gpt-6-sol` at high reasoning effort (`codex exec -m gpt-6-sol -c model_reasoning_effort=high`),
-never another model or effort, in every project.
+<!-- customize: this paragraph assumes Codex is your asset generator. Name your own generator,
+     models and allowance, or delete the paragraph if you do not generate assets through Codex. -->
+Codex generates assets (images, textures, icons, models, any art) and does nothing else, in every
+project: no reviews, code, research or checks, however much of its allowance is left, and not
+because it has just reset. Reviews go to a separate context in the harness (Review, below). Every
+Codex call runs at high reasoning effort and prefers `gpt-6-sol`
+(`codex exec -m gpt-6-sol -c model_reasoning_effort=high`). Use `gpt-6-astra` at high effort only
+when I ask for it, or when Sol has failed the same asset twice. The Codex allowance is small, and
+Astra's much smaller. Report every Astra call.
 
 ## Environment
 
@@ -96,6 +111,9 @@ never another model or effort, in every project.
 
 - State the OS, shell and syntax; never carry another platform's syntax into a command. Prefer
   `$HOME` to a hardcoded home path.
+- Temporary files, scratchpads, checklists, generated outputs and logs go in one scratch directory
+  outside the repository, never a temporary directory that is memory-backed or wiped on reboot.
+  <!-- customize: name your scratch directory, or delete this bullet. -->
 - The system package manager for system packages, per-project environments for language packages,
   and a per-user tool manager such as mise for tools published only to npm — never `sudo pip` or
   `npm -g`.
@@ -106,6 +124,9 @@ never another model or effort, in every project.
   Claude Code is the primary harness; give Codex the same set from the same source wherever Codex
   supports it. Never edit it in place, since an update overwrites its cache; override it from my
   own settings. Enabling is not installing: install, then confirm it in the harness's own list.
+<!-- customize: if agents may edit your desktop or terminal configuration, add a rule for it, e.g.:
+     "Back up each configuration file before editing it to a backup directory, at its path relative
+     to the home directory and never beside the original; always leave a reset-to-default path." -->
 - The working directory persists between commands. Prefer absolute paths and `git -C <path>`, and
   confirm where you are before anything that writes.
 - Verification commands come from the repo's scripts, docs and CI; if none exist, infer the minimal
@@ -139,6 +160,16 @@ the skill in use defines its own dispatch. Always:
   and accepts a subagent's result only on its evidence.
 - Concurrent writers get disjoint writable boundaries, or separate worktrees where they could
   collide.
+- Delegate through the `<model>-<effort>` agent types in `~/.claude/agents/`, whose descriptions
+  say what each takes. Pick the type whose name matches the model you intend and never pass a
+  `model` that contradicts it. In the orchestration skill's tiers, `sonnet-*` is the ordinary tier
+  and the default, for any work with a clear spec and a way to check the result; `opus-*` is the
+  strong tier, only for its strong rows — judgment-led, long-horizon or costly-to-fail work —
+  never for mechanical or well-specified work, and never out of habit. Only the latest Opus and
+  Sonnet run, through the `opus` and `sonnet` aliases, at the effort the type names; never Fable,
+  for any agent or workflow step (a hook refuses a Fable spawn through the Agent tool).
+  <!-- customize: Claude Code with the agent types and hook from setup/claude; adapt the model
+       names and tiers to your harness, or delete the bullet. -->
 - At most **5 subagents active at once**, nested agents included. A scripted multi-agent workflow
   needs my explicit opt-in; without it, propose one with its rough scale and cost.
 - A reviewer or adjudicator receives evidence, never another agent's conclusions.
@@ -184,9 +215,10 @@ the skill in use defines its own dispatch. Always:
 
 ## Review
 
-- Every change the review row above covers gets an independent review before commit, merge or
-  "done", through `necturalabs:independent-review`: a separate context that sees the requirements
-  and the exact diff, never the reasoning that produced it. A skill in use that already reviews the
+- Every change the review row above covers gets an independent review before it is reported done
+  or promoted, through `necturalabs:independent-review`: a separate context that sees the
+  requirements and the exact diff, never the reasoning that produced it. One review at a
+  checkpoint covers the batch merged since the last one. A skill in use that already reviews the
   diff that way satisfies this. Dispatching one needs no permission.
 - When no separate context is allowed — I said no subagents, or the harness has none — review the
   diff yourself against the written requirements and label it a self-review. Never skip the review,
