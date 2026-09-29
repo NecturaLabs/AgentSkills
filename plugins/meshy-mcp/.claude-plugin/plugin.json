@@ -1,0 +1,21 @@
+{
+  "name": "meshy-mcp",
+  "version": "0.5.2",
+  "description": "Connects Meshy's official MCP server (meshy-mcp-server on PATH, @meshy-ai/meshy-mcp-server 0.5.2, commit 10e882ab) to Claude Code. Ships only this manifest; the MIT server is built from upstream. Asks for your Meshy API key when enabled and keeps it in Claude Code's credential store.",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "homepage": "https://www.meshy.ai",
+  "repository": "https://github.com/meshy-dev/meshy-mcp-server",
+  "license": "MIT",
+  "userConfig": {
+    "meshy_api_key": {
+      "type": "string",
+      "title": "Meshy API key",
+      "description": "Starts with msy_. Create one at https://www.meshy.ai/settings/api (Pro plan or above).",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

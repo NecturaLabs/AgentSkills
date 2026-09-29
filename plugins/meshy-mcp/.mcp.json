@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "meshy": {
+      "command": "meshy-mcp-server",
+      "args": [],
+      "env": {
+        "MESHY_API_KEY": "${user_config.meshy_api_key}",
+        "MESHY_API_HOST": "https://api.meshy.ai"
+      }
+    }
+  }
+}
