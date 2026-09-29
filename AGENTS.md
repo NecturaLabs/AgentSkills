@@ -31,8 +31,8 @@ Two official tools exist alongside the suite and are for humans to run, not CI:
 - `claude plugin eval .` — runs the routing evals under `evals/`. It spends tokens and needs
   credentials, which is why CI validates the eval *files* and never executes them. Run
   `bash scripts/fetch-eval-plugins.sh` first (it fetches the pinned third-party plugins some cases
-  load into the ignored `evals/.plugins/`), then run it once per release and record the result in
-  `docs/evals.md`.
+  load into the ignored `evals/.plugins/`). Run it only when the owner asks for an eval run, never
+  on API billing, and record the result in `docs/evals.md`.
 
 ## Architecture
 

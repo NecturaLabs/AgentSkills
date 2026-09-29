@@ -1,7 +1,8 @@
 # Eval results
 
-The routing evals under `evals/` run with `claude plugin eval .` once per release. The run is
-recorded here, newest first, so a regression in routing shows up as a change between releases.
+The routing evals under `evals/` run with `claude plugin eval .` only when the owner asks for a
+run, never on API billing. Each run is recorded here, newest first, so a regression in routing
+shows up as a change between runs.
 
 Each case runs three times in two arms: with this plugin, and without it as a baseline. A score is
 the weighted share of graders that passed in the with-plugin arm, and Δ is that score minus the

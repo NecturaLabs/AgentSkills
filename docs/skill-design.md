@@ -121,7 +121,8 @@ grader's pattern accepts either name â€” `(?:independent-review|code-review)` â€
 passes; a negative case forbids both, and a case that asks for something only this skill adds
 requires it alone.
 
-Run them with `claude plugin eval .` once per release, and record the result in `docs/evals.md`.
+Run them with `claude plugin eval .` only when the owner asks, never on API billing, and record the
+result in `docs/evals.md`.
 This spends tokens and needs credentials, so CI validates that the case files exist and parse, and
 never executes them.
 

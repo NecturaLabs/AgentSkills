@@ -7,6 +7,8 @@
 - The recommended settings save Sonnet 5.5 at low effort, as the machine they back up does.
 - `examples/global-agents.md` names the repository that backs up the setup and keeps the local
   setup as the source of truth: changes mirror to the repository, never the other way.
+- The routing evals run only when the owner asks, never on API billing, rather than once per
+  release.
 
 ## 5.1.0 — 2026-09-29
 
