@@ -1,0 +1,184 @@
+From 8f9bcd0f7bb55b6280b7dcc385b43fdbdd95a0f1 Mon Sep 17 00:00:00 2001
+From: Nectura <45967738+Nectura@users.noreply.github.com>
+Date: Fri, 25 Sep 2026 00:34:33 +0300
+Subject: [PATCH 2/2] fix(server): push the response caps on a re-discovered
+ editor channel
+
+rediscoverEditor built its replacement channel with an auth callback
+that recorded the version but never called sendLimitsIfConfigured, so
+after an editor-port swap the plugin kept its own ProjectSettings caps
+instead of the server's (GODOT_MCP_SCRIPT_READ_LIMIT /
+GODOT_MCP_WS_BUFFER_LIMIT or the defaults). Both channel sites now go
+through one openEditorChannel factory.
+---
+ src/transport/bridge.ts             | 36 ++++++++++-----------
+ test/unit/bridge-rediscover.test.ts | 49 +++++++++++++++++++++++++++--
+ 2 files changed, 63 insertions(+), 22 deletions(-)
+
+diff --git a/src/transport/bridge.ts b/src/transport/bridge.ts
+index 8664a55..5d178eb 100644
+--- a/src/transport/bridge.ts
++++ b/src/transport/bridge.ts
+@@ -121,16 +121,22 @@ export function createBridge(
+   }
+ 
+   const getNotificationHandler = () => notificationHandler;
+-  let editor = createChannel(
+-    editorUrl,
+-    projectPath,
+-    ({ version, headless: h }) => {
+-      setGodotVersion(version);
+-      headless = h;
+-      sendLimitsIfConfigured(editor);
+-    },
+-    getNotificationHandler,
+-  );
++  // Every editor channel — the startup one and any re-discovery swaps in —
++  // records the version and pushes the response caps once it authenticates.
++  function openEditorChannel(url: string): Channel {
++    const channel = createChannel(
++      url,
++      projectPath,
++      ({ version, headless: h }) => {
++        setGodotVersion(version);
++        headless = h;
++        sendLimitsIfConfigured(channel);
++      },
++      getNotificationHandler,
++    );
++    return channel;
++  }
++  let editor = openEditorChannel(editorUrl);
+   let cachedEditorPort = Number(new URL(editorUrl).port);
+ 
+   // ── Editor-port re-discovery ─────────────────────────────────────
+@@ -159,15 +165,7 @@ export function createBridge(
+     const oldPort = cachedEditorPort;
+     cachedEditorPort = port;
+     await editor.close();
+-    editor = createChannel(
+-      `ws://127.0.0.1:${cachedEditorPort}`,
+-      projectPath,
+-      ({ version, headless: h }) => {
+-        setGodotVersion(version);
+-        headless = h;
+-      },
+-      getNotificationHandler,
+-    );
++    editor = openEditorChannel(`ws://127.0.0.1:${cachedEditorPort}`);
+     process.stderr.write(`[bridge] editor port changed ${oldPort} → ${cachedEditorPort}\n`);
+     return true;
+   }
+diff --git a/test/unit/bridge-rediscover.test.ts b/test/unit/bridge-rediscover.test.ts
+index 17643c0..4105767 100644
+--- a/test/unit/bridge-rediscover.test.ts
++++ b/test/unit/bridge-rediscover.test.ts
+@@ -14,6 +14,8 @@
+  *     it later gives way to is found by the next call past the TTL
+  *   - auth failure  → a foreign editor on the cached port (AUTH_FAILED) swaps to
+  *     the port the registry names, and the retry resolves
++ *   - limits        → the swapped-in channel pushes the response caps
++ *     (meta.set_limits) after auth, like the startup channel
+  *
+  * Trigger: a COLD editor channel aimed at a dead port fails fast with
+  * CONNECT_FAILED (no hot-reconnect await) — one of the two codes the bridge
+@@ -84,6 +86,8 @@ interface MockServer {
+   /** Auth handshakes answered — one per connect. The routing oracle: a retry
+    *  that reached THIS server bumps it to 1. */
+   authCount: () => number;
++  /** RPC methods received, in arrival order (auth handshakes excluded). */
++  methods: () => string[];
+   close: () => Promise<void>;
+ }
+ 
+@@ -96,10 +100,12 @@ function makeMockServer(): Promise<MockServer> {
+     const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+     const sockets = new Set<WS>();
+     let auths = 0;
++    const methods: string[] = [];
+     wss.on("listening", () => {
+       resolve({
+         port: (wss.address() as AddressInfo).port,
+         authCount: () => auths,
++        methods: () => methods,
+         close: () =>
+           new Promise<void>((res) => {
+             for (const s of sockets) s.terminate();
+@@ -111,12 +117,13 @@ function makeMockServer(): Promise<MockServer> {
+       sockets.add(sock);
+       sock.on("close", () => sockets.delete(sock));
+       sock.on("message", (data) => {
+-        let msg: { auth?: unknown; id?: unknown };
++        let msg: { auth?: unknown; id?: unknown; method?: unknown };
+         try {
+-          msg = JSON.parse(data.toString()) as { auth?: unknown; id?: unknown };
++          msg = JSON.parse(data.toString()) as { auth?: unknown; id?: unknown; method?: unknown };
+         } catch {
+           return;
+         }
++        if (typeof msg.method === "string") methods.push(msg.method);
+         if (msg.auth !== undefined) {
+           auths++;
+           sock.send(JSON.stringify({ authed: true, godot_version: "4.5", version: "1.0.0" }));
+@@ -153,6 +160,7 @@ function makeForeignServer(): Promise<MockServer> {
+       resolve({
+         port: (wss.address() as AddressInfo).port,
+         authCount: () => 0,
++        methods: () => [],
+         close: () =>
+           new Promise<void>((res) => {
+             for (const s of sockets) s.terminate();
+@@ -390,6 +398,40 @@ async function testAuthFailureSwapsToRegisteredEditor() {
+   }
+ }
+ 
++// ── Case 8: the swapped-in channel pushes the response caps ──────────
++
++async function testSwapPushesResponseCaps() {
++  if (!REDIRECT) {
++    console.log("  SKIP (darwin: no registry path override): limits after swap");
++    return;
++  }
++  const projectPath = "/__godot_mcp_unit_test__/rediscover-limits";
++  const serverNew = await makeMockServer();
++  const portOld = await getDeadPort();
++  writeRegistry({ [normalizePath(projectPath)]: makeEntry({ port: serverNew.port }) });
++  const bridge = createBridge(`ws://127.0.0.1:${portOld}`, {
++    projectPath,
++    scriptReadLimitBytes: 512 * 1024,
++    wsBufferLimitBytes: 2048 * 1024,
++  });
++
++  try {
++    await bridge.call("echo", { ping: 1 }, 5000);
++    // meta.set_limits is fire-and-forget after auth; give it a moment to land.
++    for (let i = 0; i < 20 && !serverNew.methods().includes("meta.set_limits"); i++) {
++      await new Promise((r) => setTimeout(r, 50));
++    }
++    assert.ok(
++      serverNew.methods().includes("meta.set_limits"),
++      `the swapped-in editor received meta.set_limits (got ${JSON.stringify(serverNew.methods())})`,
++    );
++    console.log("  PASS: the channel swapped in by re-discovery pushes the response caps after auth");
++  } finally {
++    await bridge.close();
++    await serverNew.close();
++  }
++}
++
+ // ── Main ─────────────────────────────────────────────────────────────
+ 
+ async function main() {
+@@ -401,7 +443,8 @@ async function main() {
+   await testTtlGuardBlocksSecondRediscover();
+   await testStandInEntryIsNotAdopted();
+   await testAuthFailureSwapsToRegisteredEditor();
+-  console.log("All 7 bridge-rediscover tests passed.");
++  await testSwapPushesResponseCaps();
++  console.log("All 8 bridge-rediscover tests passed.");
+ }
+ 
+ main()
+-- 
+2.55.0
+

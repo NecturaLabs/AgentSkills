@@ -1,0 +1,474 @@
+From 76b2d7e894a3da1bcb293845578ab98583196e0c Mon Sep 17 00:00:00 2001
+From: Nectura <45967738+Nectura@users.noreply.github.com>
+Date: Fri, 25 Sep 2026 00:28:32 +0300
+Subject: [PATCH] fix(server): never dial a runtime stand-in's port -1 as the
+ editor
+
+A playtest started with no editor open self-heals a runtime-only
+registry entry with "port": -1. The bridge took that port unchecked:
+
+- at startup, portConfig resolved editor=-1 and createBridge crashed
+  with ERR_INVALID_URL (ws://127.0.0.1:-1) before the MCP handshake;
+- mid-session, rediscoverEditor adopted -1 after a connection loss,
+  and every later call failed with "Invalid URL". That error is not a
+  BridgeError, so the registry was never read again and the session
+  stayed stuck until the client reconnected.
+
+Every editor-port reader now goes through editorPortOf(), which only
+accepts an integer 1-65535: startup falls back to the default port,
+re-discovery skips the entry, and the pinned desync check reports it
+as no live editor.
+
+Unpinned re-discovery now also runs on AUTH_FAILED. A server that
+started on the default port while only a stand-in was registered can
+reach a different project's editor there; its auth then fails on every
+call and, with no connection loss, the editor this project opens later
+on another port was never found. When the registry agrees with the
+cached port nothing swaps and the original error propagates, so a real
+token problem still surfaces unchanged.
+---
+ docs/architecture/README.md         |   8 ++-
+ src/registry.ts                     |  11 +++
+ src/startup/portConfig.ts           |   9 ++-
+ src/transport/bridge.ts             |  37 ++++++----
+ test/unit/bridge-rediscover.test.ts | 106 +++++++++++++++++++++++++++-
+ test/unit/bridgeDesync.test.ts      |  44 ++++++++++--
+ test/unit/portConfig.test.ts        |  34 +++++++++
+ 7 files changed, 220 insertions(+), 29 deletions(-)
+
+diff --git a/docs/architecture/README.md b/docs/architecture/README.md
+index 41fe5ce..2ef29c5 100644
+--- a/docs/architecture/README.md
++++ b/docs/architecture/README.md
+@@ -311,7 +311,7 @@ flowchart TD
+     bridge --> rc
+     rc --> runtime
+     rc --> hb
+-    redisc["on CONNECT_FAILED / DISCONNECTED →<br/>rediscoverEditor: re-read registry, 5 s TTL, retry once"]
++    redisc["on CONNECT_FAILED / DISCONNECTED / AUTH_FAILED →<br/>rediscoverEditor: re-read registry, 5 s TTL, retry once"]
+     editor -.-> redisc
+     note1["Backoff 1·2·4·8·16·32·60·60… s (2^attempt, ceil 60 s)<br/>reset on a successful round-trip (not on open)<br/>per-call await ceiling 10 s"]
+     editor -.-> note1
+@@ -325,8 +325,10 @@ flowchart TD
+ - **Editor channel** — persistent and reconnecting with exponential backoff
+   (`1·2·4·8·16·32·60·60…` s; **reset on a successful round-trip, not on open**, so a
+   half-broken peer that accepts then drops can't reset backoff every cycle). On
+-  `CONNECT_FAILED` / `DISCONNECTED` it does **port re-discovery** (`rediscoverEditor`,
+-  5 s TTL) and retries once against the new channel — unless the port is a pin
++  `CONNECT_FAILED` / `DISCONNECTED` / `AUTH_FAILED` it does **port re-discovery**
++  (`rediscoverEditor`, 5 s TTL) and retries once against the new channel; an entry with
++  no valid editor port (a playtest's runtime-only stand-in, `port: -1`) is never
++  adopted, here or at startup — unless the port is a pin
+   (`GODOT_MCP_EDITOR_PORT` / `--editor-port`), in which case a pinned connect **or
+   auth-handshake** failure (a foreign server on the pinned port passes the WS upgrade,
+   then fails auth) runs the **fail-fast desync cross-check** (one registry read → a
+diff --git a/src/registry.ts b/src/registry.ts
+index 6d10452..c90ed52 100644
+--- a/src/registry.ts
++++ b/src/registry.ts
+@@ -104,6 +104,17 @@ export function lookupProject(projectPath: string): RegistryEntry | null {
+   return registry.by_path[key] ?? null;
+ }
+ 
++/**
++ * The editor WebSocket port an entry advertises, or null when it names no
++ * dialable editor. A playtest launched with no editor open self-heals a
++ * runtime-only entry with `port: -1`; dialing that as an editor port fails
++ * with ERR_INVALID_URL, so every editor-port reader goes through this gate.
++ */
++export function editorPortOf(entry: RegistryEntry): number | null {
++  const port = entry.port;
++  return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
++}
++
+ /**
+  * Return the runtime_port for a project, or null if no playtest is active.
+  * Re-reads the file on every call so newly-started playtests are picked up.
+diff --git a/src/startup/portConfig.ts b/src/startup/portConfig.ts
+index b37262a..d469d59 100644
+--- a/src/startup/portConfig.ts
++++ b/src/startup/portConfig.ts
+@@ -17,7 +17,7 @@
+  * @module
+  */
+ import type { CliArgs } from "./cliArgs.js";
+-import { lookupProject } from "../registry.js";
++import { editorPortOf, lookupProject } from "../registry.js";
+ 
+ /** Where a resolved value came from — surfaced in the startup observability log. */
+ export type PortSource = "cli" | "env" | "discovery" | "default";
+@@ -100,9 +100,12 @@ export function resolvePortConfig(cli: CliArgs, projectPath: string): ResolvedPo
+     editorPinned = true;
+     editorSource = "env";
+   } else {
++    // A runtime-only stand-in entry (port -1) has no editor to dial: fall back
++    // to the default and let the bridge's re-discovery find the editor later.
+     const entry = lookupProject(projectPath);
+-    if (entry) {
+-      editorPort = String(entry.port);
++    const discovered = entry ? editorPortOf(entry) : null;
++    if (discovered != null) {
++      editorPort = String(discovered);
+       editorSource = "discovery";
+     } else {
+       editorPort = DEFAULT_EDITOR_PORT;
+diff --git a/src/transport/bridge.ts b/src/transport/bridge.ts
+index 29856f6..8664a55 100644
+--- a/src/transport/bridge.ts
++++ b/src/transport/bridge.ts
+@@ -20,7 +20,7 @@ import { createChannel, type Channel } from "./channel.js";
+ import { createRuntimeConnection } from "./runtimeConnection.js";
+ import { parseGodotVer } from "../shared/version.js";
+ import type { GodotVer } from "../shared/version.js";
+-import { lookupProject } from "../registry.js";
++import { editorPortOf, lookupProject } from "../registry.js";
+ 
+ // Re-exported from types.ts so the public bridge surface stays byte-stable for
+ // importers of "./bridge.js".
+@@ -134,10 +134,13 @@ export function createBridge(
+   let cachedEditorPort = Number(new URL(editorUrl).port);
+ 
+   // ── Editor-port re-discovery ─────────────────────────────────────
+-  // When the editor channel fails with CONNECT_FAILED / DISCONNECTED,
+-  // re-read the registry. If the port changed (plugin restarted on a
+-  // different port), close the old channel, create a fresh one, and
+-  // retry the call once. Skipped when the editor port is a pin
++  // When the editor channel fails with CONNECT_FAILED / DISCONNECTED /
++  // AUTH_FAILED, re-read the registry. If it names a different editor port
++  // (plugin restarted elsewhere, or an editor opened after this server started
++  // on a runtime-only stand-in entry and the default port answered with a
++  // different project's editor), close the old channel, create a fresh one,
++  // and retry the call once. An entry with no valid editor port (the stand-in's
++  // `port: -1`) is never adopted. Skipped when the editor port is a pin
+   // (GODOT_MCP_EDITOR_PORT / --editor-port) or no projectPath is available for
+   // registry lookup. TTL prevents thrashing the registry file when the editor
+   // is truly unreachable.
+@@ -151,10 +154,10 @@ export function createBridge(
+     if (now - lastRediscoverAt < EDITOR_REDISCOVER_TTL_MS) return false;
+     lastRediscoverAt = now;
+     const entry = lookupProject(projectPath);
+-    if (!entry) return false;
+-    if (entry.port === cachedEditorPort) return false;
++    const port = entry ? editorPortOf(entry) : null;
++    if (port == null || port === cachedEditorPort) return false;
+     const oldPort = cachedEditorPort;
+-    cachedEditorPort = entry.port;
++    cachedEditorPort = port;
+     await editor.close();
+     editor = createChannel(
+       `ws://127.0.0.1:${cachedEditorPort}`,
+@@ -189,7 +192,9 @@ export function createBridge(
+     if (!projectPath) return undefined;
+     const authFailure = original.code === "AUTH_FAILED";
+     const entry = lookupProject(projectPath);
+-    if (!entry) {
++    // A runtime-only stand-in (port -1) means no editor is registered either.
++    const livePort = entry ? editorPortOf(entry) : null;
++    if (livePort == null) {
+       return new BridgeError(
+         original.code,
+         authFailure
+@@ -202,15 +207,15 @@ export function createBridge(
+               `or unset the pin to use registry discovery`,
+       );
+     }
+-    if (entry.port !== cachedEditorPort) {
++    if (livePort !== cachedEditorPort) {
+       return new BridgeError(
+         original.code,
+         authFailure
+           ? `auth failed on pinned editor port ${cachedEditorPort}, but the live editor for this project is ` +
+-              `listening on ${entry.port} — something else may be occupying the pinned port; launch the editor ` +
++              `listening on ${livePort} — something else may be occupying the pinned port; launch the editor ` +
+               `with the same GODOT_MCP_EDITOR_PORT, or unset the pin to use discovery`
+           : `editor pinned to port ${cachedEditorPort}, but the live editor for this project is listening on ` +
+-              `${entry.port} — launch the editor with the same GODOT_MCP_EDITOR_PORT, or unset the pin to use discovery`,
++              `${livePort} — launch the editor with the same GODOT_MCP_EDITOR_PORT, or unset the pin to use discovery`,
+       );
+     }
+     // Registry agrees with the pin. An auth failure here came from the real
+@@ -247,9 +252,11 @@ export function createBridge(
+               const desync = pinnedEditorDesyncError(err);
+               if (desync) throw desync;
+             }
+-          } else if (connectionLoss) {
+-            // On editor connection failure, re-read the registry. If the port
+-            // changed, retry once against the new channel.
++          } else if (connectionLoss || err.code === "AUTH_FAILED") {
++            // On editor connection or auth failure, re-read the registry. If
++            // the port changed, retry once against the new channel. An auth
++            // failure with the registry agreeing on the port is a real token
++            // problem: nothing swaps and the original error propagates.
+             const changed = await rediscoverEditor();
+             if (changed) return editor.call(method, params, timeoutMs, signal);
+           }
+diff --git a/test/unit/bridge-rediscover.test.ts b/test/unit/bridge-rediscover.test.ts
+index 9aa12a8..17643c0 100644
+--- a/test/unit/bridge-rediscover.test.ts
++++ b/test/unit/bridge-rediscover.test.ts
+@@ -10,6 +10,10 @@
+  *   - explicit port → re-discovery short-circuits (GODOT_MCP_EDITOR_PORT pins the
+  *     URL); the pinned desync cross-check synthesizes the CONNECT_FAILED it throws
+  *   - TTL window    → a second failure within 5s does not re-read the registry
++ *   - stand-in entry → a runtime-only entry (port -1) is never adopted; the editor
++ *     it later gives way to is found by the next call past the TTL
++ *   - auth failure  → a foreign editor on the cached port (AUTH_FAILED) swaps to
++ *     the port the registry names, and the retry resolves
+  *
+  * Trigger: a COLD editor channel aimed at a dead port fails fast with
+  * CONNECT_FAILED (no hot-reconnect await) — one of the two codes the bridge
+@@ -29,6 +33,7 @@ import { writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+ import { join, dirname } from "node:path";
+ import { tmpdir } from "node:os";
+ import { WebSocketServer, WebSocket as WS } from "ws";
++import FakeTimers from "@sinonjs/fake-timers";
+ import type { AddressInfo } from "node:net";
+ import { normalizePath, registryPath, type RegistryEntry } from "../../src/registry.js";
+ import { BridgeError } from "../../src/shared/errors.js";
+@@ -135,6 +140,34 @@ async function getDeadPort(): Promise<number> {
+   return port;
+ }
+ 
++/**
++ * A foreign editor: accepts the connection but closes it on the first message
++ * instead of answering the auth handshake — another project's editor on the
++ * port this bridge cached. The bridge surfaces it as AUTH_FAILED.
++ */
++function makeForeignServer(): Promise<MockServer> {
++  return new Promise((resolve) => {
++    const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
++    const sockets = new Set<WS>();
++    wss.on("listening", () => {
++      resolve({
++        port: (wss.address() as AddressInfo).port,
++        authCount: () => 0,
++        close: () =>
++          new Promise<void>((res) => {
++            for (const s of sockets) s.terminate();
++            wss.close(() => res());
++          }),
++      });
++    });
++    wss.on("connection", (sock) => {
++      sockets.add(sock);
++      sock.on("close", () => sockets.delete(sock));
++      sock.on("message", () => sock.close(1000, "not this project's editor"));
++    });
++  });
++}
++
+ // ── Case 1: a port change swaps the channel and the retry resolves ───
+ 
+ async function testPortChangeSwapsAndRetries() {
+@@ -288,6 +321,75 @@ async function testTtlGuardBlocksSecondRediscover() {
+   }
+ }
+ 
++// ── Case 6: a runtime-only stand-in entry is never adopted ───────────
++
++async function testStandInEntryIsNotAdopted() {
++  if (!REDIRECT) {
++    console.log("  SKIP (darwin: no registry path override): stand-in entry");
++    return;
++  }
++  const projectPath = "/__godot_mcp_unit_test__/rediscover-stand-in";
++  const serverNew = await makeMockServer();
++  const portOld = await getDeadPort();
++  // A playtest started with no editor open: the toolkit's runtime self-heal
++  // writes an entry with port -1 and no token path.
++  writeRegistry({
++    [normalizePath(projectPath)]: makeEntry({ port: -1, token_path: "", runtime_port: 6571 }),
++  });
++  const bridge = createBridge(`ws://127.0.0.1:${portOld}`, { projectPath });
++  // Date only: the re-discovery TTL reads Date.now(); sockets keep real timers.
++  const clock = FakeTimers.install({ toFake: ["Date"], now: Date.now() });
++
++  try {
++    // Adopting port -1 would build ws://127.0.0.1:-1, whose TypeError is no
++    // BridgeError, so no later failure would ever re-read the registry.
++    await assert.rejects(
++      bridge.call("echo", {}, 5000),
++      (err: unknown) => err instanceof BridgeError && err.code === "CONNECT_FAILED",
++      "stand-in entry → no swap; the dead port's CONNECT_FAILED propagates",
++    );
++    // The editor opens and registers its real port. The next call past the TTL
++    // finds it without a reconnect.
++    writeRegistry({ [normalizePath(projectPath)]: makeEntry({ port: serverNew.port }) });
++    clock.tick(5_001);
++    const r = await bridge.call("echo", { ping: 1 }, 5000);
++    assert.deepEqual(r, { ok: true }, "the call resolves against the editor that registered later");
++    assert.equal(serverNew.authCount(), 1, "the retry reached the newly registered editor");
++    console.log("  PASS: a port -1 stand-in is never adopted, and a later editor is found without a reconnect");
++  } finally {
++    clock.uninstall();
++    await bridge.close();
++    await serverNew.close();
++  }
++}
++
++// ── Case 7: an auth failure on the cached port swaps to the registry's ──
++
++async function testAuthFailureSwapsToRegisteredEditor() {
++  if (!REDIRECT) {
++    console.log("  SKIP (darwin: no registry path override): auth-failure swap");
++    return;
++  }
++  const projectPath = "/__godot_mcp_unit_test__/rediscover-auth";
++  const serverNew = await makeMockServer();
++  const foreign = await makeForeignServer();
++  // The bridge started on the default port, where another project's editor
++  // answers; this project's editor is registered on a different port.
++  writeRegistry({ [normalizePath(projectPath)]: makeEntry({ port: serverNew.port }) });
++  const bridge = createBridge(`ws://127.0.0.1:${foreign.port}`, { projectPath });
++
++  try {
++    const r = await bridge.call("echo", { ping: 1 }, 5000);
++    assert.deepEqual(r, { ok: true }, "the call resolves against the registered editor after the swap");
++    assert.equal(serverNew.authCount(), 1, "the retry reached the registered editor, not the foreign one");
++    console.log("  PASS: an auth failure on a foreign editor swaps to the registered port and the retry resolves");
++  } finally {
++    await bridge.close();
++    await serverNew.close();
++    await foreign.close();
++  }
++}
++
+ // ── Main ─────────────────────────────────────────────────────────────
+ 
+ async function main() {
+@@ -297,7 +399,9 @@ async function main() {
+   await testNoRegistryEntryDoesNotSwap();
+   await testExplicitEditorPortShortCircuits();
+   await testTtlGuardBlocksSecondRediscover();
+-  console.log("All 5 bridge-rediscover tests passed.");
++  await testStandInEntryIsNotAdopted();
++  await testAuthFailureSwapsToRegisteredEditor();
++  console.log("All 7 bridge-rediscover tests passed.");
+ }
+ 
+ main()
+diff --git a/test/unit/bridgeDesync.test.ts b/test/unit/bridgeDesync.test.ts
+index e0a0ed1..67ab5d4 100644
+--- a/test/unit/bridgeDesync.test.ts
++++ b/test/unit/bridgeDesync.test.ts
+@@ -333,11 +333,11 @@ async function testUnpinnedAuthUntouched() {
+     return;
+   }
+   const projectPath = "/__godot_mcp_unit_test__/desync-auth-unpinned";
+-  const live = await makeMockServer();
+   const foreign = await makeForeignServer();
+-  // Registry even points elsewhere — with no pin, the AUTH_FAILED path must not
+-  // consult it (no rediscover either: AUTH_FAILED is not a connection loss).
+-  writeRegistry({ [normalizePath(projectPath)]: makeEntry({ port: live.port }) });
++  // The registry agrees with the cached port, so the unpinned re-discovery that
++  // an auth failure triggers finds nothing to swap. (A registry naming another
++  // port swaps instead — pinned in bridge-rediscover.test.ts.)
++  writeRegistry({ [normalizePath(projectPath)]: makeEntry({ port: foreign.port }) });
+   const bridge = createBridge(`ws://127.0.0.1:${foreign.port}`, { projectPath });
+ 
+   try {
+@@ -350,15 +350,44 @@ async function testUnpinnedAuthUntouched() {
+         !err.message.includes("pinned"),
+       "unpinned AUTH_FAILED propagates unchanged — the desync cross-check is pin-only",
+     );
+-    assert.equal(live.authCount(), 0, "no re-discovery fired — AUTH_FAILED is not a connection loss");
+     console.log("  PASS: an unpinned auth failure is untouched by the desync cross-check");
+   } finally {
+     await bridge.close();
+-    await live.close();
+     await foreign.close();
+   }
+ }
+ 
++// ── Case 8: a runtime-only stand-in entry (port -1) counts as no editor ──
++
++async function testPinnedStandInEntryErrors() {
++  if (!REDIRECT) {
++    console.log("  SKIP (darwin: no registry path override): pinned stand-in entry");
++    return;
++  }
++  const projectPath = "/__godot_mcp_unit_test__/desync-stand-in";
++  const deadPin = await getDeadPort();
++  // A playtest with no editor open: the toolkit's runtime self-heal entry.
++  writeRegistry({
++    [normalizePath(projectPath)]: makeEntry({ port: -1, token_path: "", runtime_port: 6571 }),
++  });
++  const bridge = createBridge(`ws://127.0.0.1:${deadPin}`, { projectPath, explicitEditorPort: true });
++
++  try {
++    await assert.rejects(
++      bridge.call("echo", {}, 5000),
++      (err: unknown) =>
++        err instanceof BridgeError &&
++        err.code === "CONNECT_FAILED" &&
++        err.message.includes("no live editor") &&
++        !err.message.includes("-1"),
++      "a stand-in entry is reported as no live editor, never as an editor on port -1",
++    );
++    console.log("  PASS: a pinned port with only a runtime stand-in registered reports no live editor");
++  } finally {
++    await bridge.close();
++  }
++}
++
+ // ── Main ─────────────────────────────────────────────────────────────
+ 
+ async function main() {
+@@ -370,7 +399,8 @@ async function main() {
+   await testPinnedAuthNoEntryErrors();
+   await testPinnedAuthMatchPropagatesOriginal();
+   await testUnpinnedAuthUntouched();
+-  console.log("All 7 bridge-desync tests passed.");
++  await testPinnedStandInEntryErrors();
++  console.log("All 8 bridge-desync tests passed.");
+ }
+ 
+ main()
+diff --git a/test/unit/portConfig.test.ts b/test/unit/portConfig.test.ts
+index 2e41687..f0de4fd 100644
+--- a/test/unit/portConfig.test.ts
++++ b/test/unit/portConfig.test.ts
+@@ -161,6 +161,40 @@ if (REDIRECT) {
+   console.log("  SKIP (no registry redirect on this platform): editor default");
+ }
+ 
++// ── Editor: default 6550 when the entry has no valid editor port (REDIRECT) ──
++// A playtest started with no editor open self-heals a runtime-only entry with
++// port -1. Taking it as the editor port crashed startup with ERR_INVALID_URL.
++if (REDIRECT) {
++  const restore = snapshotEnv();
++  const tmp = mkdtempSync(join(tmpdir(), "mcp-portcfg-"));
++  try {
++    clearPortEnv();
++    process.env[REDIRECT] = tmp;
++    const projectPath = "/__portcfg_unit__/runtime-stand-in";
++    for (const port of [-1, 0, 65536, 6550.5]) {
++      const entry: RegistryEntry = {
++        port,
++        token_path: "",
++        pid: process.pid,
++        started_at: 1,
++        runtime_port: 6571,
++        runtime_pid: process.pid,
++      };
++      mkdirSync(dirname(registryPath()), { recursive: true });
++      writeFileSync(registryPath(), JSON.stringify({ by_path: { [normalizePath(projectPath)]: entry } }));
++      const cfg = resolvePortConfig(noCli(), projectPath);
++      assert.equal(cfg.editorPort, "6550", `entry port ${port} is not an editor port → default`);
++      assert.equal(cfg.editorPinned, false);
++      assert.equal(cfg.editorSource, "default");
++    }
++  } finally {
++    restore();
++    rmSync(tmp, { recursive: true, force: true });
++  }
++} else {
++  console.log("  SKIP (no registry redirect on this platform): editor stand-in entry");
++}
++
+ // ── isValidPort — the shared pin predicate ───────────────────────────
+ {
+   for (const good of ["1", "6550", "65535", "08080"]) {
+-- 
+2.55.0
+

@@ -1,7 +1,7 @@
 {
   "name": "godot-mcp-toolkit",
-  "version": "1.0.2",
-  "description": "Connects NPGameDev's Godot MCP Toolkit bridge (godot-mcp-server on PATH, @npgamedev/godot-mcp-server 1.0.2, commit 2034c32b) to the harness. Pairs with the godot_mcp_toolkit editor addon v1.0.2 in each Godot project. Ships only this manifest; the MIT bridge is installed from upstream.",
+  "version": "1.0.2+fork.2",
+  "description": "Connects NPGameDev's Godot MCP Toolkit bridge (godot-mcp-server on PATH, @npgamedev/godot-mcp-server 1.0.2, commit 2034c32b, built with the two fixes in patches/) to the harness. Pairs with the godot_mcp_toolkit editor addon v1.0.2 in each Godot project. Ships only this manifest and the patches; the MIT bridge is built from upstream.",
   "author": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"

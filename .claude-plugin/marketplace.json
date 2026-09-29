@@ -126,8 +126,8 @@
     },
     {
       "name": "godot-mcp-toolkit",
-      "description": "Connects NPGameDev's Godot MCP Toolkit bridge 1.0.2 (MIT, installed from upstream) to the harness.",
-      "version": "1.0.2",
+      "description": "Connects NPGameDev's Godot MCP Toolkit bridge 1.0.2 (MIT, built from upstream with two fixes in patches/) to the harness.",
+      "version": "1.0.2+fork.2",
       "source": "./plugins/godot-mcp-toolkit",
       "homepage": "https://github.com/NPGameDev/godot-mcp-toolkit",
       "license": "MIT",

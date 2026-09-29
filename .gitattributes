@@ -8,3 +8,4 @@
 *.yaml text eol=lf
 *.yml text eol=lf
 .editorconfig text eol=lf
+*.patch -text
