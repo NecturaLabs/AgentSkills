@@ -136,7 +136,8 @@ case $(target fake-tool) in
 esac
 manifest "$REV5" -
 bash "$TOOLS" update fake-tool > /dev/null 2>&1
-check "after-failure-kept" "${REV3:0:12} ${REV5:0:12}" "$(ls -1 "$AGENTSKILLS_TOOLS_DIR/fake-tool/builds" | sort | tr '\n' ' ' | sed 's/ $//')"
+check "after-failure-kept" "$(printf '%s\n' "${REV3:0:12}" "${REV5:0:12}" | sort | tr '\n' ' ')" \
+  "$(ls -1 "$AGENTSKILLS_TOOLS_DIR/fake-tool/builds" | sort | tr '\n' ' ')"
 
 # 6. An entry that names patches never builds without them.
 before=$(target fake-tool)
