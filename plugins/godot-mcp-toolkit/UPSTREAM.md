@@ -10,7 +10,9 @@ redistributed here.
 | Editor add-on `godot_mcp_toolkit` | https://github.com/NPGameDev/godot-mcp-toolkit | release `v1.0.2`, commit `7e801d7b6603eb908dfb7e58bd497daa74a6502b` | MIT |
 
 The manifests, the patches and this file are NecturaLabs' own; the manifests and this file are
-under the repository's MIT license, and the patches under the bridge's MIT license.
+under the repository's MIT license. The patches modify the bridge and carry lines of its source, so
+they are under the bridge's MIT license, Copyright (c) 2026 NPGameDev, whose full text travels
+with them in `patches/LICENSE`.
 
 ## Patches
 
@@ -28,25 +30,17 @@ its tests' scenarios still pass.
 
 ## Install the bridge
 
-Build it from the pinned tag so the version cannot drift between sessions, and put its binary on
-`PATH` (Node.js 22 or newer):
-
-```bash
-D=~/.local/share/godot-mcp-toolkit
-git clone --depth 1 --branch v1.0.2 https://github.com/NPGameDev/godot-mcp-server.git "$D/server-src"
-cd "$D/server-src"
-git -c user.name=local -c user.email=local@localhost am --committer-date-is-author-date \
-  ~/.claude/plugins/marketplaces/necturalabs/plugins/godot-mcp-toolkit/patches/*.patch
-npm ci --ignore-scripts && npm run test:unit && npm run build && npm prune --omit=dev --ignore-scripts
-npm audit --omit=dev
-mkdir -p ~/.local/bin && ln -s "$D/server-src/dist/index.js" ~/.local/bin/godot-mcp-server
-chmod +x "$D/server-src/dist/index.js"
-```
+`scripts/tools.sh install godot-mcp-server` (Node.js 22 or newer) clones the bridge, checks out
+the pinned revision from `setup/tools.tsv`, applies `patches/` in order, runs upstream's unit
+tests, builds, and links `godot-mcp-server` into `~/.local/bin`. `scripts/tools.sh status` shows
+whether the build matches the pin.
 
 Each Godot project carries the matching `godot_mcp_toolkit` add-on (release `v1.0.2` zip) in
 `addons/`, enabled in Project Settings → Plugins.
 
 ## Refresh
 
-Rebuild at the new tag with the patches that still apply, update every project's add-on to the
-same release, and bump the revision here, in both manifests and in the marketplace entry.
+`scripts/tools.sh status --remote godot-mcp-server` lists upstream's newest tags. To move to one,
+change its `rev` in `setup/tools.tsv`, keep the patches that still apply, bump the revision here,
+in both manifests and in the marketplace entry, and update every project's add-on to the same
+release; each machine then runs `scripts/tools.sh update godot-mcp-server`.

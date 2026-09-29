@@ -13,23 +13,14 @@ The manifest and this file are NecturaLabs' own, under the repository's MIT lice
 
 ## Install the server
 
-Upstream documents only `npx`, which the setup's marketplace-only policy rules out, so build the
-pinned tag and put its binary on `PATH` (Node.js 22 or newer):
+Upstream documents only `npx`, which the setup's marketplace-only policy rules out.
+`scripts/tools.sh install meshy-mcp-server` (Node.js 22 or newer) clones the repository, checks
+out the pinned revision from `setup/tools.tsv`, moves the lockfile's advisories to the in-range
+versions an `npx` install would resolve (`npm audit fix`, never `--force`), builds, and links
+`meshy-mcp-server` into `~/.local/bin`.
 
-```bash
-D=~/.local/share/meshy-mcp-server
-git clone --depth 1 --branch v0.5.2 https://github.com/meshy-dev/meshy-mcp-server.git "$D/server-src"
-cd "$D/server-src"
-npm ci --ignore-scripts
-npm audit fix --ignore-scripts   # in-range fixes only, never --force
-npm run build && npm audit --omit=dev
-mkdir -p ~/.local/bin && ln -s "$D/server-src/dist/index.js" ~/.local/bin/meshy-mcp-server
-chmod +x "$D/server-src/dist/index.js"
-```
-
-At `v0.5.2` the lockfile pins packages with known advisories; `npm audit fix` moves them to the
-in-range versions an `npx` install would resolve. One moderate advisory remains in `qs`, pinned by
-`express`, which serves only `TRANSPORT=http`; this connector uses stdio.
+At `v0.5.2` one moderate advisory remains after that, in `qs`, pinned by `express`, which serves
+only `TRANSPORT=http`; this connector uses stdio.
 
 ## Behavior to know
 
@@ -43,6 +34,7 @@ in-range versions an `npx` install would resolve. One moderate advisory remains 
 
 ## Refresh
 
-Rebuild at the new tag (restore `package-lock.json` first), rerun the audit steps, and update the
-revision here, in the manifest and in the marketplace entry. Switch to an official or Meshy
+`scripts/tools.sh status --remote meshy-mcp-server` lists upstream's newest tags. To move, change
+the `rev` in `setup/tools.tsv`, the revision here, the manifest and the marketplace entry; each
+machine then runs `scripts/tools.sh update meshy-mcp-server`. Switch to an official or Meshy
 marketplace plugin if one ships, and delete this connector.

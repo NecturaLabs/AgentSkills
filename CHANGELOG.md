@@ -33,6 +33,11 @@
 
 ### Added
 
+- `scripts/tools.sh` builds the MCP servers no marketplace or vendor installer ships (Godot,
+  Meshy, Blender Lab) from full clones at the revisions pinned in `setup/tools.tsv`, applies our
+  patches, links each into `~/.local/bin`, and on `update` swaps to a new build while keeping the
+  previous one for servers still running; `status --remote` lists upstream's newest tags. The
+  plugins' `UPSTREAM.md` install steps now use it, and `tests/tools-guard.sh` checks it offline.
 - `meshy-mcp`, a Claude Code connector for Meshy's official MCP server 0.5.2, built from the pinned
   tag (`plugins/meshy-mcp/UPSTREAM.md`); the API key is a sensitive plugin option kept in Claude
   Code's credential store.

@@ -13,6 +13,9 @@ Run from bash on Linux:
 - Structure validation only: `bash scripts/validate.sh --strict`
 - Install into this machine's harnesses: `bash scripts/install.sh` (`--dry-run` to preview)
 - Report installation health: `bash scripts/doctor.sh`
+- Build or update the pinned MCP servers in `setup/tools.tsv`: `bash scripts/tools.sh install`;
+  `bash scripts/tools.sh status --remote` lists upstream's newest tags beside the pins (network, so
+  no suite runs either for real)
 - Remove this project's links: `bash scripts/uninstall.sh`
 - Version agreement (package, plugin, crate; optionally a tag): `sh scripts/check-version.sh [vX.Y.Z]`
 - Fab CLI: see `cli/fab/AGENTS.md` (`cargo test` from `cli/fab`)
@@ -41,12 +44,14 @@ exists to avoid.
 - `docs/`, code, config — authoritative project truth, read when relevant.
 - `scripts/`, `tests/`, CI — deterministic enforcement, never a model call.
 
-`cli/fab/` is a Rust crate with its own `AGENTS.md`; its docs are `docs/fab/`. `plugins/` holds
-only files of our own: connector manifests whose servers users install from upstream, and a
-language-server config. Third-party plugins are marketplace entries pinned to upstream commits in
-`.claude-plugin/marketplace.json`; never commit their code here. `setup/` holds the recommended
-settings, worker agents and the Agent-call guard script (`setup/claude/scripts/`, never under a
-`hooks/` directory) the README's setup section merges in.
+`cli/fab/` is a Rust crate with its own `AGENTS.md`; its docs are `docs/fab/`. `plugins/` holds only
+files of our own: connector manifests whose servers users install from upstream, a language-server
+config, and our own patches to an upstream that users build from source (each patch named in its
+`UPSTREAM.md`, with upstream's copyright notice). Third-party plugins are marketplace entries pinned
+to upstream commits in `.claude-plugin/marketplace.json`; never commit their code here. `setup/`
+holds the recommended settings, the pinned tool manifest (`tools.tsv`), worker agents and the
+Agent-call guard script (`setup/claude/scripts/`, never under a `hooks/` directory) the README's
+setup section merges in.
 
 `examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not
 instructions for work on this repo. They are named `*-agents.md` so an agent working under

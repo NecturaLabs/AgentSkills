@@ -193,7 +193,17 @@ its server binary from the language's official source)
 | per project | Python, Rust, Go, C/C++, C#, Java, Kotlin, PHP, Ruby, Swift, Liquid | `pyright-lsp`, `rust-analyzer-lsp`, `gopls-lsp`, `clangd-lsp`, `csharp-lsp`, `jdtls-lsp`, `kotlin-lsp`, `php-lsp`, `ruby-lsp`, `swift-lsp`, `liquid-lsp` `@claude-plugins-official` | as each plugin's README names |
 
 **Command-line tools** (system package manager where the distribution packages the official
-build, else the vendor's own installer or releases)
+build, else the vendor's own installer or releases, else a pinned build from upstream's
+repository by [`scripts/tools.sh`](scripts/tools.sh))
+
+`scripts/tools.sh` covers the MCP servers no marketplace or vendor installer ships
+([`setup/tools.tsv`](setup/tools.tsv)): `install` builds each at its pinned revision from a full
+clone and links it into `~/.local/bin`, `status --remote` lists upstream's newest tags beside the
+pins, and `update` rebuilds after a pin moves, keeping the previous build for servers still
+running. Set `AGENTSKILLS_TOOLS_DIR` to keep the clones and builds somewhere other than
+`~/.local/share/agentskills-tools`. The other tools update through their own channel: `mise
+upgrade` for those installed with mise, `sentry cli upgrade`, the distribution's package manager,
+and `claude plugin marketplace update` for plugins.
 
 | | Tool | Needed for | Official source |
 |---|---|---|---|
@@ -208,10 +218,10 @@ build, else the vendor's own installer or releases)
 | ☑ | `ffmpeg` | `agent-browser` screen recording | the distro package, or `ffmpeg.org` |
 | ☑ | Unity CLI | the Unity MCP server | Unity: `curl -fsSL https://unity.com/install.sh \| bash` (macOS, Linux); Windows per [Unity's docs](https://docs.unity.com/en-us/unity-cli/use-unity-cli); also installed by Unity Hub |
 | ☑ | Blender | the Blender MCP server | `blender.org`, or the distro package |
-| ☑ | `blender-mcp` and its add-on | the Blender MCP server | Blender Foundation, pinned: [plugins/blender-lab-mcp/UPSTREAM.md](plugins/blender-lab-mcp/UPSTREAM.md) |
+| ☑ | `blender-mcp` and its add-on | the Blender MCP server | Blender Foundation, built by `scripts/tools.sh install blender-mcp`; the add-on as [plugins/blender-lab-mcp/UPSTREAM.md](plugins/blender-lab-mcp/UPSTREAM.md) says |
 | ☑ | Godot | the Godot MCP server | `godotengine.org`, or the distro package |
-| ☑ | `godot-mcp-server` and its add-on | the Godot MCP server | NPGameDev, pinned: [plugins/godot-mcp-toolkit/UPSTREAM.md](plugins/godot-mcp-toolkit/UPSTREAM.md) |
-| ☑ | `meshy-mcp-server` | the Meshy MCP server | Meshy, pinned: [plugins/meshy-mcp/UPSTREAM.md](plugins/meshy-mcp/UPSTREAM.md) |
+| ☑ | `godot-mcp-server` and its add-on | the Godot MCP server | NPGameDev, built with our patches by `scripts/tools.sh install godot-mcp-server`; the add-on as [plugins/godot-mcp-toolkit/UPSTREAM.md](plugins/godot-mcp-toolkit/UPSTREAM.md) says |
+| ☑ | `meshy-mcp-server` | the Meshy MCP server | Meshy, built by `scripts/tools.sh install meshy-mcp-server` ([plugins/meshy-mcp/UPSTREAM.md](plugins/meshy-mcp/UPSTREAM.md)) |
 | ☑ | `sentry` | the Sentry CLI skill | Sentry: `curl https://cli.sentry.dev/install -fsS \| bash`, then `sentry auth login` |
 | ☑ | `necturalabs-fab` and `fabcli` | the `fab` skill | AgentSkills releases and `zirklerite/FabCLI` (GPL-3.0, never bundled): `curl -fsSL https://raw.githubusercontent.com/NecturaLabs/AgentSkills/main/scripts/install-fab.sh \| sh` — Windows and details in [docs/fab/installation.md](docs/fab/installation.md) |
 | ☐ | Real-ESRGAN ncnn-vulkan | upscaling generated images | `github.com/xinntao/Real-ESRGAN` release v0.2.5.0 |

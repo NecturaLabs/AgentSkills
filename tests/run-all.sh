@@ -27,6 +27,7 @@ run_suite() {
 run_suite "validate" bash "$REPO_ROOT/scripts/validate.sh" --strict
 run_suite "validator-guard" bash "$REPO_ROOT/tests/validator-guard.sh"
 run_suite "install-guard" bash "$REPO_ROOT/tests/install-guard.sh"
+run_suite "tools-guard" bash "$REPO_ROOT/tests/tools-guard.sh"
 
 printf '\nTotal: %d suites passed, %d suites failed\n' "$total_pass" "$total_fail"
 [ "$total_fail" -eq 0 ]

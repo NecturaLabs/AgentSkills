@@ -1,0 +1,14 @@
+# Agent tools with no marketplace or official installer, built from a pinned upstream revision by
+# scripts/tools.sh. Columns, tab-separated:
+#   name     the command linked into the bin directory
+#   kind     node (npm build) or python (a venv with the package installed)
+#   url      the upstream git repository
+#   rev      the pinned commit (a full SHA: tags can move)
+#   subdir   the package's directory in the repository, or . for its root
+#   patches  a directory of our own patches applied in order with git am, or -
+#   audit    fix: run `npm audit fix` (in-range only) before building; - to build the lockfile as is
+# Bump a pin by changing rev (and the matching plugin's UPSTREAM.md and manifests), then run
+# `scripts/tools.sh update` on each machine.
+godot-mcp-server	node	https://github.com/NPGameDev/godot-mcp-server.git	2034c32b2a69ad259141060502b4f696e13a7cb9	.	plugins/godot-mcp-toolkit/patches	-
+meshy-mcp-server	node	https://github.com/meshy-dev/meshy-mcp-server.git	10e882abbb8b123f140556678e75f1012ccb69a2	.	-	fix
+blender-mcp	python	https://projects.blender.org/lab/blender_mcp.git	ff54e4d8f6b09502f2f466189cca0e52b4a91643	mcp	-	-

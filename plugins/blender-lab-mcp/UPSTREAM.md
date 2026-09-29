@@ -12,18 +12,17 @@ The manifests and this file are NecturaLabs' own, under the repository's MIT lic
 
 ## Install the server
 
-Blender Foundation publishes no package, so install the pinned revision from its own repository
-with a per-user Python tool manager:
-
-```bash
-uv tool install "git+https://projects.blender.org/lab/blender_mcp.git@ff54e4d8f6b09502f2f466189cca0e52b4a91643#subdirectory=mcp"
-blender-mcp --help
-```
+Blender Foundation publishes no package. `scripts/tools.sh install blender-mcp` clones the
+repository, checks out the pinned revision from `setup/tools.tsv`, installs its `mcp/` package in
+a virtual environment beside it, and links `blender-mcp` into `~/.local/bin`.
 
 Then install the add-on from the same revision into Blender (Edit → Preferences → Add-ons →
-Install from Disk, pointing at a zip of `addon/`) and enable it. The server talks to that add-on.
+Install from Disk, pointing at a zip of the build's `addon/` directory, under
+`<tools dir>/blender-mcp/builds/`) and enable it. The server talks to that add-on.
 
 ## Refresh
 
-Pick a new upstream commit, reinstall with it, and update the revision here, in both manifests'
-descriptions, and in the marketplace entry.
+`scripts/tools.sh status --remote blender-mcp` lists upstream's newest tags. To move, change the
+`rev` in `setup/tools.tsv`, the revision here, both manifests' descriptions and the marketplace
+entry; each machine then runs `scripts/tools.sh update blender-mcp` and reinstalls the add-on from
+the new build.
