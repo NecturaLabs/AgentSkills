@@ -25,14 +25,15 @@ The suite is entirely offline: every check reads files in this repo. Nothing nee
 or its CI, so such a check could only ever be skipped, and a permanently skipped check reads as
 coverage while providing none.
 
-Two official tools exist alongside the suite and are for humans to run, not CI:
+Two official tools exist alongside the suite, and CI runs neither:
 
-- `claude plugin validate . --strict` — Anthropic's own manifest and frontmatter validator.
+- `claude plugin validate . --strict` — Anthropic's own manifest and frontmatter validator. It
+  makes no model calls: run it with the suite before a release.
 - `claude plugin eval .` — runs the routing evals under `evals/`. It spends tokens and needs
   credentials, which is why CI validates the eval *files* and never executes them. Run
   `bash scripts/fetch-eval-plugins.sh` first (it fetches the pinned third-party plugins some cases
-  load into the ignored `evals/.plugins/`). Run it only when the owner asks for an eval run, never
-  on API billing, and record the result in `docs/evals.md`.
+  load into the ignored `evals/.plugins/`). It makes real model calls, so run it only when the owner
+  asks for an eval run, never on API billing, and record the result in `docs/evals.md`.
 
 ## Architecture
 
