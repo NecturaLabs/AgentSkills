@@ -76,6 +76,16 @@ out=$(printf '{"session_id":"%s","cwd":"%s","source":"compact"}' "$SID" "$PROJEC
   env -u CLAUDE_CODE_TMPDIR TMPDIR="$TMPROOT" python3 "$HOOK" 2>&1)
 check "system-temp-fallback" 1 "$(grep -c '^Next: the final step$' <<< "$out")"
 
+# 5b. The scratchpad the hook input names wins over the search, and hidden files are not listed.
+GIVEN="$SANDBOX/given pad"
+mkdir -p "$GIVEN/.context-meter"
+printf 'Next: from the given pad\n' > "$GIVEN/checklist.md"
+: > "$GIVEN/.context-meter/state.1"; : > "$GIVEN/notes.md"
+out=$(printf '{"session_id":"%s","cwd":"%s","source":"compact","scratchpad_dir":"%s"}' "$SID" "$PROJECT" "$GIVEN" |
+  CLAUDE_CODE_TMPDIR="$TMPROOT" python3 "$HOOK" 2>&1)
+check "scratchpad-dir-wins" 1 "$(grep -c '^Next: from the given pad$' <<< "$out")"
+check "hidden-files-not-listed" 1 "$(grep -c '^Other files in the scratchpad: notes.md$' <<< "$out")"
+
 # 6. No checklist, or no scratchpad at all, is stated rather than silent.
 rm "$PAD/checklist.md"
 out=$(run compact 2>&1)

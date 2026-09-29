@@ -11,6 +11,13 @@
   line. `examples/global-agents.md` keeps a checklist for any task of more than a few steps,
   written ahead of the work, treats it and the disk as the record after a compaction, and tells
   the compaction summary what to keep. Copy both scripts in as the README's setup section says.
+- `statusline.py` becomes `context-meter.py`, which also runs as a UserPromptSubmit and
+  PostToolUse hook: every prompt carries one line with the context used against the auto-compact
+  window, and a tool call adds it only when 60%, 80%, 90% or 95% is first reached, so the model
+  sees a compaction coming. `examples/global-agents.md` brings the checklist up to date from 80%
+  and reaches a clean point from 90%. `compact-resume.py` takes the hook input's `scratchpad_dir`
+  when present and leaves hidden scratchpad files out of its list. Replace
+  `~/.claude/statusline.py` with `~/.claude/hooks/context-meter.py` and point `statusLine` at it.
 - The worker agents in `setup/claude/agents/` pin a model as well as an effort: `opus-low` to
   `opus-xhigh` for judgment-led, long-horizon or costly-to-fail work, and `sonnet-low` to
   `sonnet-xhigh` as the default for work with a clear spec and a way to check it. They replace

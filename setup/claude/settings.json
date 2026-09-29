@@ -49,6 +49,28 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/context-meter.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/context-meter.py",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "skipDangerousModePermissionPrompt": true,
@@ -122,6 +144,6 @@
   "autoCompactWindow": 500000,
   "statusLine": {
     "type": "command",
-    "command": "$HOME/.claude/statusline.py"
+    "command": "$HOME/.claude/hooks/context-meter.py"
   }
 }

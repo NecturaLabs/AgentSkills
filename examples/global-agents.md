@@ -64,6 +64,9 @@ guard and name the conflict in your report.
   always told how full its context is. Write the checklist ahead of the work — record a background
   job, a subagent, a multi-file edit or a new decision of mine before starting it or carrying on —
   and tick each step with its result as it ends. Never leave a half-applied edit between steps.
+- Where the harness reports how full the context is against its auto-compact window: from 80%,
+  bring the checklist fully up to date at the next step boundary; from 90%, reach a clean point
+  (checklist current, no edit half-done) before starting anything long.
 - After a compaction or reset, the checklist and the disk are the record, not the summary: re-read
   the checklist, this file and the project's instruction files, check `git status` and what is
   running against it, and redo nothing it marks done unless the disk contradicts it.

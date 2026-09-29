@@ -3,11 +3,12 @@
 session resumes from what it wrote down rather than from the compaction summary's paraphrase.
 
 After a compaction it prints, for the context:
-- the session's checklist, `checklist.md` in its scratchpad
-  (<CLAUDE_CODE_TMPDIR or the system temp dir>/claude-*/<project>/<session id>/scratchpad); a
+- the session's checklist, `checklist.md` in its scratchpad (the hook input's `scratchpad_dir`,
+  else <CLAUDE_CODE_TMPDIR or the system temp dir>/claude-*/<project>/<session id>/scratchpad); a
   long one keeps its head (the task and its requests) and its tail (the latest state and the next
   step) and drops the middle;
-- the names of the other files in that scratchpad, where saved findings and evidence live;
+- the names of the other files in that scratchpad, where saved findings and evidence live
+  (hidden ones, such as the context meter's state, left out);
 - `git status --short --branch` of the session's working directory, as much as fits.
 The whole stays under Claude Code's 10,000-character cap on hook output: past it, the context
 gets only the first 2,000 characters and a file path.
@@ -35,7 +36,13 @@ TIME_LIMIT_S = 8
 SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-def scratchpad(session_id):
+def scratchpad(data):
+    given = data.get("scratchpad_dir")
+    if given and Path(given).is_dir():
+        return Path(given)
+    session_id = str(data.get("session_id") or "")
+    if not SESSION_ID.match(session_id):
+        return None
     root = Path(os.environ.get("CLAUDE_CODE_TMPDIR") or tempfile.gettempdir())
     for path in sorted(root.glob(f"claude-*/*/{session_id}/scratchpad")):
         if path.is_dir():
@@ -70,7 +77,8 @@ def other_files_section(pad):
         return []
     try:
         names = sorted(
-            str(p.relative_to(pad)) for p in pad.rglob("*") if p.is_file() and p.name != CHECKLIST
+            str(rel) for rel in (p.relative_to(pad) for p in pad.rglob("*") if p.is_file())
+            if rel != Path(CHECKLIST) and not any(part.startswith(".") for part in rel.parts)
         )
     except OSError:
         return []
@@ -121,8 +129,7 @@ def main():
         return
     if data.get("source") != "compact":
         return
-    session_id = str(data.get("session_id") or "")
-    pad = scratchpad(session_id) if SESSION_ID.match(session_id) else None
+    pad = scratchpad(data)
     out = ["Context compacted.", *checklist_section(pad)]
     others = other_files_section(pad)
     if others:
