@@ -30,7 +30,7 @@ payload() { # input cache_creation cache_read output
   printf '"cache_read_input_tokens":%s,"output_tokens":%s}}}' "$3" "$4"
 }
 run() { # env-window payload
-  CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW="$1" python3 "$LINE" <<< "$2"
+  env -u COLUMNS CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW="$1" python3 "$LINE" <<< "$2"
 }
 
 # 1. Window from the user settings; output tokens are not counted.
@@ -71,6 +71,20 @@ printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
 check "env-suffix-ignored" "Opus · ctx 100k / 500k (20%)" "$(run 400k "$(payload 0 0 100000 0)")"
 printf '[]' > "$CONFIG/settings.json"
 check "odd-settings-ignored" "Opus · ctx 100k / 1M (10%)" "$(run '' "$(payload 0 0 100000 0)")"
+
+# 7. Right-aligned against COLUMNS, colour codes not counted as width; too narrow is not padded.
+printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
+right() { # columns payload
+  COLUMNS="$1" CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW='' python3 "$LINE" <<< "$2"
+}
+out=$(right 80 "$(payload 0 0 100000 0)")
+check "right-aligned-width" 76 "${#out}"
+check "right-aligned-tail" "(20%)" "${out##* }"
+out=$(right 80 "$(payload 0 0 450000 0)")
+plain=$(sed "s/${ESC}\[[0-9;]*m//g" <<< "$out")
+check "colour-not-counted" 76 "${#plain}"
+out=$(right 10 "$(payload 0 0 100000 0)")
+check "narrow-not-padded" "Opus · ctx 100k / 500k (20%)" "$out"
 
 printf '\nStatusline summary: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

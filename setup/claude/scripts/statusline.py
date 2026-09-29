@@ -9,6 +9,10 @@ token count) when set, else `autoCompactWindow` from the user settings (under CL
 or ~/.claude), capped at the model's context window, else the model's context window. A window set by the `--autocompact`
 flag or in project settings is not visible here. The count turns yellow at 70% of the window and
 red at 90%.
+
+Claude Code draws the status line on its own row above the footer and has no setting to move it, so
+the text is right-aligned in that row with spaces, measured against COLUMNS (the terminal width
+Claude Code passes in), leaving RIGHT_MARGIN for the row's own padding.
 """
 import json
 import os
@@ -21,6 +25,8 @@ ALERT = 0.90
 YELLOW = "\033[33m"
 RED = "\033[31m"
 RESET = "\033[0m"
+RIGHT_MARGIN = 4
+ANSI = re.compile(r"\033\[[0-9;]*m")
 SIZE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*([kKmM]?)\s*$")
 
 
@@ -78,13 +84,20 @@ def line(data):
     return f"{model} · {colour}{text}{RESET if colour else ''}"
 
 
+def right_aligned(text, columns):
+    width = len(ANSI.sub("", text))
+    if not columns.isdigit():
+        return text
+    return " " * max(0, int(columns) - RIGHT_MARGIN - width) + text
+
+
 def main():
     try:
         data = json.load(sys.stdin)
         text = line(data if isinstance(data, dict) else {})
     except (ValueError, AttributeError, TypeError):
         text = line({})
-    print(text)
+    print(right_aligned(text, os.environ.get("COLUMNS", "")))
 
 
 if __name__ == "__main__":
