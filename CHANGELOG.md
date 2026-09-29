@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- The worker agents in `setup/claude/agents/` pin a model as well as an effort: `opus-low` to
+  `opus-xhigh` for judgment-led, long-horizon or costly-to-fail work, and `sonnet-low` to
+  `sonnet-xhigh` as the default for work with a clear spec and a way to check it. They replace
+  `worker-low` to `worker-xhigh`: delete those from `~/.claude/agents/`, copy the new files in, and
+  dispatch by the new names.
+- `agent-orchestration` defines the strong tier as the strongest the setup provides (the `opus-*`
+  types in this setup) rather than the harness's most capable model, which a setup may exclude, and
+  its tier table gains the long-horizon and quick-expert-look rows.
+- `examples/global-agents.md` is brought up to date: compaction-readiness rules, other skills load
+  only when their description fits, Codex limited to generating assets, a scratch-directory rule,
+  the delegation routing (`sonnet-*` by default, `opus-*` for strong rows, latest aliases, never
+  Fable) and one review per checkpoint.
+- The recommended Claude Code settings use model `opus` rather than `opus[1m]`.
+
+### Added
+
+- `setup/claude/scripts/agent-model-guard.py`, a PreToolUse hook on Agent that names each subagent
+  after the model and effort it actually runs on, rewrites a `model` argument that contradicts a
+  `<model>-<effort>` type, and refuses a spawn on Fable. Copy it to `~/.claude/hooks/` and make it
+  executable; the recommended `settings.json` registers it.
+
 ## 5.0.1 — 2026-09-24
 
 ### Changed
