@@ -17,6 +17,7 @@
   the delegation routing (`sonnet-*` by default, `opus-*` for strong rows, latest aliases, never
   Fable) and one review per checkpoint.
 - The recommended Claude Code settings use model `opus` rather than `opus[1m]`.
+- The `remotion` entry pins remotion-dev/skills 4.0.529 (`cf49eff`), its latest.
 - The recommended settings drop the saved effort for Opus 5 and Sonnet 5, which the `opus` and
   `sonnet` aliases no longer reach; Opus 5.5 stays at `high`. They turn on auto-scroll and enable
   the Scenario, Sentry and Meshy plugins below.

@@ -47,12 +47,12 @@
     },
     {
       "name": "remotion",
-      "description": "Remotion's Agent Skills, installed from remotion-dev/skills at 4.0.527 (9682e99). Upstream declares no license; Remotion itself is under the Remotion License. Nothing is redistributed here.",
-      "version": "4.0.527",
+      "description": "Remotion's Agent Skills, installed from remotion-dev/skills at 4.0.529 (cf49eff). Upstream declares no license; Remotion itself is under the Remotion License. Nothing is redistributed here.",
+      "version": "4.0.529",
       "source": {
         "source": "url",
         "url": "https://github.com/remotion-dev/skills.git",
-        "sha": "9682e994989f951c75912fbc49aa10332a512685"
+        "sha": "cf49eff5d4463b33966b6618c83f7295797dd028"
       },
       "strict": false,
       "skills": [
