@@ -76,6 +76,11 @@ guard and name the conflict in your report.
   nothing else — no new steps, no waiting on results — only bring the checklist fully up to
   date, then pause and say so. I compact, and you resume from the checklist afterwards.
   Running subagents are not affected; leave them working.
+- Whenever I am about to compact by hand — I ask for a clean point, ask whether to compact, or say
+  I will — end that message with compaction instructions for me to paste after `/compact`: one
+  fenced block, a few lines, naming the checklist's path and saying to resume from it, my
+  requests still in force in my own words, running job and agent IDs, uncommitted files, and the
+  exact next step.
 
 ## Capabilities
 
