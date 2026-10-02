@@ -51,7 +51,7 @@ config, and our own patches to an upstream that users build from source (each pa
 `UPSTREAM.md`, with upstream's copyright notice). Third-party plugins are marketplace entries pinned
 to upstream commits in `.claude-plugin/marketplace.json`; never commit their code here. `setup/`
 holds the recommended settings, the pinned tool manifest (`tools.tsv`), worker agents and the hook
-scripts (`setup/claude/scripts/`: the Agent-call guard and the memory check, never under a `hooks/`
+scripts (`setup/claude/scripts/`: the Agent-call guard, the memory check and the duplicate-skill check, never under a `hooks/`
 directory) the README's setup section merges in.
 
 `examples/` sits outside those layers: finished `AGENTS.md` files shipped for users to copy, not

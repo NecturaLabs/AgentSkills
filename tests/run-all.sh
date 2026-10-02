@@ -29,6 +29,7 @@ run_suite "validator-guard" bash "$REPO_ROOT/tests/validator-guard.sh"
 run_suite "install-guard" bash "$REPO_ROOT/tests/install-guard.sh"
 run_suite "tools-guard" bash "$REPO_ROOT/tests/tools-guard.sh"
 run_suite "memory-check-guard" bash "$REPO_ROOT/tests/memory-check-guard.sh"
+run_suite "skill-dupes-guard" bash "$REPO_ROOT/tests/skill-dupes-guard.sh"
 run_suite "compact-resume-guard" bash "$REPO_ROOT/tests/compact-resume-guard.sh"
 run_suite "context-meter-guard" bash "$REPO_ROOT/tests/context-meter-guard.sh"
 

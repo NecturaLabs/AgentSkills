@@ -39,6 +39,11 @@
             "type": "command",
             "command": "$HOME/.claude/hooks/memory-check.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/skill-dupes-check.py",
+            "timeout": 10
           }
         ]
       },
