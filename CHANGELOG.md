@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.2.0 — 2026-10-02
+
+### Added
+
+- `setup/claude/scripts/skill-dupes-check.py`, a SessionStart hook that flags skills and plugins
+  installed twice (a plugin from two marketplaces, a loose copy beside the plugin that ships it,
+  in Claude Code or Codex) and caches left by a removed marketplace; silent when all is well.
+
 ## 5.1.1 — 2026-09-29
 
 ### Changed
