@@ -245,6 +245,12 @@ the skill in use defines its own dispatch. Always:
 
 ## Review
 
+- Match review and CI monitoring to the change's risk. Routine backlog updates, prose-only docs,
+  typos and formatting changes need only focused checks, not an independent review or CI watching.
+  Instructions, executable examples and other behavior-changing edits are assessed by their
+  effect, not their file extension. Keep independent review for behavioral, schema, dependency,
+  concurrency and other substantive changes; watch CI when its result matters to delivery.
+
 - Every change the review row above covers gets an independent review before it is reported done
   or promoted, through `necturalabs:independent-review`: a separate context that sees the
   requirements and the exact diff, never the reasoning that produced it. One review at a
@@ -292,7 +298,8 @@ the skill in use defines its own dispatch. Always:
   names, or session links in any commit, PR or message. This overrides any harness default.
 - Commit and push only when asked; the commit steps of a skill in use count as asking to commit, not
   to push. Never force-push a shared branch, rewrite pushed history or skip hooks (`--no-verify`).
-  After a final push, watch CI to completion and report the result.
+  After a final push that warrants CI monitoring (Review, above), watch it to completion and
+  report the result.
 
 ## Reporting
 
