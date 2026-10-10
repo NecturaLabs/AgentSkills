@@ -1,8 +1,9 @@
 # AgentSkills
 
-The NecturaLabs setup for Claude Code and Codex: seven Agent Skills of our own — instruction-file
+The NecturaLabs setup for Claude Code and Codex: nine Agent Skills of our own — instruction-file
 maintenance, agent orchestration, independent review, test engineering, project documentation,
-memory hygiene, and `fab` for the Fab asset marketplace — plus a marketplace that pins every third-party plugin the
+memory hygiene, time and percent-done estimates, opening a project's session terminal, and `fab`
+for the Fab asset marketplace — plus a marketplace that pins every third-party plugin the
 setup uses, the global working agreement, worker agents and recommended settings. An agent reading
 this README can install all of it for you: see [Set up with your agent](#set-up-with-your-agent).
 
@@ -50,6 +51,8 @@ belongs.
 | **`testing`** | Adding coverage for new behavior, writing a regression test for a defect, fixing a failing or flaky test, choosing the right test level, or auditing a suite |
 | **`project-docs`** | Recording a consequential decision and its rationale, documenting how a system is structured, or auditing docs that have drifted from the code |
 | **`memory-hygiene`** | Keeping saved memories and session handoff notes true: verifying them against the repository, merging duplicates, retiring finished handoffs, fixing the memory index |
+| **`estimate-time`** | The user asks how long, how done, what percent or the ETA for work in a repository: the estimate comes from the pace of the commits on the current approach, in agent time, never human effort |
+| **`open-project-terminal`** | The user asks for a new Claude Code session terminal for a named project: kitty on a chosen Hyprland workspace, in the project's directory, named after it, with a first message |
 | **`fab`** | A project needs a game asset it does not have, or the user mentions Fab or their Fab library: find, compare, inspect, claim and download through the `necturalabs-fab` CLI ([docs](docs/fab/README.md)) |
 
 Each description states what the skill is *not* for as well, because that clause is what keeps
@@ -167,7 +170,7 @@ links this repository owns; it does not remove plugins or unrelated skills.
 
 | | Item | What it's for | Install from |
 |---|---|---|---|
-| ☑ | `necturalabs` | This repository's seven skills, including `fab` | `necturalabs@necturalabs` |
+| ☑ | `necturalabs` | This repository's nine skills, including `fab` | `necturalabs@necturalabs` |
 | ☑ | `security-audit` | Cloudflare's security review, focused or full audit | `security-audit@necturalabs` (upstream `cloudflare/security-audit-skill`, MIT) |
 | ☑ | `worker-protocol` | File-based contracts, decisions and escalation for explicitly chosen scripted workflows; plain subagents report by message | `worker-protocol@worker-protocol` (`NecturaLabs/worker-protocol`, MIT) |
 | ☑ | superpowers | Brainstorm, plan, TDD, subagent-driven development, reviews; runs as written, including its session-start hook | `superpowers@claude-plugins-official` (`obra/superpowers`, MIT) |
@@ -184,7 +187,7 @@ links this repository owns; it does not remove plugins or unrelated skills.
 | ☑ | Godot MCP | Drive the Godot editor from the agent | `godot-mcp-toolkit@necturalabs`; needs Godot and `godot-mcp-server` (tools below) |
 | ☑ | Meshy MCP | Text- and image-to-3D, rigging, animation and retexturing through Meshy; Claude Code only | `meshy-mcp@necturalabs`; needs `meshy-mcp-server` (tools below) and a Meshy API key, which Claude Code asks for when the plugin is enabled and keeps in its credential store |
 | ☑ | Scenario | Game art, seamless and PBR textures, skyboxes, sprite animation, video and audio through Scenario | `01.-getting-started`, `03.-images` and `04.-game-art-and-3d` `@scenario-skills` (`scenario-labs/skills`; add `05.-video-and-audio`, `07.-consistency-and-custom-models`, `08.-reviewing-and-organizing-output` or `22.-expert-tools-godot` when you need them); connect Scenario's MCP server as `01.-getting-started:scenario` describes |
-| ☑ | Higgsfield | Image, video and audio generation | the Higgsfield connector on claude.ai (Settings → Connectors); no extra Codex server. The settings template turns account connectors off in Claude Code (`disableClaudeAiConnectors`), so reach Higgsfield from Codex or remove that key |
+| ☑ | Higgsfield | Image, video and audio generation | `claude mcp add -s user --transport http higgsfield https://mcp.higgsfield.ai/mcp`, then sign in with `/mcp`; no extra Codex server. The settings template turns the claude.ai account connectors off (`disableClaudeAiConnectors`), so the claude.ai Higgsfield connector is not the route |
 | ☑ | Sentry | Sentry issues, events and releases through its MCP server, and the Sentry CLI skill | `sentry@claude-plugins-official` and `sentry-cli@claude-plugins-official`; the CLI skill needs `sentry` (tools below) |
 | ☑ | Unity plugin | Unity's agent plugin, enabled per project that uses Unity (not globally) | `unity@unity-agent-plugin` (`Unity-Technologies/unity-agent-plugin`); `claude plugin install unity@unity-agent-plugin --scope project` |
 | ☑ | Unity MCP | Drive the Unity editor from the agent | `claude mcp add -s user unity-editor-mcp -- unity mcp`; needs the Unity CLI |
