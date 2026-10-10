@@ -32,7 +32,38 @@ chmod +x "$BIN/codex"
 run() { HOME="$H" PATH="$BIN:/usr/bin:/bin" python3 "$CHECK" </dev/null 2>&1; }
 
 out=$(run)
-[ -z "$out" ] && ok "clean setup is silent" || bad "clean setup is silent" "$out"
+if [ -z "$out" ]; then
+  ok "clean setup is silent"
+else
+  bad "clean setup is silent" "$out"
+fi
+
+# Built-in directories may be represented only in installed_plugins.json, not the user's
+# known_marketplaces.json. Their cache and data are active while real leftovers still warn.
+mkdir -p "$H/.claude/plugins/cache/builtin" "$H/.claude/plugins/data/tool-builtin"
+printf '{"plugins": {"tool@mkt": [{"installPath": "%s"}], "builtin-tool@builtin": []}}' "$H/plug" > "$H/.claude/plugins/installed_plugins.json"
+out=$(run)
+if [ -z "$out" ]; then
+  ok "installed built-in marketplace cache and data are not leftovers"
+else
+  bad "installed built-in marketplace cache and data are not leftovers" "$out"
+fi
+
+# An empty user marketplace registry does not hide leftovers when installed plugins establish
+# which built-in marketplace is active.
+printf '{}' > "$H/.claude/plugins/known_marketplaces.json"
+printf '{"plugins": {"builtin-tool@builtin": []}}' > "$H/.claude/plugins/installed_plugins.json"
+mkdir -p "$H/.claude/plugins/cache/orphan" "$H/.claude/plugins/data/tool-orphan"
+out=$(run)
+for want in "cache/orphan belongs to no configured marketplace" "tool-orphan belongs to no configured marketplace"; do
+  case $out in *"$want"*) ok "built-in-only registry reports: $want" ;; *) bad "built-in-only registry reports: $want" "$out" ;; esac
+done
+case $out in
+  *"cache/builtin belongs"*|*"tool-builtin belongs"*) bad "built-in-only registry keeps active cache and data" "$out" ;;
+  *) ok "built-in-only registry keeps active cache and data" ;;
+esac
+rm -r "$H/.claude/plugins/cache/builtin" "$H/.claude/plugins/cache/orphan" "$H/.claude/plugins/data"
+printf '{"mkt": {}}' > "$H/.claude/plugins/known_marketplaces.json"
 
 mkdir -p "$H/.claude/skills/alpha" "$H/.agents/skills/beta" "$H/.claude/plugins/cache/gone"
 echo x > "$H/.claude/skills/alpha/SKILL.md"

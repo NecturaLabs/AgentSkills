@@ -1,29 +1,17 @@
 # Recommended Codex settings for the NecturaLabs setup. Merge these keys into
-# ~/.codex/config.toml; keep everything else already there.
+# ~/.codex/config.toml; keep app-managed settings and capabilities.
+# App inventory: browser, unified-computer-use, visualize (openai-bundled);
+# openai-templates, sites, plugin-management, work-pets (openai-curated-remote).
+# node_repl/cua_repl are app-managed: do not copy their paths or environment.
+# See docs/installation.md#harness-tool-inventory for selection/restore boundaries.
+# Claude Code gets the external tooling; Codex is used only for assets and as an
+# additional reviewer beside Claude Code's independent review. Install no extra
+# skills, plugins or MCP servers into Codex for this setup.
 
-model = "gpt-6-sol"
-model_reasoning_effort = "high"
+model = "gpt-6.1-sol"
+model_reasoning_effort = "xhigh"
 
 # Yolo mode: no approval prompts and no sandbox. The global AGENTS.md stop rules
 # become the only guard. Leave these two out to keep Codex's defaults.
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-
-[mcp_servers.unity-editor-mcp]
-command = "unity"
-args = ["mcp"]
-
-# Remote servers; each signs in with `codex mcp login <name>` on first use.
-[mcp_servers.scenario]
-url = "https://mcp.scenario.com/mcp"
-
-[mcp_servers.higgsfield]
-url = "https://mcp.higgsfield.ai/mcp"
-
-# The Codex-catalog copies add no skills to the Codex CLI; the marketplace
-# installs below replace them.
-[plugins."impeccable@openai-curated-remote"]
-enabled = false
-
-[plugins."superpowers@openai-curated-remote"]
-enabled = false

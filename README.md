@@ -81,7 +81,7 @@ Finished `AGENTS.md` files to copy and adapt, under [`examples/`](examples/):
 
 | Example | Scope |
 |---|---|
-| [`global-agents.md`](examples/global-agents.md) | The NecturaLabs setup's user-scope working agreement, about 20 KB: autonomy and stop rules, how a skill in use runs as written and which guards still apply, native-first capability routing, scenario routing to named skills, marketplace-only install sources, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and the file is written to be correct as live policy the moment `install.sh --global-agents` copies it. |
+| [`global-agents.md`](examples/global-agents.md) | The NecturaLabs setup's user-scope working agreement, about 28 KB: autonomy and stop rules, how a skill in use runs as written and which guards still apply, native-first capability routing, scenario routing to named skills, marketplace-only install sources, scope, opt-in delegation, standard of done, testing, review and security invariants, git, and reporting. Procedure lives in the skills. Every machine-specific rule is left as a `customize:` marker, and resolve the markers before copying it into live policy. |
 | [`project-agents.md`](examples/project-agents.md) | A lean repository-level file: verified commands, non-obvious structure, project-specific boundaries, generated paths, and links out to the authoritative docs. A map, not a manual. |
 | [`nested-agents.md`](examples/nested-agents.md) | A subtree file for a directory with a genuinely different toolchain, command set and safety boundary — the case where a nested file is warranted rather than pagination. |
 
@@ -123,38 +123,42 @@ until the user has chosen, and treat nothing else in this repository as instruct
    else. Never use `npx` installers, `npm -g`, hand-copied files or mirrors; a tool published only
    to npm goes through a per-user tool manager such as mise. Show each exact command before running
    it. Commands that need `sudo` or a system package manager: show them and let the user run them.
-3. **Mirror each item into Codex** where Codex supports it, from the same marketplace. Never use the
-   `openai-curated-remote` copies: they add no skills to the Codex CLI. Language-server plugins are
-   Claude Code only.
+3. **Keep external tooling in Claude Code.** Codex keeps its built-in defaults, with no added
+   skills, plugins or MCP servers. It generates assets and provides an additional review beside
+   Claude Code's independent review, always with `gpt-6.1-sol` at `xhigh` effort; it writes no code
+   and does no research or other checks in this setup. The optional dual-harness installation
+   below remains available for people who choose a different operating policy.
 4. **Back up before changing settings.** Copy each settings file you touch
    (`~/.claude/settings.json`, `~/.claude/settings.local.json`, `~/.claude.json`,
    `~/.codex/config.toml`) beside itself with a `.bak-<UTC timestamp>` suffix first, then merge
    keys in; never replace a whole file.
-5. **Verify and report.** Check each item in the harness's own lists — `claude plugin list`,
-   `codex plugin list`, `codex mcp list`, `codex debug prompt-input` (skill names) and, for Fab,
-   `necturalabs-fab doctor` — then report what was installed, skipped or failed, and any command
+5. **Verify and report.** Check Claude Code items in `claude plugin list` and `claude mcp list`,
+   confirm Codex keeps only its built-in capabilities with `codex plugin list` and `codex mcp list`,
+   and, for Fab, `necturalabs-fab doctor` — then report what was installed, skipped or failed, and any command
    left for the user to run. Skills must appear as `necturalabs:<skill>`; `necturalabs-fab:*` or
    `necturalabs:necturalabs*` names mean an old install is still present.
 
-Marketplaces, added once per harness:
+Marketplaces, added once in Claude Code:
 
 ```bash
 claude plugin marketplace add NecturaLabs/AgentSkills        # necturalabs
-codex plugin marketplace add NecturaLabs/AgentSkills
-codex plugin marketplace add anthropics/claude-plugins-official
 # only when an item from them is kept:
 claude plugin marketplace add pbakaus/impeccable            # impeccable
 claude plugin marketplace add vercel-labs/agent-browser     # agent-browser
 claude plugin marketplace add scenario-labs/skills          # scenario-skills
-codex plugin marketplace add pbakaus/impeccable
-codex plugin marketplace add vercel-labs/agent-browser
-codex plugin marketplace add scenario-labs/skills
+claude plugin marketplace add NecturaLabs/worker-protocol   # worker-protocol
+claude plugin marketplace add DietrichGebert/ponytail      # ponytail
 ```
 
-`claude-plugins-official` is built into Claude Code. A plugin then installs with
-`claude plugin install <plugin>@<marketplace>` and `codex plugin add <plugin>@<marketplace>`.
-Upgrading from a release before 5.0.0 that used `scripts/install.sh` links for Codex: run
-`bash scripts/uninstall.sh` from that checkout first, so Codex does not load each skill twice.
+`claude-plugins-official` is built into Claude Code. A plugin installs with
+`claude plugin install <plugin>@<marketplace>`. The settings template uses fresh install names;
+[the setup snapshot](docs/installation.md#current-setup-snapshot) maps legacy identities for an
+existing machine. Do not install a built-in plugin as a separate copy.
+
+For an existing Codex installation with extra tools, inventory it and show the owner the proposed
+removals first. Do not delete installed plugins, skills or MCP registrations just because the
+recommended setup no longer includes them. `scripts/uninstall.sh --dry-run` previews only the
+links this repository owns; it does not remove plugins or unrelated skills.
 
 ### The checklist
 
@@ -164,23 +168,25 @@ Upgrading from a release before 5.0.0 that used `scripts/install.sh` links for C
 |---|---|---|---|
 | ☑ | `necturalabs` | This repository's seven skills, including `fab` | `necturalabs@necturalabs` |
 | ☑ | `security-audit` | Cloudflare's security review, focused or full audit | `security-audit@necturalabs` (upstream `cloudflare/security-audit-skill`, MIT) |
+| ☑ | `worker-protocol` | File-based contracts, decisions and escalation for explicitly chosen scripted workflows; plain subagents report by message | `worker-protocol@worker-protocol` (`NecturaLabs/worker-protocol`, MIT) |
 | ☑ | superpowers | Brainstorm, plan, TDD, subagent-driven development, reviews; runs as written, including its session-start hook | `superpowers@claude-plugins-official` (`obra/superpowers`, MIT) |
+| ☑ | `ponytail` | Lazy-senior-dev mode: the smallest complete change; its session hooks inject it into every session and subagent | `ponytail@ponytail` (`DietrichGebert/ponytail`) |
 | ☑ | `impeccable` | Frontend design, critique and polish | `impeccable@impeccable` (`pbakaus/impeccable`) |
 | ☑ | `frontend-design` | Distinctive visual design, used on request | `frontend-design@claude-plugins-official` |
 | ☑ | Web Interface Guidelines | UI audit against Vercel's guidelines | `web-design-guidelines@necturalabs` (upstream `vercel-labs/agent-skills`) |
 | ☑ | Vercel | All Vercel skills; its MCP server stays off | `vercel@claude-plugins-official`, then disable its MCP server (Settings below) |
 | ☑ | Cloudflare | Cloudflare skills and the `cloudflare` MCP server | `cloudflare@claude-plugins-official` |
-| ☑ | Remotion | Programmatic video with React | `remotion@necturalabs` (upstream `remotion-dev/skills`; Remotion License) |
 | ☑ | GitHub | GitHub MCP server | `github@claude-plugins-official` |
-| ☑ | `security-guidance` | Security warnings on edits | `security-guidance@claude-plugins-official`. In Codex its hooks must be trusted on first interactive run |
+| ☑ | `security-guidance` | Security warnings on edits | `security-guidance@claude-plugins-official`. In the optional Codex plugin layout, its hooks must be trusted on first interactive run |
 | ☑ | `agent-browser` | Browser and UI inspection | `agent-browser@agent-browser` (`vercel-labs/agent-browser`) |
 | ☑ | Blender MCP | Drive Blender from the agent | `blender-lab-mcp@necturalabs`; needs Blender and `blender-mcp` (tools below) |
 | ☑ | Godot MCP | Drive the Godot editor from the agent | `godot-mcp-toolkit@necturalabs`; needs Godot and `godot-mcp-server` (tools below) |
 | ☑ | Meshy MCP | Text- and image-to-3D, rigging, animation and retexturing through Meshy; Claude Code only | `meshy-mcp@necturalabs`; needs `meshy-mcp-server` (tools below) and a Meshy API key, which Claude Code asks for when the plugin is enabled and keeps in its credential store |
-| ☑ | Scenario | Game art, seamless and PBR textures, skyboxes, sprite animation, video and audio through Scenario | `01.-getting-started`, `03.-images`, `04.-game-art-and-environments`, `05.-video-and-audio`, `06.-consistency-and-custom-models` and `07.-reviewing-and-organizing-output` `@scenario-skills` (`scenario-labs/skills`); connect Scenario's MCP server as `01.-getting-started:scenario` describes |
-| ☑ | Higgsfield | Image, video and audio generation | Claude Code: the Higgsfield connector on claude.ai (Settings → Connectors); Codex: `mcp_servers.higgsfield` (Codex settings below) |
+| ☑ | Scenario | Game art, seamless and PBR textures, skyboxes, sprite animation, video and audio through Scenario | `01.-getting-started`, `03.-images` and `04.-game-art-and-3d` `@scenario-skills` (`scenario-labs/skills`; add `05.-video-and-audio`, `07.-consistency-and-custom-models`, `08.-reviewing-and-organizing-output` or `22.-expert-tools-godot` when you need them); connect Scenario's MCP server as `01.-getting-started:scenario` describes |
+| ☑ | Higgsfield | Image, video and audio generation | the Higgsfield connector on claude.ai (Settings → Connectors); no extra Codex server |
 | ☑ | Sentry | Sentry issues, events and releases through its MCP server, and the Sentry CLI skill | `sentry@claude-plugins-official` and `sentry-cli@claude-plugins-official`; the CLI skill needs `sentry` (tools below) |
-| ☑ | Unity MCP | Drive the Unity editor from the agent | `claude mcp add -s user unity-editor-mcp -- unity mcp` and `codex mcp add unity-editor-mcp -- unity mcp`; needs the Unity CLI |
+| ☑ | Unity MCP | Drive the Unity editor from the agent | `claude mcp add -s user unity-editor-mcp -- unity mcp`; needs the Unity CLI |
+| ☑ | Netlify | Netlify platform skills and its Netlify MCP server | `netlify-skills@claude-plugins-official` (`netlify/context-and-tools`) |
 | ☐ | GitLab | GitLab MCP server | `gitlab@claude-plugins-official` |
 | ☐ | Vercel React extras | React composition patterns, View Transitions, React Native | `vercel-composition-patterns`, `vercel-react-view-transitions`, `vercel-react-native-skills` `@necturalabs` (upstream `vercel-labs/agent-skills`, each MIT) |
 
@@ -231,43 +237,51 @@ and `claude plugin marketplace update` for plugins.
 
 | | Setting | Where |
 |---|---|---|
-| ☑ | Model `opus`; effort Opus 5.5 high, Sonnet 5.5 low (other models keep their own defaults); `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
+| ☑ | Model `sonnet`; effort high for Opus 5.5, Sonnet 5.5 and Haiku 5.5 (other models keep their own defaults);  `switchModelsOnFlag: false` | `settings.json`: `model`, `modelSettings`, `switchModelsOnFlag` |
 | ☑ | Sonnet for any subagent whose type names no model | `settings.json`: `env.CLAUDE_CODE_SUBAGENT_MODEL` |
+| ☐ | Persistent scratch and tool storage outside the home filesystem | add `env.CLAUDE_CODE_TMPDIR` and `env.AGENTSKILLS_TOOLS_DIR` with your chosen absolute paths, as described in [installation](docs/installation.md#current-setup-snapshot); these machine-specific keys are omitted from the merge-ready JSON |
 | ☑ | No attribution in commits or PRs | `settings.json`: `attribution` |
 | ☑ | **Bypass-permissions mode: turns off every permission prompt.** The working agreement's own stop rules become the only guard | `settings.json`: `permissions.defaultMode`, `skipDangerousModePermissionPrompt` |
 | ☑ | 60 s question timeout, fullscreen TUI, 12-hour clock, Remote Control at startup, accept cross-session messages, push notifications, auto-scroll | `settings.json`: `askUserQuestionTimeout`, `tui`, `timeFormat`, `remoteControlAtStartup`, `crossSessionInbound`, `agentPushNotifEnabled`, `autoScrollEnabled` |
-| ☑ | The plugin set above, with the Vercel MCP server off | `settings.json`: `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
+| ☑ | The plugin set above, with Lua, TypeScript and Rust language servers off globally and the Vercel MCP server off | `settings.json`: `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
 | ☑ | Per project: plugins it never uses turned off, and more of the context for skill descriptions when `/doctor` reports them dropped | the project's `.claude/settings.json`: `enabledPlugins` set to `false` (project settings override user settings), `"skillListingBudgetFraction": 0.02` |
 | ☑ | Concise output style | `settings.local.json`: `outputStyle` |
 | ☑ | Small scripted workflows | `~/.claude.json`: `"workflowSizeGuideline": "small"` |
-| ☑ | Worker agents `sonnet-*` and `opus-*` at `low`, `medium`, `high` and `xhigh`, each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
+| ☑ | Worker agents `haiku-*`, `sonnet-*` and `opus-*` (Haiku at `low`, `medium` and `high`; Sonnet and Opus at `low`, `medium`, `high` and `xhigh`), each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Haiku the cheap tier for narrow, high-volume mechanical work with a check (never multi-file coding or debugging), Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
 | ☑ | Name each subagent after the model and effort it actually runs on, rewrite a `model` argument that contradicts a `<model>-<effort>` type, and refuse any spawn on Fable. Its per-session name counter goes under `CLAUDE_CODE_TMPDIR` when you set that, else the system temp directory | copy `setup/claude/scripts/agent-model-guard.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.PreToolUse`, matcher `Agent` |
 | ☑ | At session start, flag saved memories that no longer match the disk (index lines with no file, files the index misses, broken links, named paths that are gone), so the session tends them with `memory-hygiene` rather than trusting them; silent when all is well | copy `setup/claude/scripts/memory-check.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart` |
 | ☑ | At session start, flag skills and plugins installed twice (a plugin from two marketplaces, a loose skill copy beside the plugin that ships it, in Claude Code or Codex, and caches left by a removed marketplace), so duplicates are cleaned up the session after they appear; silent when all is well | copy `setup/claude/scripts/skill-dupes-check.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart` |
 | ☑ | Compact at 500k tokens rather than near the 1M window: recall falls off as context fills, and the working agreement keeps each task's state in a checklist that survives compaction | `settings.json`: `"autoCompactWindow": 500000` (or `/autocompact 500k`) |
 | ☑ | After each compaction, print the session's `checklist.md` from its scratchpad, the other files there and `git status`, so the session resumes from its own record rather than the summary; silent at every other session start | copy `setup/claude/scripts/compact-resume.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `hooks.SessionStart`, matcher `compact` |
 | ☑ | Context meter, one script in two roles, since newer models are not told their own token count. As the status line: model and context used against the auto-compact window, right-aligned in its row, yellow from 70%, red from 90%; it replaces most footer hints, `esc to interrupt` among them. As a hook: one line of context with the count on every prompt, and after a tool call only when 60%, 80%, 90% or 95% is first reached (again after a compaction), for the main session and each subagent separately; the working agreement says what to do from 80% and 90% | copy `setup/claude/scripts/context-meter.py` to `~/.claude/hooks/` and make it executable; `settings.json`: `statusLine`, `hooks.UserPromptSubmit`, `hooks.PostToolUse` |
-| ☑ | Omarchy theme, only on Omarchy | `settings.json`: `"theme": "custom:omarchy"`; elsewhere leave the theme alone |
 
 **Codex settings** — merge from [`setup/codex/config.toml`](setup/codex/config.toml)
 
 | | Setting |
 |---|---|
-| ☑ | Model `gpt-6-sol` at high reasoning effort |
+| ☑ | Model `gpt-6.1-sol` at `xhigh` reasoning effort, for assets and an additional review only |
 | ☑ | **Yolo mode: turns off approval prompts and the sandbox** (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`). The working agreement's own stop rules become the only guard |
-| ☑ | The same plugins as Claude Code, and the Unity, Scenario and Higgsfield MCP servers |
-| ☑ | `impeccable@openai-curated-remote` and `superpowers@openai-curated-remote` disabled |
-| ☑ | Vercel's MCP server off: `enabled = false` under `[mcp_servers.vercel]` |
+| ☑ | Preserve app-managed tools: browser, computer use, visualization, templates, Sites, plugin management and pets. Add no external tooling or internal MCP wiring to the template; see the [harness inventory](docs/installation.md#harness-tool-inventory) |
 
 **Global working agreement**
 
 | | Item | How |
 |---|---|---|
-| ☑ | [`examples/global-agents.md`](examples/global-agents.md) as `~/.agents/AGENTS.md`, with `~/.claude/CLAUDE.md` importing it and `~/.codex/AGENTS.md` linking to it | from the plugin's clone: `bash ~/.claude/plugins/marketplaces/necturalabs/scripts/install.sh --global-agents --dry-run`, then without `--dry-run`. It refuses to overwrite an existing policy; `--replace-global` backs it up first |
+| ☑ | [`examples/global-agents.md`](examples/global-agents.md) as `~/.agents/AGENTS.md`, with `~/.claude/CLAUDE.md` importing it and `~/.codex/AGENTS.md` linking to it | customize the example, back up existing files, then copy the canonical policy and create the two adapters; see [installation](docs/installation.md#current-setup-snapshot). `install.sh --global-agents` also installs skills, so use it only for the optional development layout |
 
 ## Install by hand
 
-### The plugin, in both harnesses
+### The plugin, in Claude Code
+
+```bash
+claude plugin marketplace add NecturaLabs/AgentSkills
+claude plugin install necturalabs@necturalabs
+```
+
+The `fab` skill also needs its CLI: [docs/fab/installation.md](docs/fab/installation.md).
+Codex receives no external tooling in the recommended setup.
+
+### Optional: the plugin in both harnesses
 
 ```bash
 claude plugin marketplace add NecturaLabs/AgentSkills
@@ -276,11 +290,11 @@ codex plugin marketplace add NecturaLabs/AgentSkills
 codex plugin add necturalabs@necturalabs
 ```
 
-Both harnesses then list the skills under one name, `necturalabs:<skill>`, so one routing table in
-your global policy works in both. The `fab` skill also needs its CLI:
+This opt-in layout differs from the recommended operating policy. Both harnesses list the skills
+under one name, `necturalabs:<skill>`, so one routing table in your global policy works in both. The `fab` skill also needs its CLI:
 [docs/fab/installation.md](docs/fab/installation.md).
 
-### For developing the skills: link a checkout
+### Optional, for developing the skills: link a checkout
 
 ```bash
 git clone https://github.com/NecturaLabs/AgentSkills.git
@@ -301,8 +315,10 @@ AgentSkills checkout is never replaced, `--force` included.
 
 ### Optional: bootstrap a global working agreement
 
-Installing skills and installing an operating policy are separate operations, so the command above
-touches no instruction file. To also adopt the global example as your own policy:
+The development installer links skills into detected harnesses. Its policy bootstrap is a separate
+option, but still installs those skills; it is not a policy-only command for the recommended setup.
+Customize the example's Codex tooling rule if you choose this dual-harness layout. To also adopt the
+global example as your own policy:
 
 ```bash
 bash scripts/install.sh --global-agents --dry-run   # show every policy action first
@@ -343,8 +359,8 @@ file that has become a second, independently maintained copy — and never chang
 ```bash
 claude plugin marketplace update necturalabs   # plugin layout: refresh the marketplace...
 claude plugin update necturalabs@necturalabs   # ...and the copy Claude Code loads
-codex plugin marketplace upgrade necturalabs   # the same for Codex; `codex plugin add` refreshes
-codex plugin add necturalabs@necturalabs       # an installed plugin
+codex plugin marketplace upgrade necturalabs   # optional dual-harness layout only
+codex plugin add necturalabs@necturalabs       # optional dual-harness layout only
 git pull                                       # checkout layout: the links follow the checkout
 bash scripts/doctor.sh                         # what is installed, what is broken, what conflicts
 bash scripts/uninstall.sh                      # removes only links this project created

@@ -72,7 +72,10 @@ def check_claude():
     for name, path in sorted(loose_skills(HOME / ".claude" / "skills").items()):
         if name in shipped:
             issues.append(f"{path} duplicates skill {name} from plugin {shipped[name]}")
+    # Built-in marketplaces (e.g. the Anthropic directory) are absent from known_marketplaces.json
+    # but named by the plugins installed from them.
     markets = set((load_json(CLAUDE_PLUGINS / "known_marketplaces.json") or {}).keys())
+    markets |= {key.partition("@")[2] for key in installed if "@" in key}
     if markets:
         cache = CLAUDE_PLUGINS / "cache"
         for d in sorted(cache.iterdir()) if cache.is_dir() else []:

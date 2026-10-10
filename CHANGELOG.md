@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Sync the public setup with the current local working agreement: ordered session backlog,
+  compaction and resume instructions, desktop safeguards, quality-standard routing, worktree
+  placement, commit/push rules, evidence-based estimates and the instruction-file canary.
+- Claude Code settings now mirror `sonnet` as the default model at high effort for Opus, Sonnet
+  and Haiku 5.5, the ponytail marketplace and plugin, the current plugin selection
+  and documented persistent scratch/tool storage overrides. Add the
+  `haiku-low`, `haiku-medium` and `haiku-high` worker agents, and sync the model guard hook so a
+  Haiku spawn is named `haiku-<effort>` like the other worker types. Tool revision pins already
+  match and remain unchanged.
+- Codex is reserved for assets and an additional review at `gpt-6.1-sol`/`xhigh`, using only its
+  built-in capabilities. The setup docs keep dual-harness installation as an optional layout.
+- Document the native Claude/Codex tool inventories, including Codex's seven app-managed
+  plugins and two internal servers, Claude's plugin and account MCP sources, Netlify's MCP
+  connection, cloud-synced skill caches and dependency-installation checks. Keep account state
+  and app-managed wiring outside the portable templates.
+- Recognize built-in marketplaces present only in the installed plugin registry in the
+  duplicate-skill hook, preserving their cache/data while still reporting genuine leftovers.
+
 ## 5.2.0 — 2026-10-02
 
 ### Added

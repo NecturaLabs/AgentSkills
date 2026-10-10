@@ -1,11 +1,14 @@
 {
-  "model": "opus",
+  "model": "sonnet",
   "modelSettings": {
     "claude-opus-5-5": {
       "effortLevel": "high"
     },
     "claude-sonnet-5-5": {
-      "effortLevel": "low"
+      "effortLevel": "high"
+    },
+    "claude-haiku-5-5": {
+      "effortLevel": "high"
     }
   },
   "switchModelsOnFlag": false,
@@ -90,13 +93,6 @@
   "agentPushNotifEnabled": true,
   "autoScrollEnabled": true,
   "extraKnownMarketplaces": {
-    "necturalabs": {
-      "source": {
-        "source": "github",
-        "repo": "NecturaLabs/AgentSkills"
-      },
-      "autoUpdate": true
-    },
     "impeccable": {
       "source": {
         "source": "github",
@@ -111,40 +107,65 @@
       },
       "autoUpdate": true
     },
+    "necturalabs": {
+      "source": {
+        "source": "github",
+        "repo": "NecturaLabs/AgentSkills"
+      }
+    },
     "scenario-skills": {
       "source": {
         "source": "github",
         "repo": "scenario-labs/skills"
       },
       "autoUpdate": true
+    },
+    "worker-protocol": {
+      "source": {
+        "source": "github",
+        "repo": "NecturaLabs/worker-protocol"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "unity-agent-plugin": {
+      "source": {
+        "source": "github",
+        "repo": "Unity-Technologies/unity-agent-plugin"
+      }
     }
   },
   "enabledPlugins": {
-    "necturalabs@necturalabs": true,
-    "security-audit@necturalabs": true,
-    "superpowers@claude-plugins-official": true,
-    "impeccable@impeccable": true,
+    "lua-lsp@claude-plugins-official": false,
     "frontend-design@claude-plugins-official": true,
-    "web-design-guidelines@necturalabs": true,
-    "vercel@claude-plugins-official": true,
-    "cloudflare@claude-plugins-official": true,
-    "remotion@necturalabs": true,
     "github@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
+    "impeccable@impeccable": true,
     "agent-browser@agent-browser": true,
-    "blender-lab-mcp@necturalabs": true,
-    "godot-mcp-toolkit@necturalabs": true,
-    "typescript-native-lsp@necturalabs": true,
-    "lua-lsp@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "necturalabs@necturalabs": true,
+    "cloudflare@claude-plugins-official": true,
+    "security-audit@necturalabs": true,
+    "superpowers@claude-plugins-official": true,
     "sentry@claude-plugins-official": true,
     "sentry-cli@claude-plugins-official": true,
-    "meshy-mcp@necturalabs": true,
     "01.-getting-started@scenario-skills": true,
     "03.-images@scenario-skills": true,
-    "04.-game-art-and-environments@scenario-skills": true,
-    "05.-video-and-audio@scenario-skills": true,
-    "06.-consistency-and-custom-models@scenario-skills": true,
-    "07.-reviewing-and-organizing-output@scenario-skills": true
+    "godot-mcp-toolkit@necturalabs": true,
+    "blender-lab-mcp@necturalabs": true,
+    "typescript-native-lsp@necturalabs": false,
+    "web-design-guidelines@necturalabs": true,
+    "meshy-mcp@necturalabs": true,
+    "cc-plugin-you-should-know@builtin": true,
+    "04.-game-art-and-3d@scenario-skills": true,
+    "worker-protocol@worker-protocol": true,
+    "rust-analyzer-lsp@claude-plugins-official": false,
+    "netlify-skills@claude-plugins-official": true,
+    "ponytail@ponytail": true
   },
   "disabledMcpServers": [
     "plugin:vercel:vercel"

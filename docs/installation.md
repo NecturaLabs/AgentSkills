@@ -1,15 +1,122 @@
 # Installation
 
 Verified against Claude Code 2.1.278 (skill precedence and bundled names re-checked on 2.1.280)
-and Codex CLI 0.155.1 on Linux; skill naming and the recommended layout re-checked on Claude Code
+and Codex CLI 0.155.1 on Linux; skill naming and the optional dual-harness layout re-checked on Claude Code
 2.1.281 and Codex CLI 0.156.1. Where a claim below was not confirmed by running it, that is stated.
 
-The recommended layout is the Claude Code plugin with Codex linked into the plugin's marketplace
-clone ([below](#recommended-claude-code-plugin-codex-linked-to-its-marketplace-clone)), because it
-is the only one in which both harnesses list every skill under the same name. Linking a checkout
-into both harnesses, described first, is for developing the skills.
+The current recommended setup installs external tooling in Claude Code. Codex keeps its built-in
+capabilities and is used only for assets and as an additional reviewer. The development installer
+and optional dual-harness layouts remain supported; their behavior below is unchanged.
 
-## Link a checkout
+## Current setup snapshot
+
+The public templates mirror the active local setup as of 2026-10-07. Local configuration is the
+source of truth; the repository receives generalized copies, never credentials, account state,
+project trust entries, personal paths or app-managed internal servers.
+
+- `setup/claude/settings.json` mirrors the portable settings. Opus 5.5, Sonnet 5.5 and Haiku 5.5 use `high` effort, with `sonnet` as the default model.
+  Lua, TypeScript and Rust language-server plugins are disabled globally,
+  and a project may enable the one it uses.
+- Machine-specific storage paths are omitted from the merge-ready template. To use separate
+  persistent storage, add `env.CLAUDE_CODE_TMPDIR` for scratch files and
+  `env.AGENTSKILLS_TOOLS_DIR` for MCP builds, with your chosen absolute paths before merging. Environment values are literal strings: `$HOME` and `~` are not path
+  expansion instructions there. Put scratch files, tools, environments and model weights on the
+  chosen persistent storage volume. Hook commands still use `$HOME` because those run in a shell.
+- The Scenario group is now `04.-game-art-and-3d`.
+  `worker-protocol@worker-protocol` comes from `NecturaLabs/worker-protocol` and applies only to
+  explicitly chosen scripted workflows, not plain subagents.
+- `cc-plugin-you-should-know@builtin` is a built-in registration, not a marketplace install.
+  The local registry retains `netlify@anthropic-plugin-directory`; the current fresh install name
+  is `netlify-skills@claude-plugins-official`, as listed in
+  the installed official marketplace manifest. The template uses those fresh install names. On an
+  existing machine that keeps the legacy registrations, use the corresponding legacy keys instead
+  of adding the fresh keys; do not enable a second copy of the same plugin.
+- `setup/codex/config.toml` records `gpt-6.1-sol` at `xhigh`, as the working agreement requires.
+  Explicit job calls use `codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh`. Built-in app plugins and internal
+  MCP wiring remain app-managed and are deliberately absent from the template.
+- The duplicate-skill hook recognizes marketplaces represented only by installed plugin
+  registrations, avoiding false leftover warnings for built-in directories.
+
+Adopt the policy independently of skill installation: resolve every `customize:` marker in
+`examples/global-agents.md`, back up any existing policy and adapters, copy the result to
+`~/.agents/AGENTS.md`, write only `@~/.agents/AGENTS.md` into `~/.claude/CLAUDE.md`, and link
+`$CODEX_HOME/AGENTS.md` (default `~/.codex/AGENTS.md`) to the canonical file. The policy copy stays
+local and maintained by its owner. `install.sh --global-agents` also links skills into detected
+harnesses, so it is for the optional development layout below, not this setup.
+
+Installation and removal commands below describe procedures, not checks to run during a setup
+sync. The offline suite verifies repository-owned installer and hook behavior in disposable
+fixtures; it does not authenticate external MCP servers or run the paid routing evals.
+
+## Harness tool inventory
+
+Tool selections were checked with Claude Code 2.1.292 and Codex CLI 0.160.1 on 2026-10-07; app updates add and remove the app-managed entries, so read the tables as a snapshot.
+The earlier version checks elsewhere in this document cover installer and instruction-loading
+behavior, not this inventory. Installed files, enabled settings and connected servers are distinct:
+`claude plugin list --json`, `claude mcp list`, `codex plugin list` and `codex mcp list --json`
+report different parts of the setup. A plugin enable flag does not install missing dependencies or
+establish authentication. These commands are read-only diagnostics; the MCP list may connect to
+servers to check them. Tool availability does not widen the working agreement's Codex role.
+
+### Claude Code
+
+The user-scope registry holds the enabled marketplace plugins, covering the
+[README's plugin checklist](../README.md#the-checklist). The settings template mirrors their
+selection using the two fresh-install aliases described above. The three installed global LSP
+plugins are disabled: `lua-lsp@claude-plugins-official`,
+`rust-analyzer-lsp@claude-plugins-official` and `typescript-native-lsp@necturalabs`. Project/local
+registrations, including C# LSP and the Unity plugin, are not global enablement decisions.
+`cc-plugin-you-should-know@builtin` is separate from the marketplace installs.
+
+| MCP source | Servers | Configuration |
+|---|---|---|
+| Enabled plugins | Blender, Cloudflare, GitHub, Godot, Meshy, Netlify, Sentry | Installed plugin manifests supply these servers; do not add second user-scope registrations. Netlify's platform plugin includes its `netlify` MCP server. |
+| Disabled plugin MCP | Vercel | Keep `disabledMcpServers: ["plugin:vercel:vercel"]`; the Vercel plugin's skills stay enabled. A diagnostic listing a server does not override this setting. |
+| User-scope servers | Scenario, Unity editor | Scenario uses `https://mcp.scenario.com/mcp`; follow `01.-getting-started:scenario` for authentication. Unity uses `claude mcp add -s user unity-editor-mcp -- unity mcp`. |
+| Claude account connectors | Whatever your account connects on claude.ai | Managed on claude.ai, with account-specific connections and authentication. These are separate from plugin servers and are not restored by copying local JSON. |
+
+If `claude plugin list` reports `dependencies-not-installed`, the enabled plugin is not fully
+installed. For Vercel it recommends `claude plugin update vercel@claude-plugins-official` to fetch
+the packages the plugin lists. Review that install separately; a setup sync only records the
+selection and does not run it. Authentication status is also account-specific and is never
+included in the public mirror.
+
+The Claude app also syncs account-managed cached skills (document, browser and computer-use helpers among them). These are not AgentSkills marketplace entries, and cache presence alone is not proof that a skill loads in a particular CLI session. Reconnect through the app rather than copying account cache directories into this repository.
+
+### Codex
+
+The native plugin list reports the following installed and enabled selections. The versions are
+observed versions, not repository-managed pins or promises about another account's catalog.
+
+| Plugin | Source | Observed version |
+|---|---|---|
+| `browser` | `openai-bundled` | `26.924.22138` |
+| `unified-computer-use` | `openai-bundled` | `26.924.22138` |
+| `visualize` | `openai-bundled` | `1.0.41` |
+| `openai-templates` | `openai-curated-remote` | `0.1.1` |
+| `sites` | `openai-curated-remote` | `1.0.0-c` |
+| `plugin-management` | `openai-curated-remote` | `0.1.0` |
+| `work-pets` | `openai-curated-remote` | `0.1.6` |
+
+The first three have enable flags in the user config; the four curated plugins are reported by
+the native inventory without corresponding user-config tables. Preserve this app-managed state.
+[OpenAI's plugin configuration documentation](https://developers.openai.com/plugins/build/plugins)
+explains that user, project, cloud-managed and system configuration can supply plugin settings;
+copying `config.toml` alone is not a complete backup of app or account tool selections.
+
+The effective MCP inventory contains `node_repl` and `cua_repl`, both enabled and app-managed;
+only `node_repl` appears in the user TOML. Their executable locations, environment and internal
+connection wiring are deliberately not mirrored. The public template adds no MCP registrations
+and does not reproduce Claude's Scenario, Unity, Meshy or Higgsfield connections in Codex.
+
+Plugin skill files include visualization, Sites, plugin management, pet creation/management/
+updates and artifact templates. The Codex system skill directory contains `imagegen`,
+`openai-docs`, `review-agent`, `skill-creator` and `skill-installer`; which ones a session exposes
+is decided by the harness. These stay supplied and updated by Codex or its app catalog. Do not
+copy their implementations or plugin caches into AgentSkills. Configure catalog selections in
+the app and verify the resulting native inventory on the target account.
+
+## Optional development layout: link a checkout
 
 ```bash
 git clone https://github.com/NecturaLabs/AgentSkills.git
@@ -130,7 +237,7 @@ regular file holding exactly the neutral import, whether the Codex file resolves
 one or has become a separate copy, and whether an override is shadowing it. It never repairs any
 of them.
 
-## Recommended: Claude Code plugin, Codex linked to its marketplace clone
+## Optional: Claude Code plugin, Codex linked to its marketplace clone
 
 ```
 /plugin marketplace add NecturaLabs/AgentSkills
@@ -163,8 +270,8 @@ A global policy that routes to these skills by name, as `examples/global-agents.
 each skill exactly once only under the plugin layout.
 
 Codex installs the plugin from the same marketplace (`codex plugin marketplace add
-NecturaLabs/AgentSkills`, then `codex plugin add necturalabs@necturalabs`); that is the recommended
-layout since 5.0.0. `install.sh` and `doctor.sh` recognise it from a `[plugins."necturalabs@…"]`
+NecturaLabs/AgentSkills`, then `codex plugin add necturalabs@necturalabs`); that remains a supported
+optional layout introduced in 5.0.0. `install.sh` and `doctor.sh` recognise it from a `[plugins."necturalabs@…"]`
 table with `enabled = true` in Codex's `config.toml`: install then puts no links into
 `~/.agents/skills`, since Codex would load each skill twice, and doctor accepts the plugin and warns
 about any link that duplicates it.

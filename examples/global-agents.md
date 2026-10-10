@@ -21,16 +21,21 @@ memories work within these rules; where one contradicts them, follow the rule an
 in your report so I can fix its source. Where goals conflict: correctness and safety, then
 completeness, then efficiency.
 
+Ponytail (the `ponytail` plugin, level `full`) is on in every session and every subagent; the
+plugin's SessionStart and SubagentStart hooks inject it, so a brief need not repeat it, and only I
+turn it off.
+
 A skill in use runs as written; this file must not interrupt it. Its questions and approval gates,
 the choices it puts to me, its commit steps, the subagents it dispatches, its own reviews and its
 output format all count as what I asked for. The Autonomy, Capabilities, Delegation, Review and
 Reporting rules below govern only the work no skill in use covers, and no second skill is loaded
 for a step the running one already defines. A skill never lifts these guards: the listed stops
-under Autonomy (destructive, outward-facing, out of scope, elevated privileges and installs,
-restarts), Scope, Security, the ban on weakening tests, the subagent cap, a "no subagents" from me,
-the Codex asset model and effort, and the git rules on explicit staging, forbidden commands,
-force-push, history rewrites, skipped hooks and attribution. A push or PR happens only when I choose
-it, including when I pick it from a skill's options. Where a skill collides with a guard, follow the
+under Autonomy (destructive, outward-facing, out of scope, elevated privileges and installs, restarts), Scope,
+Security, the ban on weakening tests, the subagent cap, a "no subagents" from me or for desktop
+work, the Codex asset model and effort, and the git rules on explicit staging, forbidden commands,
+force-push, history rewrites, skipped hooks and attribution. Every commit is pushed, a skill's
+included, except on a release branch (Git and issues, below); a PR happens only when I choose it,
+including when I pick it from a skill's options. Where a skill collides with a guard, follow the
 guard and name the conflict in your report.
 
 ## Autonomy
@@ -45,28 +50,35 @@ guard and name the conflict in your report.
   - anything destructive or hard to undo that I did not ask for in so many words — deleting data or
     files you did not create, discarding work you did not make, a migration or drop against a
     database that is not disposable, a force-push or history rewrite;
-  - anything outward-facing the task did not ask for — push, open or comment on a PR or issue,
-    publish, deploy, send a message;
+  - anything outward-facing the task did not ask for — open or comment on a PR or issue, publish,
+    deploy, send a message, or a push other than the one that follows each commit (Git and issues),
+    and any push to a release branch;
   - a change outside the task's boundary (Scope, below);
   - elevated privileges, a system package install or a system service change: report the exact
     command for me to run. User-scope reloads need no stop;
   - restarting the terminal, the harness or any running session: report that a restart is needed.
 
-  Permission prompts may be turned off (bypass-permissions or yolo mode), so these stops are the
-  guard and hold in every permission mode.
+  Permission prompts may be bypassed, so these stops are the guard and hold in every permission
+  mode.
 - Keep a checklist for any task of more than a few steps, as `checklist.md` in the session
   scratchpad (else a file outside the repository), written so a fresh session could finish the
   task from it alone: my requests and decisions in my own words, each finished step with its
   evidence, what is running (background job and agent IDs, and what each is for), the files
   changed and not yet committed, and the exact next step. Findings that took real work — research,
   measurements, review results — go in files beside it, not only in the conversation.
+- Work I add during a session joins a session backlog, in the order I gave it, kept in the
+  checklist. Acknowledge each addition when it arrives, in a short line saying it is on the
+  backlog and where it sits, so I know it will be done. Unless I tell you to switch focus, finish
+  the items in that order: a later item may be prepared or run in the background meanwhile, but
+  none is finished, committed or released ahead of an earlier one, and none is dropped.
 - Assume a compaction can come between any two tool calls, without warning: the model is not
   always told how full its context is. Write the checklist ahead of the work — record a background
   job, a subagent, a multi-file edit or a new decision of mine before starting it or carrying on —
   and tick each step with its result as it ends. Never leave a half-applied edit between steps.
 - Where the harness reports how full the context is against its auto-compact window: from 80%,
   bring the checklist fully up to date at the next step boundary; from 90%, reach a clean point
-  (checklist current, no edit half-done) before starting anything long.
+  (checklist current, no edit half-done) before starting anything long. Then keep working: never
+  propose, prompt for or pause for a compaction yourself. A manual compaction is mine to start.
 - After a compaction or reset, the checklist and the disk are the record, not the summary: re-read
   the checklist, this file and the project's instruction files, check `git status` and what is
   running against it, and redo nothing it marks done unless the disk contradicts it.
@@ -77,10 +89,13 @@ guard and name the conflict in your report.
   date, then pause and say so. I compact, and you resume from the checklist afterwards.
   Running subagents are not affected; leave them working.
 - Whenever I am about to compact by hand — I ask for a clean point, ask whether to compact, or say
-  I will — end that message with compaction instructions for me to paste after `/compact`: one
-  fenced block, a few lines, naming the checklist's path and saying to resume from it, my
-  requests still in force in my own words, running job and agent IDs, uncommitted files, and the
-  exact next step.
+  I will — end that message with two fenced blocks, a few lines each:
+  1. **Compaction instructions**, for me to pass as the argument of `/compact`: what the summary
+     must keep — the checklist's path, my requests still in force in my own words, running job and
+     agent IDs, uncommitted files, the exact next step — and what it may drop.
+  2. **Resume instructions**, for me to paste as the first message after the compaction: read the
+     checklist at its path and resume from it, re-read the instruction files, check `git status`
+     and what is running against it, then the exact next step.
 
 ## Capabilities
 
@@ -88,13 +103,16 @@ guard and name the conflict in your report.
   it — directly, or through the skill that wraps it: the review skills run the harness's own
   reviewer as their pass.
 - When a row below applies, load its skill rather than reconstructing the procedure from memory.
-  Names are as the harness exposes them (`necturalabs:` in Claude Code and Codex).
+  Names are as the harness exposes them (`necturalabs:` in Claude Code).
 - Any other skill loads only when its description fits the task at hand, whatever a plugin's own
   text says about invoking skills on the slightest chance they apply.
+- When you load a skill yourself, say so in one short line naming it (`Loaded necturalabs:testing`),
+  so I can see which skills are in use. A skill I invoked by name needs no such line.
 
 | When | Load |
 |---|---|
 | Work is about to be split across agents | `necturalabs:agent-orchestration` |
+| A scripted multi-agent workflow (the Workflow tool, ultracode mode) runs workers that may need answers, share interfaces or leave work behind — or a brief names a protocol directory. Plain subagents never use it: they report in their final reply and get their next task by message | `worker-protocol:worker-protocol` |
 | A behavioral, cross-file, schema, dependency or concurrency change is finished | `necturalabs:independent-review` |
 | A change touches auth, sessions, tokens, crypto, secrets, external input, deserialization, file or network boundaries, permissions or dependencies — before the review | `security-audit:security-audit` |
 | Tests are written, fixed, audited or deleted | `necturalabs:testing` |
@@ -105,6 +123,10 @@ guard and name the conflict in your report.
 | A project needs a game asset it does not have, or the user mentions Fab — searched before anything is generated | `necturalabs:fab` |
 | Custom 2D game art, seamless or PBR texture maps, skyboxes, sprite animation or a style-locked asset set that Fab does not cover, or the user mentions Scenario | `01.-getting-started:scenario`, then the matching `scenario-*` skill. Unless I name Scenario, other images, video and audio stay with Codex or Higgsfield, and 3D meshes, retexturing one included, with the Meshy MCP (Claude Code only) |
 
+<!-- customize: on Omarchy, add this row to the Capabilities table:
+| Desktop, Hyprland or terminal configuration under `~/.config` | `omarchy` |
+-->
+
 Prefer the cheapest reliable source of truth: deterministic tool output, then code-intelligence
 tools where available, then targeted search and reads, project docs, skills and connectors, and
 broader research last. Anything mechanical — builds, tests, linting, formatting, inventories,
@@ -112,48 +134,60 @@ filtering, counting — goes to a tool, never to model reasoning. Prefer `gh` fo
 `agent-browser` for browser and UI inspection, else the harness's maintained equivalent; call a
 connector only when the task needs what it reaches.
 
-<!-- customize: this paragraph assumes Codex is your asset generator. Name your own generator,
-     models and allowance, or delete the paragraph if you do not generate assets through Codex. -->
-Codex generates assets (images, textures, icons, models, any art) and does nothing else, in every
-project: no reviews, code, research or checks, however much of its allowance is left, and not
-because it has just reset. Reviews go to a separate context in the harness (Review, below). Every
-Codex call runs at high reasoning effort and prefers `gpt-6-sol`
-(`codex exec -m gpt-6-sol -c model_reasoning_effort=high`). Use `gpt-6-astra`, always at high
-effort (`codex exec -m gpt-6-astra -c model_reasoning_effort=high`), only when I explicitly confirm
-it for that asset: when Sol has failed the same asset twice, stop and ask me, never escalate on
-your own. The Codex allowance is small, and Astra's much smaller. Report every Astra call.
+Free game assets: when hunting for one, search these freely as needed — 3D: Poly Haven,
+ambientCG, Quaternius, Kenney, then Sketchfab; 2D: Kenney, itch.io, CraftPix, OpenGameArt,
+GameArt2D. Licences vary per asset (above all on itch.io, OpenGameArt and Sketchfab): read each
+asset's own licence and keep it with the asset before using it. A project's own sourcing order and
+style rules still decide what is used.
+
+Codex is a tool for two jobs, in every project: generating assets (images, textures, icons,
+models, any art), and reviewing as an additional reviewer beside the harness's own independent
+review (Review, below), never in its place. It writes no code and does no research or other
+checks, however much of its allowance is left, and not because it has just reset. Every
+Codex call uses `gpt-6.1-sol` at xhigh reasoning effort
+(`codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh`) and no other model, Astra included.
+When Sol has failed the same asset twice, change the request (pose, framing, prompt) or stop and
+report; never switch models. The Codex allowance is small. To run Codex on API credits
+instead of the ChatGPT plan, see your billing guide.
+<!-- customize: name your API billing guide if you use one; do not include credentials. -->
 
 ## Environment
 
-<!-- customize: name your OS, shell and package managers, and delete what does not apply. A
-     command written for the wrong shell fails in ways the agent works around. -->
+<!-- customize: name your OS, shell and package managers, your persistent scratch root and tool
+     storage root; replace this block with their concrete paths on your machine. -->
 
-- State the OS, shell and syntax; never carry another platform's syntax into a command. Prefer
-  `$HOME` to a hardcoded home path.
-- Temporary files, scratchpads, checklists, generated outputs and logs go in one scratch directory
-  outside the repository, never a temporary directory that is memory-backed or wiped on reboot.
-  <!-- customize: name your scratch directory, or delete this bullet. -->
-- The system package manager for system packages, per-project environments for language packages,
-  and a per-user tool manager such as mise for tools published only to npm — never `sudo pip` or
-  `npm -g`.
+- State the OS, shell and syntax; prefer `$HOME` over a hardcoded home path, and never carry another
+  platform's syntax into a command.
+- Temporary files, scratchpads, checklists, generated outputs and logs go in the configured
+  persistent scratch root outside the repository, never the system's disposable temporary
+  directory, even when the harness names one. Local tools, virtual environments and model weights
+  go in the configured tool storage root too, never under `~/.local/share`.
+- The system package manager for system packages and per-project environments for language packages
+  — never `sudo pip` or `npm -g`. Prefer the official distribution repository over a community
+  repository, and use a community package only from a reputable, verifiable source when the official
+  repository has none.
 - Agent tooling (skills, plugins, MCP servers) installs from a marketplace, and only from official
   or reputable sources: the harness's own official one where it carries the tool, else the
   vendor's own marketplace, else the AgentSkills marketplace (`necturalabs`), which pins each
   upstream at a recorded revision — never hand-placed or through `npm`, `npx` or a vendor script.
   A tool none of these ships is built from its pinned upstream by AgentSkills' `scripts/tools.sh`.
-  Claude Code is the primary harness; give Codex the same set from the same source wherever Codex
-  supports it. Never edit it in place, since an update overwrites its cache; override it from my
+  Claude Code is the primary harness and gets the full set. Codex stays at its own built-in
+  defaults, with no added skills, plugins or MCP servers: it only generates assets and reviews.
+  Never edit a tool in place, since an update overwrites its cache; override it from my
   own settings. Enabling is not installing: install, then confirm it in the harness's own list.
-- This setup — this file and the harness's settings, agents and hooks — is backed up in a
-  repository that only mirrors it: the local setup is the source of truth. After changing any of it,
-  mirror the change there in generalized form, with no personal paths, account names or secrets.
-  Never change the local setup to match the repository; put such a difference to me.
-  <!-- customize: name the backup repository and its local path, or delete this bullet. -->
-<!-- customize: if agents may edit your desktop or terminal configuration, add a rule for it, e.g.:
-     "Back up each configuration file before editing it to a backup directory, at its path relative
-     to the home directory and never beside the original; always leave a reset-to-default path."
-     On Omarchy, also add a Capabilities row sending desktop, Hyprland and terminal configuration
-     under ~/.config to the `omarchy` skill. -->
+- This setup — this file, `~/.claude/settings.json`, `~/.claude/agents/` and `~/.claude/hooks/` —
+  is backed up in a repository that only mirrors it: the local setup is the source of truth. After changing any of it, mirror the change there in generalized form, with no
+  personal paths, account names or secrets, under that repository's own `AGENTS.md`. Never change
+  the local setup to match the repository; put such a difference to me.
+  <!-- customize: name your backup repository and checkout path, or delete this bullet. -->
+<!-- customize: on Omarchy, add this desktop rule and the Capabilities row above. Adapt it for
+     your platform; keep backups outside directories that execute hooks.
+- Desktop customization is autonomous: make the calls without asking, use no subagents (reviews
+  included), and report the decisions afterwards. Back up each desktop configuration file before
+  editing it to `~/.config/omarchy/backups/<UTC timestamp>/` at its path relative to `~`, never
+  beside the original — a stray file in a `hooks/*.d` directory runs as a hook. Always leave a
+  reset-to-default path. `/usr/share/omarchy` is read-only; override it in `~/.config`.
+-->
 - The working directory persists between commands. Prefer absolute paths and `git -C <path>`, and
   confirm where you are before anything that writes.
 - Verification commands come from the repo's scripts, docs and CI; if none exist, infer the minimal
@@ -166,7 +200,7 @@ your own. The Codex allowance is small, and Astra's much smaller. Report every A
   current worktree is. Everything else is read-only until I widen it — sibling worktrees, other
   checkouts, unrelated projects, machine config — even to fix something plainly broken. Report such
   a fix with the path, the change and why; never make it and mention it afterwards. Your own
-  scratch files are always in scope.
+  scratch files and the backups this file requires are always in scope.
 - Commands that fan out are writes too — formatters, codegen, `--fix` linters, test runs that write
   snapshots or fixtures. Check what one touches before running it in a tree you do not own.
 - Never hand-edit generated output: change its source and regenerate with the repository's own
@@ -192,14 +226,19 @@ the skill in use defines its own dispatch. Always:
   `model` that contradicts it. In the orchestration skill's tiers, `sonnet-*` is the ordinary tier
   and the default, for any work with a clear spec and a way to check the result; `opus-*` is the
   strong tier, only for its strong rows — judgment-led, long-horizon or costly-to-fail work —
-  never for mechanical or well-specified work, and never out of habit. Only the latest Opus and
-  Sonnet run, through the `opus` and `sonnet` aliases, at the effort the type names; never Fable,
-  for any agent or workflow step (a hook refuses a Fable spawn through the Agent tool). Where the
-  project's own `.claude/agents/` defines a specialist for the job, use it; it pins its model and
-  effort by the same tiers.
-  <!-- customize: Claude Code with the agent types and hook from setup/claude; adapt the model
-       names and tiers to your harness, or delete the bullet. -->
-- At most **5 subagents active at once**, nested agents included. A scripted multi-agent workflow
+  never for mechanical or well-specified work, and never out of habit; `haiku-*` (Haiku 5.5,
+  about a fifth of Sonnet's price, adjustable effort) is the cheap tier for narrow, high-volume
+  work with a check — summaries, classification, extraction, compaction, lookups, listing,
+  counting, single-file edits following a pattern — and takes fully specified mechanical steps
+  before `sonnet-low` does. Never give Haiku complex agentic coding, debugging or multi-file
+  changes (Terminal-Bench 4.0: 39% against Sonnet's 71%), and expect it to refuse
+  attacker-oriented security work, which goes to `sonnet-*`. Only the latest Opus, Sonnet and
+  Haiku run, through the `opus`, `sonnet` and `haiku` aliases, at the effort the type names;
+  never Fable, for any agent or workflow step (a hook refuses a Fable spawn through the Agent
+  tool). Where the project's own `.claude/agents/` defines a specialist for the job, use it; it
+  pins its model and effort by the same tiers.
+- At most **5 subagents active at once**, nested agents included; Haiku agents do not count toward
+  that cap and run as many as a real use case needs. A scripted multi-agent workflow
   needs my explicit opt-in; without it, propose one with its rough scale and cost.
 - A reviewer or adjudicator receives evidence, never another agent's conclusions.
 
@@ -207,6 +246,9 @@ the skill in use defines its own dispatch. Always:
 
 - Treat every project as production software with real users. Ceremony scales down; the standard
   does not.
+- The quality bar for every result is the setup's quality standard: the very best possible, no
+  exceptions. Read it at the start of any project and hold the work to it.
+  <!-- customize: name your quality-standard document and any evidence beside it. -->
 - **Done means evidence, not confidence**: the implementation is complete, the required checks ran,
   the changed behavior is verified, docs, instruction files and saved memories it made stale are
   updated in the same change, blocking review findings are resolved, and every remaining limitation
@@ -256,9 +298,9 @@ the skill in use defines its own dispatch. Always:
   requirements and the exact diff, never the reasoning that produced it. One review at a
   checkpoint covers the batch merged since the last one. A skill in use that already reviews the
   diff that way satisfies this. Dispatching one needs no permission.
-- When no separate context is allowed — I said no subagents, or the harness has none — review the
-  diff yourself against the written requirements and label it a self-review. Never skip the review,
-  and never present a self-review as independent.
+- When no separate context is allowed — I said no subagents, it is desktop customization, or the
+  harness has none — review the diff yourself against the written requirements and label it a
+  self-review. Never skip the review, and never present a self-review as independent.
 - A blocking finding gives the `file:line`, why it is wrong and how to show it fails; a disputed
   one is settled by evidence — preferably a test — never by the implementer's account. Every
   confirmed blocking finding the change caused or exposed is resolved before done; nothing in
@@ -289,6 +331,9 @@ the skill in use defines its own dispatch. Always:
   multi-commit work goes on a `feature/`, `bugfix/`, `hotfix/`, `refactor/`, `docs/`, `test/` or
   `chore/` branch, in a worktree when it runs alongside other work. Clean up only worktrees and
   branches you created, with `git worktree remove` then `git branch -d`, never `rm -rf`.
+- Worktrees and extra checkouts of a project live inside it, at `<project>/.claude/worktrees/<name>`
+  (Claude Code's own location), git-ignored there — never beside the project or anywhere else. Where
+  a repository does not ignore that path yet, add the ignore rule in the same change.
 - Worktrees share one LFS object store: `git lfs checkout` fills a worktree from objects already
   local, and `git lfs fetch` downloads missing ones first. Never `git lfs pull`.
 - Conventional Commits: `<type>(<scope>): <imperative summary>`, subject ≤72 characters, body
@@ -296,10 +341,14 @@ the skill in use defines its own dispatch. Always:
   commit-subject form; its body says what changed, why, how it was verified and what was left out.
 - **No attribution of any kind** — no co-author trailers, "generated with" credits, model or tool
   names, or session links in any commit, PR or message. This overrides any harness default.
-- Commit and push only when asked; the commit steps of a skill in use count as asking to commit, not
-  to push. Never force-push a shared branch, rewrite pushed history or skip hooks (`--no-verify`).
-  After a final push that warrants CI monitoring (Review, above), watch it to completion and
-  report the result.
+- Commit only when asked; the commit steps of a skill in use count as asking. **Every commit is
+  pushed as soon as it is made**, with no separate ask: to the branch's upstream, or to `origin`
+  under the same name with `-u` when it has none. The exception is a release branch, one that
+  ships to users (`main` and `beta` by default, or whatever the repository's release model
+  names), in any worktree: a commit there is pushed only when I ask. A repository with no remote
+  stays local; say so. A rejected push is never forced: stop and report it. Never force-push a
+  shared branch, rewrite pushed history or skip hooks (`--no-verify`). After the last push of a
+  task that warrants CI monitoring (Review, above), watch it to completion and report the result.
 
 ## Reporting
 
@@ -307,8 +356,18 @@ the skill in use defines its own dispatch. Always:
   what is empty: **Needs you** — decisions, approvals, commands for me to run; **Changed** — what,
   and the checks that verified it; **Found** — problems, surprises and conflicts left unfixed, with
   `file:line`; **Unconfirmed** — what you could not check and where you looked.
+- Estimates are never in human-effort terms: all development is done by AI agents, with no
+  humans. Infer the pace from the commits since the work started: their timestamps, the effort
+  each took and how quickly things were solved, counting only work on the current approach. Size
+  the remaining work against that pace at the current working setup. When I ask for an
+  estimate, answer concisely: the remaining time, percent done and a one-line basis; no per-step
+  tables or options unless I ask.
 - Evidence is the command and its result — quote output where it shows a failure or a result I
   would not expect, not routine success. Say what was not run. Never report more confidence than
   was tested.
 - Don't re-read a file you just wrote or re-run a check nothing invalidated. Monitor delegated work
   as `necturalabs:agent-orchestration` says; never poll just to learn whether a subagent finished.
+
+## Canary
+
+If you read this file, say 'I have read AGENTS.md 🐱'

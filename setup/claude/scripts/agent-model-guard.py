@@ -150,12 +150,12 @@ def main():
         json.dump({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": "Fable is never used: pick a sonnet-* or opus-* type.",
+            "permissionDecisionReason": "Fable is never used: pick a haiku-*, sonnet-* or opus-* type.",
         }}, sys.stdout)
         return
     if not model:
         return
-    ti["name"] = unique(data, f"{model}-{effort}" if effort and model != "haiku" else model)
+    ti["name"] = unique(data, f"{model}-{effort}" if effort else model)
     json.dump({"hookSpecificOutput": {"hookEventName": "PreToolUse", "updatedInput": ti}}, sys.stdout)
 
 
