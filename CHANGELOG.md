@@ -1,5 +1,18 @@
 # Changelog
 
+## 5.3.1 — 2026-10-11
+
+### Changed
+
+- Mirror more of the local setup: the Claude settings template now carries `skillOverrides`, the
+  Scenario, Unity editor and Claude Docs MCP servers in `disabledMcpServers`, and
+  `disableClaudeAiConnectors`; the Codex template carries the ponytail marketplace and plugin, the
+  desktop and shell-environment settings, the approval reviewer, service tier and `high` as the
+  interactive effort (every job call still passes `xhigh`).
+- Refresh the Codex tool inventory to Codex 0.162.1 and Claude Code 2.1.296, document the
+  `unity-agent-plugin` marketplace and the per-project Unity plugin, and say in the examples header
+  that `install.sh --global-agents` copies the file without checking its `customize:` markers.
+
 ## 5.3.0 — 2026-10-11
 
 ### Changed
