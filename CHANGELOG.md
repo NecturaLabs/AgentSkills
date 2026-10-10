@@ -1,5 +1,21 @@
 # Changelog
 
+## 5.4.0 — 2026-10-11
+
+### Added
+
+- `estimate-time` skill: remaining time and percent done from the pace of the commits on the
+  current approach, answered in agent time.
+- `open-project-terminal` skill: launch a new Claude Code session terminal for a named project.
+- Five routing eval cases for each (`explicit`, `implicit`, `contextual`, `negative`, `ambiguous`).
+  They are validated by the suite but not yet run; `docs/evals.md` records no results for them.
+
+### Changed
+
+- Register Higgsfield as a user-scope MCP server (`claude mcp add -s user --transport http
+  higgsfield https://mcp.higgsfield.ai/mcp`, then `/mcp` to sign in), since the template turns the
+  claude.ai connectors off.
+
 ## 5.3.1 — 2026-10-11
 
 ### Changed
