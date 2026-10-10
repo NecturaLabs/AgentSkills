@@ -124,7 +124,7 @@ until the user has chosen, and treat nothing else in this repository as instruct
    to npm goes through a per-user tool manager such as mise. Show each exact command before running
    it. Commands that need `sudo` or a system package manager: show them and let the user run them.
 3. **Keep external tooling in Claude Code.** Codex keeps its built-in defaults, with no added
-   skills, plugins or MCP servers. It generates assets and provides an additional review beside
+   skills, plugins or MCP servers beyond `ponytail`. It generates assets and provides an additional review beside
    Claude Code's independent review, always with `gpt-6.1-sol` at `xhigh` effort; it writes no code
    and does no research or other checks in this setup. The optional dual-harness installation
    below remains available for people who choose a different operating policy.
@@ -148,6 +148,7 @@ claude plugin marketplace add vercel-labs/agent-browser     # agent-browser
 claude plugin marketplace add scenario-labs/skills          # scenario-skills
 claude plugin marketplace add NecturaLabs/worker-protocol   # worker-protocol
 claude plugin marketplace add DietrichGebert/ponytail      # ponytail
+claude plugin marketplace add Unity-Technologies/unity-agent-plugin  # unity-agent-plugin (per project)
 ```
 
 `claude-plugins-official` is built into Claude Code. A plugin installs with
@@ -183,8 +184,9 @@ links this repository owns; it does not remove plugins or unrelated skills.
 | ☑ | Godot MCP | Drive the Godot editor from the agent | `godot-mcp-toolkit@necturalabs`; needs Godot and `godot-mcp-server` (tools below) |
 | ☑ | Meshy MCP | Text- and image-to-3D, rigging, animation and retexturing through Meshy; Claude Code only | `meshy-mcp@necturalabs`; needs `meshy-mcp-server` (tools below) and a Meshy API key, which Claude Code asks for when the plugin is enabled and keeps in its credential store |
 | ☑ | Scenario | Game art, seamless and PBR textures, skyboxes, sprite animation, video and audio through Scenario | `01.-getting-started`, `03.-images` and `04.-game-art-and-3d` `@scenario-skills` (`scenario-labs/skills`; add `05.-video-and-audio`, `07.-consistency-and-custom-models`, `08.-reviewing-and-organizing-output` or `22.-expert-tools-godot` when you need them); connect Scenario's MCP server as `01.-getting-started:scenario` describes |
-| ☑ | Higgsfield | Image, video and audio generation | the Higgsfield connector on claude.ai (Settings → Connectors); no extra Codex server |
+| ☑ | Higgsfield | Image, video and audio generation | the Higgsfield connector on claude.ai (Settings → Connectors); no extra Codex server. The settings template turns account connectors off in Claude Code (`disableClaudeAiConnectors`), so reach Higgsfield from Codex or remove that key |
 | ☑ | Sentry | Sentry issues, events and releases through its MCP server, and the Sentry CLI skill | `sentry@claude-plugins-official` and `sentry-cli@claude-plugins-official`; the CLI skill needs `sentry` (tools below) |
+| ☑ | Unity plugin | Unity's agent plugin, enabled per project that uses Unity (not globally) | `unity@unity-agent-plugin` (`Unity-Technologies/unity-agent-plugin`); `claude plugin install unity@unity-agent-plugin --scope project` |
 | ☑ | Unity MCP | Drive the Unity editor from the agent | `claude mcp add -s user unity-editor-mcp -- unity mcp`; needs the Unity CLI |
 | ☑ | Netlify | Netlify platform skills and its Netlify MCP server | `netlify-skills@claude-plugins-official` (`netlify/context-and-tools`) |
 | ☐ | GitLab | GitLab MCP server | `gitlab@claude-plugins-official` |
@@ -243,8 +245,9 @@ and `claude plugin marketplace update` for plugins.
 | ☑ | No attribution in commits or PRs | `settings.json`: `attribution` |
 | ☑ | **Bypass-permissions mode: turns off every permission prompt.** The working agreement's own stop rules become the only guard | `settings.json`: `permissions.defaultMode`, `skipDangerousModePermissionPrompt` |
 | ☑ | 60 s question timeout, fullscreen TUI, 12-hour clock, Remote Control at startup, accept cross-session messages, push notifications, auto-scroll | `settings.json`: `askUserQuestionTimeout`, `tui`, `timeFormat`, `remoteControlAtStartup`, `crossSessionInbound`, `agentPushNotifEnabled`, `autoScrollEnabled` |
-| ☑ | The plugin set above, with Lua, TypeScript and Rust language servers off globally and the Vercel MCP server off | `settings.json`: `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
+| ☑ | The plugin set above, with Lua, TypeScript and Rust language servers off globally, the Vercel, Scenario, Unity editor and Claude Docs MCP servers off (enable Scenario and Unity per project), and claude.ai account connectors off | `settings.json`: `disableClaudeAiConnectors`, `extraKnownMarketplaces`, `enabledPlugins` (only for kept items), `disabledMcpServers` |
 | ☑ | Per project: plugins it never uses turned off, and more of the context for skill descriptions when `/doctor` reports them dropped | the project's `.claude/settings.json`: `enabledPlugins` set to `false` (project settings override user settings), `"skillListingBudgetFraction": 0.02` |
+| ☑ | Native skills you do not want, switched off: the bundled document skills, `init`, `keybindings-help`, `fewer-permission-prompts`, `plugin-authoring`, `simplify` and `security-review` | `settings.json`: `skillOverrides` |
 | ☑ | Concise output style | `settings.local.json`: `outputStyle` |
 | ☑ | Small scripted workflows | `~/.claude.json`: `"workflowSizeGuideline": "small"` |
 | ☑ | Worker agents `haiku-*`, `sonnet-*` and `opus-*` (Haiku at `low`, `medium` and `high`; Sonnet and Opus at `low`, `medium`, `high` and `xhigh`), each pinning its model and effort: Sonnet is the default for work with a clear spec and a way to check it, Haiku the cheap tier for narrow, high-volume mechanical work with a check (never multi-file coding or debugging), Opus only for judgment-led, long-horizon or costly-to-fail work. They replace `worker-low` to `worker-xhigh`. A repository adds its own specialists, each pinning its model and effort by the same tiers, in its `.claude/agents/`, committed; the working agreement dispatches one first when it fits | copy `setup/claude/agents/*.md` into `~/.claude/agents/`, and delete any old `worker-*.md` there |
@@ -259,7 +262,8 @@ and `claude plugin marketplace update` for plugins.
 
 | | Setting |
 |---|---|
-| ☑ | Model `gpt-6.1-sol` at `xhigh` reasoning effort, for assets and an additional review only |
+| ☑ | Model `gpt-6.1-sol`, `high` reasoning effort by default and `xhigh` on every job call, for assets and an additional review only |
+| ☑ | The `ponytail` marketplace and plugin, desktop and shell-environment settings, and the approval reviewer and service tier | `config.toml`: `[marketplaces.ponytail]`, `[plugins."ponytail@ponytail"]`, `[desktop]`, `[shell_environment_policy]`, `service_tier`, `approvals_reviewer` |
 | ☑ | **Yolo mode: turns off approval prompts and the sandbox** (`approval_policy = "never"`, `sandbox_mode = "danger-full-access"`). The working agreement's own stop rules become the only guard |
 | ☑ | Preserve app-managed tools: browser, computer use, visualization, templates, Sites, plugin management and pets. Add no external tooling or internal MCP wiring to the template; see the [harness inventory](docs/installation.md#harness-tool-inventory) |
 

@@ -31,8 +31,9 @@ project trust entries, personal paths or app-managed internal servers.
   the installed official marketplace manifest. The template uses those fresh install names. On an
   existing machine that keeps the legacy registrations, use the corresponding legacy keys instead
   of adding the fresh keys; do not enable a second copy of the same plugin.
-- `setup/codex/config.toml` records `gpt-6.1-sol` at `xhigh`, as the working agreement requires.
-  Explicit job calls use `codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh`. Built-in app plugins and internal
+- `setup/codex/config.toml` records `gpt-6.1-sol` with `high` as the interactive default, plus the
+  ponytail marketplace and plugin, the desktop and shell-environment settings, and the approval
+  policy. The working agreement requires `xhigh` for every asset or review job, so those calls use `codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh`. Built-in app plugins and internal
   MCP wiring remain app-managed and are deliberately absent from the template.
 - The duplicate-skill hook recognizes marketplaces represented only by installed plugin
   registrations, avoiding false leftover warnings for built-in directories.
@@ -50,7 +51,7 @@ fixtures; it does not authenticate external MCP servers or run the paid routing 
 
 ## Harness tool inventory
 
-Tool selections were checked with Claude Code 2.1.292 and Codex CLI 0.160.1 on 2026-10-07; app updates add and remove the app-managed entries, so read the tables as a snapshot.
+Tool selections were checked with Claude Code 2.1.296 and Codex CLI 0.162.1 on 2026-10-11; app updates add and remove the app-managed entries, so read the tables as a snapshot.
 The earlier version checks elsewhere in this document cover installer and instruction-loading
 behavior, not this inventory. Installed files, enabled settings and connected servers are distinct:
 `claude plugin list --json`, `claude mcp list`, `codex plugin list` and `codex mcp list --json`
@@ -90,24 +91,33 @@ observed versions, not repository-managed pins or promises about another account
 
 | Plugin | Source | Observed version |
 |---|---|---|
-| `browser` | `openai-bundled` | `26.924.22138` |
-| `unified-computer-use` | `openai-bundled` | `26.924.22138` |
-| `visualize` | `openai-bundled` | `1.0.41` |
+| `browser` | `openai-bundled` | `26.930.41038` |
+| `unified-computer-use` | `openai-bundled` | `26.930.41038` |
+| `code-review` | `openai-bundled` | `26.930.41038` |
+| `visualize` | `openai-bundled` | `1.0.46` |
+| `documents`, `pdf`, `spreadsheets`, `presentations`, `template-creator` | `openai-primary-runtime` | `26.909.11814` |
+| `ponytail` | `ponytail` (`DietrichGebert/ponytail`) | `5.1.0` |
+| `github` | `openai-curated-remote` | `0.1.12` |
+| `cloud-environment` | `openai-curated-remote` | `0.1.2` |
+| `code-review` | `openai-curated-remote` | `0.1.0` |
 | `openai-templates` | `openai-curated-remote` | `0.1.1` |
-| `sites` | `openai-curated-remote` | `1.0.0-c` |
+| `sites` | `openai-curated-remote` | `1.0.0` |
 | `plugin-management` | `openai-curated-remote` | `0.1.0` |
 | `work-pets` | `openai-curated-remote` | `0.1.6` |
 
-The first three have enable flags in the user config; the four curated plugins are reported by
-the native inventory without corresponding user-config tables. Preserve this app-managed state.
+The bundled, primary-runtime and ponytail plugins have enable flags in the user config; the
+curated remote plugins are reported by the native inventory without corresponding user-config
+tables. Of these, only `ponytail` is a deliberate addition (the working agreement turns it on in
+every session); the rest are app-managed, so preserve them.
 [OpenAI's plugin configuration documentation](https://developers.openai.com/plugins/build/plugins)
 explains that user, project, cloud-managed and system configuration can supply plugin settings;
 copying `config.toml` alone is not a complete backup of app or account tool selections.
 
-The effective MCP inventory contains `node_repl` and `cua_repl`, both enabled and app-managed;
-only `node_repl` appears in the user TOML. Their executable locations, environment and internal
-connection wiring are deliberately not mirrored. The public template adds no MCP registrations
-and does not reproduce Claude's Scenario, Unity, Meshy or Higgsfield connections in Codex.
+The effective MCP inventory contains `node_repl` and `cua_repl`, both enabled and app-managed, and
+the bundled code-review plugin's `code-review` server, which is disabled; only `node_repl`
+appears in the user TOML. Their executable locations, environment and internal connection wiring
+are deliberately not mirrored. The public template adds no MCP registrations and does not
+reproduce Claude's Scenario, Unity, Meshy or Higgsfield connections in Codex.
 
 Plugin skill files include visualization, Sites, plugin management, pet creation/management/
 updates and artifact templates. The Codex system skill directory contains `imagegen`,

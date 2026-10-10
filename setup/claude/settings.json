@@ -168,11 +168,31 @@
     "ponytail@ponytail": true
   },
   "disabledMcpServers": [
-    "plugin:vercel:vercel"
+    "plugin:vercel:vercel",
+    "scenario",
+    "unity-editor-mcp",
+    "claude.ai Claude Docs"
   ],
   "autoCompactWindow": 500000,
   "statusLine": {
     "type": "command",
     "command": "$HOME/.claude/hooks/context-meter.py"
+  },
+  "disableClaudeAiConnectors": true,
+  "skillOverrides": {
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:xlsx": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:import-memory": "off",
+    "init": "off",
+    "keybindings-help": "off",
+    "fewer-permission-prompts": "off",
+    "plugin-authoring": "off",
+    "simplify": "off",
+    "security-review": "off"
   }
 }

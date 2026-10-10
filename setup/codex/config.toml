@@ -1,17 +1,49 @@
 # Recommended Codex settings for the NecturaLabs setup. Merge these keys into
 # ~/.codex/config.toml; keep app-managed settings and capabilities.
-# App inventory: browser, unified-computer-use, visualize (openai-bundled);
-# openai-templates, sites, plugin-management, work-pets (openai-curated-remote).
-# node_repl/cua_repl are app-managed: do not copy their paths or environment.
-# See docs/installation.md#harness-tool-inventory for selection/restore boundaries.
-# Claude Code gets the external tooling; Codex is used only for assets and as an
-# additional reviewer beside Claude Code's independent review. Install no extra
-# skills, plugins or MCP servers into Codex for this setup.
+# App-managed plugins and servers (browser, computer use, visualization, code review, document
+# runtimes, curated remote plugins, node_repl/cua_repl) are not copied: do not reproduce their paths
+# or environment. See docs/installation.md#harness-tool-inventory for selection/restore boundaries.
+# Claude Code gets the external tooling; Codex is used only for assets and as an additional
+# reviewer beside Claude Code's independent review. Add no skills, plugins or MCP servers beyond
+# ponytail, which the working agreement turns on in every session.
 
 model = "gpt-6.1-sol"
-model_reasoning_effort = "xhigh"
+# Interactive default. Every asset or review job passes
+# `-c model_reasoning_effort=xhigh` explicitly, as the working agreement requires.
+model_reasoning_effort = "high"
+service_tier = "default"
+approvals_reviewer = "user"
 
 # Yolo mode: no approval prompts and no sandbox. The global AGENTS.md stop rules
 # become the only guard. Leave these two out to keep Codex's defaults.
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
+
+[marketplaces.ponytail]
+source_type = "git"
+source = "https://github.com/DietrichGebert/ponytail.git"
+ref = "v5.1.0"
+
+[plugins."ponytail@ponytail"]
+enabled = true
+
+[desktop]
+followUpQueueMode = "steer"
+external-agent-import-sync-item-types = "all"
+external-agent-import-sync-enabled = false
+conversationDetailMode = "STEPS_COMMANDS"
+ambient-suggestions-enabled = false
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CLAUDE_CODE_SUBAGENT_MODEL = "sonnet"
+# Add CLAUDE_CODE_TMPDIR and AGENTSKILLS_TOOLS_DIR with your own absolute paths, as for Claude Code.
+
+[notice]
+hide_rate_limit_model_nudge = true
+
+# Only on Omarchy:
+# [tui]
+# theme = "omarchy"

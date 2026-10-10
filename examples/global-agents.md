@@ -1,8 +1,8 @@
 <!--
 Owner's note, not an instruction to agents: this is the NecturaLabs setup's global working
-agreement, and `install.sh --global-agents` copies it verbatim into place, so every rule in it is
-written to hold as live policy. Resolve each `customize:` marker for your machine, then delete the
-markers and this note. Keep only capability rows for what you installed, spelled as your harness
+agreement, and `install.sh --global-agents` copies it verbatim into place, markers and this note
+included, without checking them. Resolve each `customize:` marker for your machine and delete the
+markers and this note before you run it; every other rule is written to hold as live policy. Keep only capability rows for what you installed, spelled as your harness
 lists them. State only commands you have actually run — an unverified command is obeyed and fails
 silently.
 -->
