@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.4.1 — 2026-10-11
+
+### Fixed
+
+- `open-project-terminal`: a session opened in a new directory no longer stops at the folder-trust
+  prompt. The skill creates the folder for a new project, pre-trusts it in `~/.claude.json` and
+  checks that the first message arrived.
+
 ## 5.4.0 — 2026-10-11
 
 ### Added
