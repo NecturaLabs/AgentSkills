@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs memory-hygiene estimate-time open-project-terminal fab)
+SKILLS=(agent-instructions agent-orchestration independent-review testing project-docs memory-hygiene estimate-time open-project-terminal backlog-maintenance fab)
 
 usage() {
   cat <<'USAGE'

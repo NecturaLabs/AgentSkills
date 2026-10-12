@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.5.0 — 2026-10-12
+
+### Added
+
+- `backlog-maintenance` skill: GitHub issues as the one backlog for every project — search first,
+  a fixed issue and label standard, progress recorded, closed only on verified criteria — and the
+  conversion of Markdown or text backlogs into filed issues, then retiring the file.
+- Five routing eval cases for it (`explicit`, `implicit`, `contextual`, `negative`, `ambiguous`),
+  validated by the suite but not yet run.
+
 ## 5.4.1 — 2026-10-11
 
 ### Fixed
