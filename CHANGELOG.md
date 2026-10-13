@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.6.0 — 2026-10-13
+
+### Changed
+
+- `backlog-maintenance`: issues are written to an exhaustive standard. The agent investigates the
+  code before filing and writes down what it found: the cause of a bug, the files and symbols
+  involved, inventories with a verdict per row, owner decisions with their dates (open ones with a
+  recommendation), the project's constraints, how to render or reproduce the view itself, and
+  checkable acceptance criteria. Every path, symbol, command and count is checked against the code.
+- New Review mode and `references/review-pass.md`: every filed batch gets an independent review
+  that checks the issues against the standard and the code and fixes what it finds, then reports
+  per issue. A reviewer the owner has handled is left alone.
+- Issue standards add the section order, the facts rules, how to split and supersede issues, and
+  that reversing documented intent is an enhancement.
+
 ## 5.5.0 — 2026-10-12
 
 ### Added

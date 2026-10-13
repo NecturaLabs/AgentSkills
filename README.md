@@ -53,7 +53,7 @@ belongs.
 | **`memory-hygiene`** | Keeping saved memories and session handoff notes true: verifying them against the repository, merging duplicates, retiring finished handoffs, fixing the memory index |
 | **`estimate-time`** | The user asks how long, how done, what percent or the ETA for work in a repository: the estimate comes from the pace of the commits on the current approach, in agent time, never human effort |
 | **`open-project-terminal`** | The user asks for a new Claude Code session terminal for a named project: kitty on a chosen Hyprland workspace, in the project's directory, named after it, with a first message |
-| **`backlog-maintenance`** | Filing, writing, grooming or closing GitHub issues as a project's one backlog, or converting a Markdown or text backlog into filed issues: search first, a fixed issue standard and label set, progress recorded, closed only on verified criteria. Not for splitting work across agents, design docs or memory cleanup. |
+| **`backlog-maintenance`** | Filing, writing, reviewing, grooming or closing GitHub issues as a project's one backlog, or converting a Markdown or text backlog into filed issues: investigate the code first, exhaustive issues (cause, inventories, decisions, how to see it, checkable criteria), an independent review of every filed batch, a fixed label set, progress recorded, closed only on verified criteria. Not for splitting work across agents, design docs or memory cleanup. |
 | **`fab`** | A project needs a game asset it does not have, or the user mentions Fab or their Fab library: find, compare, inspect, claim and download through the `necturalabs-fab` CLI ([docs](docs/fab/README.md)) |
 
 Each description states what the skill is *not* for as well, because that clause is what keeps
