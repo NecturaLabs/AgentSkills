@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.6.2 — 2026-10-13
+
+### Changed
+
+- `backlog-maintenance` defines what counts as verified: a table per kind of claim (path, symbol,
+  behaviour, count, quoted string, command, route to stage a state, issue reference, owner
+  decision), applied to the filer's draft before filing and to every claim in a review. Checks are
+  done, not left to the reader as "verify"; a defect found while checking goes into its issue with
+  a test criterion; conflicts between the owner's words and the code become open decisions.
+- The review pass is an ordered procedure with an output per step: snapshot, read the whole batch
+  and group it by subject, check the routes to see it once, verify claim by claim, derive missing
+  inventories, search the backlog with several phrasings and compare each group, edit from a fresh
+  fetch with a read-back, and sweep labels and line references at the end. Stopping pushes only
+  verified corrections.
+- Issue standards add the rule for a complete split and for issues on the same subject, and drop
+  the duplicate `owner-action` entry from the extra labels.
+
 ## 5.6.1 — 2026-10-13
 
 ### Changed

@@ -27,9 +27,11 @@ the request is unfinished work, not a backlog item.
    the current behaviour, the rules and records the change must respect. Facts stay separate from
    hypotheses, and an unverified claim is labelled unverified.
 4. **Evidence, not invention.** Never write a test result, reproduction or acceptance claim that
-   was not observed. A criterion not yet run is left unchecked and named as unrun. Every path,
-   symbol, command, option, count and quoted string in an issue was checked against the current
-   code; name symbols and files rather than line numbers, which drift.
+   was not observed. A criterion not yet run is left unchecked and named as unrun. Every claim in
+   an issue — path, symbol, behaviour, count, quoted string, command, issue reference — is
+   verified, corrected, removed or marked "Not verified" by the table in
+   `references/issue-standards.md`, whoever wrote it; the requester's wording and the filer's
+   text are claims, not evidence. Name symbols and files rather than line numbers, which drift.
 5. **Write everything down.** The depth bar in `references/issue-standards.md` applies to every
    issue: problem, causes, inventories, constraints, owner decisions, where to see it, acceptance
    criteria. Detail that took research to find belongs in the issue, not in the conversation.
@@ -49,10 +51,11 @@ the request is unfinished work, not a backlog item.
     saved memories.
 11. **The remote decides.** Work through the repository's own GitHub remote with the platform CLI.
     A repository with no GitHub remote keeps its backlog nowhere else: say so, and file nothing.
-12. **A filed batch is reviewed independently.** After filing or substantially rewriting issues,
-    a reviewer that did not write them checks every issue against the standard and the code and
-    fixes what it finds (`references/review-pass.md`). The writer never presents its own check as
-    the review.
+12. **Filed issues are reviewed independently.** After filing or substantially rewriting issues
+    (several in one task share one review), a reviewer that did not write them checks every claim
+    against the code and fixes the issues (`references/review-pass.md`). The writer never presents
+    its own check as the review. Progress notes, label corrections and closing need the read-back
+    only.
 
 ## Modes
 
@@ -60,9 +63,13 @@ Pick the one that fits; a request can span several.
 
 - **File** — new work or a newly found problem. Search, investigate, then write the issue to
   `references/issue-standards.md` (all of it, including the depth bar) and apply its labels.
-- **Review** — filed issues, before anyone builds from them: the independent pass in
-  `references/review-pass.md`. Mandatory after a batch is filed; also run it on an issue whose
-  facts look stale.
+  Before filing, check every claim in the draft against its "What counts as verified" table and
+  settle each one; a draft that still says "verify" or "about N" where a search would answer is
+  not ready.
+- **Review** — filed issues, before anyone builds from them: the procedure in
+  `references/review-pass.md`, applying `references/issue-standards.md` as the standard and its
+  table as the definition of verified. Mandatory after filing (invariant 12); also run it on an
+  issue whose facts look stale.
 - **Maintain** — after work on an issue: link the change, record progress, tests run and
   follow-ups, correct labels, and close or leave open per invariant 8. Grooming: re-check
   priority and size, merge duplicates (close with a link to the canonical issue), split issues
@@ -80,8 +87,9 @@ Pick the one that fits; a request can span several.
    `references/issue-standards.md`.
 2. Do the mode's work, investigating the code as invariant 3 says. Prefer the platform CLI for
    every read and write.
-3. Verify the result by reading the issue back: title, body, labels and links as filed.
-4. For a filed or rewritten batch, run the review pass (invariant 12) and apply its outcome.
+3. Verify the result by reading the issue back: title, body, labels and links as filed, compared
+   with the text you meant to file.
+4. For filed or rewritten issues, run the review pass (invariant 12) and apply its outcome.
 5. Report counts and links: issues filed, updated, split and closed, duplicates found, anything
    left unconverted, unverified or awaiting an owner decision, and why.
 

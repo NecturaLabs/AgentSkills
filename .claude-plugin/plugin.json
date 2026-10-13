@@ -1,7 +1,7 @@
 {
   "name": "necturalabs",
   "description": "NecturaLabs Agent Skills: instruction files, orchestration, independent review, testing, project docs, memory hygiene, backlog maintenance, time estimates and project terminals, plus fab for the Fab asset marketplace.",
-  "version": "5.6.1",
+  "version": "5.6.2",
   "author": {
     "name": "NecturaLabs",
     "url": "https://github.com/NecturaLabs"
