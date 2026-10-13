@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.6.1 — 2026-10-13
+
+### Changed
+
+- `backlog-maintenance` review pass: the reviewer keeps working notes (originals, edited bodies and a
+  per-issue checklist) outside the repository, and edits by exact-match replacement that fails when
+  the expected text is missing.
+
 ## 5.6.0 — 2026-10-13
 
 ### Changed
