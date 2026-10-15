@@ -160,6 +160,7 @@
     "typescript-native-lsp@necturalabs": false,
     "web-design-guidelines@necturalabs": true,
     "meshy-mcp@necturalabs": true,
+    "sysres@necturalabs": true,
     "cc-plugin-you-should-know@builtin": true,
     "04.-game-art-and-3d@scenario-skills": true,
     "worker-protocol@worker-protocol": true,
