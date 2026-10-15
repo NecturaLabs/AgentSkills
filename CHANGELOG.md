@@ -1,5 +1,22 @@
 # Changelog
 
+## 5.7.0 — 2026-10-15
+
+### Added
+
+- `sysres@necturalabs`, a Claude Code mod: one line in the band above the prompt with CPU, RAM, GPU
+  and VRAM use as `LABEL PERCENT detail`, and on the right the model, its effort and context used
+  against the auto-compact window. Percentages turn the warning colour from 70% and the error colour
+  from 90%; groups drop from the right when the terminal is narrow. `/sysres` prints a fuller
+  snapshot with load, swap, GPU temperature and each disk, without starting a turn.
+
+### Changed
+
+- `context-meter.py` is a hook only: the `statusLine` role and its setting are gone, replaced by the
+  `sysres` band. Its notices to the model are unchanged. Haiku 5.5 now counts against its 1M window
+  rather than 200k. Migration: delete `statusLine` from `~/.claude/settings.json`, copy the new
+  script over the old one, and install `sysres@necturalabs`.
+
 ## 5.6.2 — 2026-10-13
 
 ### Changed

@@ -47,7 +47,7 @@ exists to avoid.
 
 `cli/fab/` is a Rust crate with its own `AGENTS.md`; its docs are `docs/fab/`. `plugins/` holds only
 files of our own: connector manifests whose servers users install from upstream, a language-server
-config, and our own patches to an upstream that users build from source (each patch named in its
+config, our own Claude Code mods (`sysres`, tested with `claude plugin test` in its folder), and our own patches to an upstream that users build from source (each patch named in its
 `UPSTREAM.md`, with upstream's copyright notice). Third-party plugins are marketplace entries pinned
 to upstream commits in `.claude-plugin/marketplace.json`; never commit their code here. `setup/`
 holds the recommended settings, the pinned tool manifest (`tools.tsv`), worker agents and the hook

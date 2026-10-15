@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
-"""How full the context is against the auto-compact window, shown to the user and told to the model.
+"""How full the context is against the auto-compact window, told to the model.
 Newer models are not told their own token count, so without this a compaction arrives unannounced.
+The person sees the same figure in the band the sysres mod draws above the prompt.
 
-One script, two roles, told apart by the input:
-- Status line (input without `hook_event_name`): the model and the count, right-aligned in the
-  status line's row. Claude Code draws that row above the footer and has no setting to move it, so
-  the text is padded with spaces against COLUMNS (the terminal width Claude Code passes in),
-  leaving RIGHT_MARGIN for the row's own padding. Claude Code trims leading spaces from the output,
-  so the padding starts with a blank braille cell (U+2800), which draws as a space but is not one. Yellow from 70% of the window, red from 90%.
-- Hook: on UserPromptSubmit it always adds one line of context with the count; on PostToolUse it
-  adds that line only when the count first reaches 60%, 80%, 90% or 95% of the window, once per
-  step, and again after a compaction brings the count back down. Main session and each subagent
-  are counted separately.
+On UserPromptSubmit it always adds one line of context with the count; on PostToolUse it adds that
+line only when the count first reaches 60%, 80%, 90% or 95% of the window, once per step, and again
+after a compaction brings the count back down. Main session and each subagent are counted
+separately.
 
 Used tokens follow Claude Code's own `used_percentage` formula: input, cache-creation and
-cache-read tokens of the last API call. The status line reads them from its input; the hook reads
-the last assistant entry of the transcript (the subagent's own transcript for a subagent), which
-can lag by one call, and says nothing when a compaction is newer than that entry. Synthetic entries
-(an interruption or an API error), which carry zero usage, are skipped.
+cache-read tokens of the last API call, read from the last assistant entry of the transcript (the
+subagent's own transcript for a subagent), which can lag by one call. Nothing is said when a
+compaction is newer than that entry. Synthetic entries (an interruption or an API error), which
+carry zero usage, are skipped.
 
 The window is CLAUDE_CODE_AUTO_COMPACT_WINDOW (a plain token count) when set, else
 `autoCompactWindow` from the user settings (under CLAUDE_CONFIG_DIR or ~/.claude), capped at the
 model's context window, else the model's context window. A window set by the `--autocompact` flag
-or in project settings is not visible here. The hook takes the model's window from the entry's
-model: 200k for Haiku and the 4.5 models, else 1M, as every Claude 5 model has. It never fails in a
-way that could block a prompt or a tool call.
+or in project settings is not visible here. The model's window comes from the entry's model: 200k
+for the 4.5 and older models, else 1M, as every Claude 5 model, Haiku 5.5 included, has. It never fails in a way that
+could block a prompt or a tool call.
 """
 import json
 import os
@@ -35,20 +30,12 @@ import time
 from pathlib import Path
 
 THRESHOLDS = (0.60, 0.80, 0.90, 0.95)
-WARN = 0.70
-ALERT = 0.90
-YELLOW = "\033[33m"
-RED = "\033[31m"
-RESET = "\033[0m"
-RIGHT_MARGIN = 4
-BLANK = "\u2800"
 LARGE_WINDOW = 1_000_000
 SMALL_WINDOW = 200_000
-SMALL_WINDOW_MODELS = re.compile(r"haiku|-4-5|claude-3")
+SMALL_WINDOW_MODELS = re.compile(r"-4-5|claude-3")
 MARKER_MAX_AGE_S = 7 * 24 * 3600
 SCAN_CHUNK = 256 * 1024
 SCAN_MAX = 16 * 1024 * 1024
-ANSI = re.compile(r"\033\[[0-9;]*m")
 SIZE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*([kKmM]?)\s*$")
 SAFE_KEY = re.compile(r"[^A-Za-z0-9_-]")
 USAGE_KEYS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -96,39 +83,6 @@ def tokens(n):
 
 def used_tokens(usage):
     return sum(usage.get(k) or 0 for k in USAGE_KEYS)
-
-
-# Status line
-
-
-def status_text(data):
-    model = (data.get("model") or {}).get("display_name") or "Claude"
-    ctx = data.get("context_window") or {}
-    usage = ctx.get("current_usage")
-    window = compact_window(ctx.get("context_window_size") or 0)
-    if not usage or not window:
-        return f"{model} · ctx —"
-    used = used_tokens(usage)
-    share = used / window
-    text = f"ctx {tokens(used)} / {tokens(window)} ({round(share * 100)}%)"
-    colour = RED if share >= ALERT else YELLOW if share >= WARN else ""
-    return f"{model} · {colour}{text}{RESET if colour else ''}"
-
-
-def right_aligned(text, columns):
-    width = len(ANSI.sub("", text))
-    if not columns.isdigit():
-        return text
-    pad = max(0, int(columns) - RIGHT_MARGIN - width)
-    return (BLANK + " " * (pad - 1) if pad else "") + text
-
-
-def status_line(data):
-    try:
-        text = status_text(data)
-    except (AttributeError, TypeError):
-        text = status_text({})
-    return right_aligned(text, os.environ.get("COLUMNS", ""))
 
 
 # Hook
@@ -264,9 +218,6 @@ def main():
         data = {}
     if not isinstance(data, dict):
         data = {}
-    if "hook_event_name" not in data:
-        print(status_line(data))
-        return
     try:
         out = hook_output(data)
     except Exception as exc:  # a broken meter must never block a prompt or a tool call

@@ -174,10 +174,6 @@
     "claude.ai Claude Docs"
   ],
   "autoCompactWindow": 500000,
-  "statusLine": {
-    "type": "command",
-    "command": "$HOME/.claude/hooks/context-meter.py"
-  },
   "disableClaudeAiConnectors": true,
   "skillOverrides": {
     "anthropic-skills:docx": "off",

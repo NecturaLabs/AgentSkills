@@ -1,0 +1,11 @@
+{
+  "name": "sysres",
+  "description": "Live CPU, memory, GPU and disk use in the band above the prompt, and /sysres for a fuller snapshot. Linux only.",
+  "version": "0.1.0",
+  "author": {
+    "name": "NecturaLabs",
+    "url": "https://github.com/NecturaLabs"
+  },
+  "license": "MIT",
+  "hooks": "./mod/hooks.json"
+}

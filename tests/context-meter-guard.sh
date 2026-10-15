@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Asserts what setup/claude/scripts/context-meter.py promises.
-# As the status line: context used, counted as Claude Code counts it, against the auto-compact
-# window from the environment, else the user settings, else the model's window; the warning colours
-# at 70% and 90%; right alignment; a placeholder rather than a failure when there is nothing to
-# count yet.
-# As the hook: one line of context on every prompt; after a tool call, a line only when 60%, 80%,
-# 90% or 95% is first reached, again after a compaction lowers the count; nothing while the newest
-# transcript entry is a compaction; subagents counted from their own transcript; never a failure.
+# Asserts what setup/claude/scripts/context-meter.py promises: one line of context on every prompt;
+# after a tool call, a line only when 60%, 80%, 90% or 95% is first reached, again after a
+# compaction lowers the count; context counted as Claude Code counts it, against the auto-compact
+# window from the environment, else the user settings, else the model's window; nothing while the
+# newest transcript entry is a compaction; subagents counted from their own transcript; never a
+# failure, and nothing at all for input that is not a hook event.
 set -uo pipefail
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -26,71 +24,6 @@ check() {
 
 CONFIG="$SANDBOX/claude config"
 mkdir -p "$CONFIG"
-ESC=$(printf '\033')
-
-payload() { # input cache_creation cache_read output
-  printf '{"model":{"display_name":"Opus"},"context_window":{"context_window_size":1000000,'
-  printf '"current_usage":{"input_tokens":%s,"cache_creation_input_tokens":%s,' "$1" "$2"
-  printf '"cache_read_input_tokens":%s,"output_tokens":%s}}}' "$3" "$4"
-}
-run() { # env-window payload
-  env -u COLUMNS CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW="$1" python3 "$LINE" <<< "$2"
-}
-
-# 1. Window from the user settings; output tokens are not counted.
-printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
-check "settings-window" "Opus · ctx 100k / 500k (20%)" "$(run '' "$(payload 1000 9000 90000 70000)")"
-
-# 2. The settings value may carry a suffix; the environment beats the settings.
-printf '{"autoCompactWindow": "400k"}' > "$CONFIG/settings.json"
-check "settings-suffix" "Opus · ctx 100k / 400k (25%)" "$(run '' "$(payload 0 0 100000 0)")"
-check "env-beats-settings" "Opus · ctx 100k / 200k (50%)" "$(run 200000 "$(payload 0 0 100000 0)")"
-
-# 3. No setting falls back to the model's window, and a window above it is capped to it.
-rm "$CONFIG/settings.json"
-check "model-window" "Opus · ctx 100k / 1M (10%)" "$(run '' "$(payload 0 0 100000 0)")"
-check "window-capped" "Opus · ctx 100k / 1M (10%)" "$(run 2000000 "$(payload 0 0 100000 0)")"
-
-# 4. Yellow from 70% of the window, red from 90%, plain below.
-out=$(run 500000 "$(payload 0 0 349000 0)")
-check "plain-below-70" 0 "$(grep -c "$ESC" <<< "$out")"
-out=$(run 500000 "$(payload 0 0 350000 0)")
-check "yellow-at-70" 1 "$(grep -cF "${ESC}[33m" <<< "$out")"
-out=$(run 500000 "$(payload 0 0 450000 0)")
-check "red-at-90" 1 "$(grep -cF "${ESC}[31m" <<< "$out")"
-
-# 5. Before the first call, right after a compaction, or on bad input: a placeholder, exit 0.
-out=$(run '' '{"model":{"display_name":"Opus"},"context_window":{"context_window_size":1000000,"current_usage":null}}'); rc=$?
-check "no-usage-placeholder" "Opus · ctx —" "$out"
-check "no-usage-exit" 0 "$rc"
-out=$(run '' 'not json'); rc=$?
-check "bad-input-placeholder" "Claude · ctx —" "$out"
-check "bad-input-exit" 0 "$rc"
-out=$(run '' '{"model":"x","context_window":[]}'); rc=$?
-check "odd-shapes-placeholder" "Claude · ctx —" "$out"
-check "odd-shapes-exit" 0 "$rc"
-
-# 6. The environment variable takes only a plain count; anything else falls through.
-printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
-check "env-suffix-ignored" "Opus · ctx 100k / 500k (20%)" "$(run 400k "$(payload 0 0 100000 0)")"
-printf '[]' > "$CONFIG/settings.json"
-check "odd-settings-ignored" "Opus · ctx 100k / 1M (10%)" "$(run '' "$(payload 0 0 100000 0)")"
-
-# 7. Right-aligned against COLUMNS, colour codes not counted as width; too narrow is not padded.
-printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
-right() { # columns payload
-  COLUMNS="$1" CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW='' python3 "$LINE" <<< "$2"
-}
-out=$(right 80 "$(payload 0 0 100000 0)")
-check "right-aligned-width" 76 "${#out}"
-check "right-aligned-tail" "(20%)" "${out##* }"
-check "padding-survives-trim" "$(printf '\u2800')" "${out:0:1}" # Claude Code trims leading spaces
-out=$(right 80 "$(payload 0 0 450000 0)")
-plain=$(sed "s/${ESC}\[[0-9;]*m//g" <<< "$out")
-check "colour-not-counted" 76 "${#plain}"
-out=$(right 10 "$(payload 0 0 100000 0)")
-check "narrow-not-padded" "Opus · ctx 100k / 500k (20%)" "$out"
-
 # --- The hook -------------------------------------------------------------------------------------
 
 SID=0f3c9a1e-1111-2222-3333-444455556666
@@ -113,19 +46,46 @@ hook() { # event [agent-id]
   [ -n "${2:-}" ] && agent=",\"agent_id\":\"$2\",\"agent_type\":\"sonnet-high\""
   printf '{"hook_event_name":"%s","session_id":"%s","transcript_path":"%s","scratchpad_dir":"%s"%s}' \
     "$1" "$SID" "$MAIN" "$PAD" "$agent" |
-    env -u COLUMNS CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW='' python3 "$LINE"
+    env -u COLUMNS CLAUDE_CONFIG_DIR="$CONFIG" CLAUDE_CODE_AUTO_COMPACT_WINDOW="${ENV_WINDOW:-}" python3 "$LINE"
 }
 context() { # the additionalContext of a hook's output, or "" when it said nothing
   python3 -c 'import json,sys; s=sys.stdin.read(); print(json.loads(s)["hookSpecificOutput"]["additionalContext"] if s.strip() else "")'
 }
 event_of() { python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["hookSpecificOutput"]["hookEventName"])'; }
 
-# 8. Every prompt gets the count; output tokens are not counted.
+# 1. The window: the user settings, which may carry a suffix; the environment beats them but takes
+# only a plain count; no setting or an odd one falls back to the model's window, which caps both.
+line() { hook UserPromptSubmit | context; }
+said 100
+check "settings-window" "Context: 100k used of the 500k auto-compact window (20%)." "$(line)"
+printf '{"autoCompactWindow": "400k"}' > "$CONFIG/settings.json"
+check "settings-suffix" "Context: 100k used of the 400k auto-compact window (25%)." "$(line)"
+check "env-beats-settings" "Context: 100k used of the 200k auto-compact window (50%)." "$(ENV_WINDOW=200000 line)"
+check "env-suffix-ignored" "Context: 100k used of the 400k auto-compact window (25%)." "$(ENV_WINDOW=200k line)"
+check "env-capped" "Context: 100k used of the 1M auto-compact window (10%)." "$(ENV_WINDOW=2000000 line)"
+rm "$CONFIG/settings.json"
+check "model-window" "Context: 100k used of the 1M auto-compact window (10%)." "$(line)"
+printf '[]' > "$CONFIG/settings.json"
+check "odd-settings-ignored" "Context: 100k used of the 1M auto-compact window (10%)." "$(line)"
+printf '{"type":"assistant","message":{"model":"claude-haiku-4-5","usage":{"input_tokens":100000}}}\n' >> "$MAIN"
+check "older-model-window" "Context: 100k used of the 200k auto-compact window (50%)." "$(line)"
+printf '{"type":"assistant","message":{"model":"claude-haiku-5-5","usage":{"input_tokens":100000}}}\n' >> "$MAIN"
+check "haiku-5-window" "Context: 100k used of the 1M auto-compact window (10%)." "$(line)"
+printf '{"autoCompactWindow": 500000}' > "$CONFIG/settings.json"
+: > "$MAIN"; rm -rf "$PAD/.context-meter"
+
+# 2. Status-line input, as a stale statusLine setting would send: nothing, exit 0.
+out=$(printf '{"model":{"display_name":"Opus"},"context_window":{"context_window_size":1000000}}' |
+  env -u COLUMNS CLAUDE_CONFIG_DIR="$CONFIG" python3 "$LINE"); rc=$?
+check "status-input-silent" "" "$out"
+check "status-input-exit" 0 "$rc"
+
+# 3. Every prompt gets the count; output tokens are not counted.
 said 100
 check "prompt-line" "Context: 100k used of the 500k auto-compact window (20%)." "$(hook UserPromptSubmit | context)"
 check "prompt-event-name" "UserPromptSubmit" "$(hook UserPromptSubmit | event_of)"
 
-# 9. After a tool call: silent below 60%, once on reaching each step (60, 80, 90, 95%), silent
+# 4. After a tool call: silent below 60%, once on reaching each step (60, 80, 90, 95%), silent
 #    again after.
 check "tool-below-60-silent" "" "$(hook PostToolUse)"
 said 320
@@ -143,7 +103,7 @@ check "tool-95-once" "" "$(hook PostToolUse)"
 check "prompt-always" "Context: 480k used of the 500k auto-compact window (96%)." "$(hook UserPromptSubmit | context)"
 check "state-in-scratchpad" 4 "$(ls "$PAD/.context-meter" | wc -l | tr -d ' ')"
 
-# 10. A compaction newer than any usage: nothing. After it the steps fire again.
+# 5. A compaction newer than any usage: nothing. After it the steps fire again.
 compacted
 check "after-compaction-prompt-silent" "" "$(hook UserPromptSubmit)"
 check "after-compaction-tool-silent" "" "$(hook PostToolUse)"
@@ -152,7 +112,7 @@ check "compacted-low-silent" "" "$(hook PostToolUse)"
 said 310
 check "step-fires-again" "Context: 310k used of the 500k auto-compact window (62%)." "$(hook PostToolUse | context)"
 
-# 11. The main session ignores sidechain entries; a subagent is counted from its own transcript.
+# 6. The main session ignores sidechain entries; a subagent is counted from its own transcript.
 said 490 "$MAIN" true
 check "main-ignores-sidechain" "" "$(hook PostToolUse)"
 said 360 "$SUB"
@@ -160,7 +120,7 @@ check "subagent-own-count" "Context: 360k used of the 500k auto-compact window (
 check "subagent-once" "" "$(hook PostToolUse abc123)"
 check "subagent-missing-silent" "" "$(hook PostToolUse nosuchagent)"
 
-# 12. A partial last line is skipped, and usage far behind a large entry is still found.
+# 7. A partial last line is skipped, and usage far behind a large entry is still found.
 printf '{"type":"assistant","message":{"usage":{"cache_read' >> "$MAIN"
 check "partial-line-skipped" "Context: 310k used of the 500k auto-compact window (62%)." "$(hook UserPromptSubmit | context)"
 printf '\n{"type":"user","message":{"content":"%s"}}\n' "$(head -c 600000 /dev/zero | tr '\0' 'x')" >> "$MAIN"
@@ -209,7 +169,7 @@ check "fallback-old-cleared" 0 "$(ls "$TMPROOT/claude-context-meter" | grep -c '
 check "fallback-recent-kept" 1 "$(ls "$TMPROOT/claude-context-meter" | grep -c '^recent-session')"
 check "fallback-marker-written" 1 "$(ls "$TMPROOT/claude-context-meter" | grep -c '^fallback-main\.')"
 
-# 13. Other events, a missing transcript and bad input: silent, and never a failure.
+# 8. Other events, a missing transcript and bad input: silent, and never a failure.
 check "other-event-silent" "" "$(hook SessionStart)"
 out=$(printf '{"hook_event_name":"PostToolUse","session_id":"x","transcript_path":"%s/none.jsonl"}' "$SANDBOX" |
   python3 "$LINE" 2>&1); rc=$?
